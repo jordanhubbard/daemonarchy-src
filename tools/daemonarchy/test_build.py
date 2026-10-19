@@ -8,6 +8,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import tarfile
 import unittest
 from unittest.mock import patch
 
@@ -65,6 +66,11 @@ class BuildTests(unittest.TestCase):
             path.parent.mkdir(exist_ok=True)
             path.write_bytes(b"synthetic verifier fixture, not a native package")
             entries.append({"path": name, "size": path.stat().st_size, "sha256": build.digest(path)})
+        manifest = self.output / "sets/MANIFEST"
+        manifest.write_text("".join(f'{Path(e["path"]).name}\t{e["sha256"]}\t1\tfixture\t"synthetic"\toff\n'
+                                    for e in entries if e["path"].endswith(".txz")))
+        next(e for e in entries if e["path"] == "sets/MANIFEST").update(
+            size=manifest.stat().st_size, sha256=build.digest(manifest))
         phases = []
         for phase in build.PHASES:
             log = self.output / (phase + ".log")
@@ -257,6 +263,81 @@ class BuildTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "already configured"):
                 build.native_preflight(self.parent, 1, 1, "filemon")
             process.assert_not_called()
+
+    def test_optional_manifest_sets_cannot_escape_the_artifact_inventory(self):
+        _, state = self.built_fixture()
+        manifest = self.output / "sets/MANIFEST"
+        optional = self.output / "sets/kernel-dbg.txz"
+        optional.write_bytes(b"synthetic optional debug set")
+        manifest.write_text(manifest.read_text() + f'kernel-dbg.txz\t{build.digest(optional)}\t1\tkernel_dbg\t"debug"\ton\n')
+        with self.assertRaisesRegex(ValueError, "closure"):
+            build.verify_manifest_closure(self.output, state["artifacts"])
+        state["artifacts"].append({"path": "sets/kernel-dbg.txz", "size": optional.stat().st_size,
+                                   "sha256": build.digest(optional)})
+        build.verify_manifest_closure(self.output, state["artifacts"])
+        optional.write_bytes(b"changed debug set")
+        with self.assertRaisesRegex(ValueError, "changed"):
+            build.verify_manifest_closure(self.output, state["artifacts"])
+
+    def test_manifest_unsafe_duplicate_and_malformed_references_refuse(self):
+        self.built_fixture()
+        path = self.output / "sets/MANIFEST"
+        original = path.read_text()
+        for data in (original + original.splitlines()[0] + "\n",
+                     original.replace("base.txz", "../base.txz"),
+                     original.replace("\t1\t", "\tzero\t"), ""):
+            with self.subTest(data=data[:30]):
+                path.write_text(data)
+                with self.assertRaises(ValueError):
+                    build.manifest_references(path)
+
+    def test_manifest_redirected_parent_refuses_before_reading_references(self):
+        _, state = self.built_fixture()
+        actual = self.output / "sets"
+        moved = self.parent / "moved-sets"
+        actual.rename(moved)
+        actual.symlink_to(moved, target_is_directory=True)
+        with patch.object(build, "manifest_references") as read:
+            with self.assertRaisesRegex(ValueError, "redirected"):
+                build.verify_manifest_closure(self.output, state["artifacts"])
+            read.assert_not_called()
+
+    @unittest.skipUnless(build.platform.system() == "FreeBSD", "requires native FreeBSD release make")
+    def test_actual_release_tree_archives_preserve_symlinks_and_root_ownership(self):
+        repository = Path(__file__).resolve().parents[2]
+        (self.source / "share").symlink_to(repository / "share", target_is_directory=True)
+        (self.source / "real.c").write_text("retained source\n")
+        (self.source / "alias.c").symlink_to("real.c")
+        outside = self.parent / "external"
+        outside.mkdir()
+        (outside / "must-not-follow").write_text("fixture outside source\n")
+        (self.source / "external-link").symlink_to(outside, target_is_directory=True)
+        self.output.mkdir()
+        for include in (repository / "release").glob("Makefile.*"):
+            (self.output / include.name).symlink_to(include)
+        (self.parent / "sys/conf").mkdir(parents=True)
+        (self.parent / "sys/conf/newvers.sh").write_text(
+            "TYPE=FreeBSD\nREVISION=fixture\nBRANCH=CURRENT\n")
+        environment = dict(os.environ, MAKEOBJDIR=str(self.output), LC_ALL="C")
+        result = subprocess.run([
+            "/usr/bin/make", "-m", str(repository / "share/mk"), "-C", str(self.output),
+            "-f", str(repository / "release/Makefile"), "src.txz", "ports.txz", "TARGET=amd64",
+            "TARGET_ARCH=amd64", "OSRELEASE=fixture", "NOPKGBASE=yes", "NOPORTS=yes",
+            "NO_ROOT=yes", ".MAKE.MODE=normal", "MK_AUTO_OBJ=no", "XZ_THREADS=1",
+            "__MAKE_CONF=/dev/null", "SRC_ENV_CONF=/dev/null", "SRCCONF=/dev/null",
+            f"WORLDDIR={self.source}", f"PORTSDIR={self.source}",
+        ], env=environment, capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        for tree in ("src", "ports"):
+            with self.subTest(tree=tree):
+                with tarfile.open(self.output / f"{tree}.txz", "r:xz") as archive:
+                    members = {m.name.rstrip("/"): m for m in archive}
+                self.assertTrue(members[f"usr/{tree}/alias.c"].issym())
+                self.assertEqual(members[f"usr/{tree}/alias.c"].linkname, "real.c")
+                self.assertTrue(members[f"usr/{tree}/external-link"].issym())
+                self.assertNotIn(f"usr/{tree}/external-link/must-not-follow", members)
+                self.assertIn(f"usr/{tree}/real.c", members)
+                self.assertTrue(all(m.uid == 0 and m.gid == 0 for m in members.values()))
 
 
 if __name__ == "__main__":

@@ -89,6 +89,12 @@ worker/tool versions, phase exit statuses/log hashes and final artifact hashes.
 are unsigned local records, not authenticated supply-chain provenance or a
 framework receipt. Verification detects recorded-byte changes; it does not prove
 reproducible binaries, boot success or resistance to a malicious build worker.
+The inventory includes every set referenced by MANIFEST, including optional
+debug and test sets. Missing, duplicate, unsafe or checksum-mismatched references
+fail; required base/kernel/lib32/source sets must also be present.
+Source and ports archives follow only their command-line staging symlink,
+preserve internal tree symlinks, and normalize archive ownership to root:wheel.
+This avoids copying external symlink targets into the distributed trees.
 
 ## Diagnostic kernel
 

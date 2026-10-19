@@ -204,7 +204,7 @@ def artifacts(plan):
                                         text=True, timeout=120).strip()).resolve()
     if root not in sets.parents:
         raise ValueError("release object directory escaped build output")
-    files = packages + [sets / n for n in ("base.txz", "kernel.txz", "lib32.txz", "src.txz", "MANIFEST")]
+    files = packages + [sets / n for n in manifest_references(sets / "MANIFEST")] + [sets / "MANIFEST"]
     # Retain pkg repository catalogues as well as package bytes.
     files += [p for p in (root / "repo").rglob("*")
               if p.is_file() and not p.is_symlink() and p not in packages]
@@ -216,6 +216,51 @@ def artifacts(plan):
             raise ValueError("artifact escaped output directory")
         entries.append({"path": str(path.relative_to(root)), "size": path.stat().st_size, "sha256": digest(path)})
     return entries
+
+
+def manifest_references(path):
+    if path.is_symlink() or not path.is_file():
+        raise ValueError("missing or redirected installer MANIFEST")
+    with path.open("rb") as stream:
+        data = stream.read(1024**2 + 1)
+    if len(data) > 1024**2:
+        raise ValueError("installer MANIFEST exceeds metadata budget")
+    rows = data.decode("utf-8").splitlines()
+    if not rows or len(rows) > 1024:
+        raise ValueError("missing or over-budget installer manifest entries")
+    references = {}
+    for row in rows:
+        fields = row.split("\t")
+        if (len(fields) != 6 or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.+-]*\.txz", fields[0])
+                or not re.fullmatch(r"[0-9a-f]{64}", fields[1])
+                or not fields[2].isdigit() or int(fields[2]) < 1 or fields[5] not in ("on", "off")):
+            raise ValueError("invalid or unsafe installer manifest reference")
+        name = fields[0]
+        if name in references:
+            raise ValueError("duplicate installer manifest reference")
+        references[name] = fields[1]
+    for required in ("base.txz", "kernel.txz", "lib32.txz", "src.txz"):
+        if required not in references:
+            raise ValueError("missing required installer manifest reference: " + required)
+    return references
+
+
+def verify_manifest_closure(root, entries):
+    manifests = [e for e in entries if Path(e["path"]).name == "MANIFEST"]
+    if len(manifests) != 1:
+        raise ValueError("installer manifest inventory is ambiguous or missing")
+    relative = Path(manifests[0]["path"])
+    manifest_path = root / relative
+    if manifest_path.resolve() != manifest_path or root not in manifest_path.resolve().parents:
+        raise ValueError("installer manifest inventory is redirected")
+    inventory = {e["path"]: e for e in entries}
+    for name, expected in manifest_references(manifest_path).items():
+        key = str(relative.parent / name)
+        entry = inventory.get(key)
+        path = root / key
+        if (entry is None or entry["sha256"] != expected or not path.is_file()
+                or path.is_symlink() or root not in path.resolve().parents or digest(path) != expected):
+            raise ValueError("installer manifest closure is missing or changed: " + name)
 
 
 def trace_bytes(path):
@@ -336,6 +381,7 @@ def verify(root):
         raise ValueError("required successful phases missing")
     entries = state.get("artifacts", [])
     require_inventory(entries)
+    verify_manifest_closure(root, entries)
     if plan.get("trace_mode") == "filemon":
         verify_trace_metadata(root, state.get("trace_observations"), list(PHASES))
     for item in entries + [{"path": p["log"], "sha256": p["log_sha256"]} for p in state["phases"]]:
@@ -425,6 +471,7 @@ def run(plan, args):
         if args.through == "sets":
             state["artifacts"] = artifacts(plan)
             require_inventory(state["artifacts"])
+            verify_manifest_closure(root, state["artifacts"])
             clean_revision(plan["source_revision"])
             state["status"] = "built"
         write_json(state_path, state)
