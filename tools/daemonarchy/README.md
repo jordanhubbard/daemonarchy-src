@@ -155,14 +155,14 @@ dedicated FreeBSD build worker, inspect readiness for its actual unprivileged
 build account (replace `builder` below):
 
 ```sh
-python3 tools/daemonarchy/prepare-worker.py --build-user builder
+python3.12 tools/daemonarchy/prepare-worker.py --build-user builder
 ```
 
 When this feature is selected, enable it once through the privileged bootstrap:
 
 ```sh
-sudo -n python3 tools/daemonarchy/prepare-worker.py --build-user builder --enable-filemon
-python3 tools/daemonarchy/prepare-worker.py --build-user builder
+sudo -n python3.12 tools/daemonarchy/prepare-worker.py --build-user builder --enable-filemon
+python3.12 tools/daemonarchy/prepare-worker.py --build-user builder
 ```
 
 Default inspection makes no changes. Explicit enablement loads the installed
@@ -194,13 +194,14 @@ independent acceptance still require qualification.
 reviewed SHA-256 and a fresh absolute output directory with an existing parent:
 
 ```sh
-python3 tools/daemonarchy/capture-seed.py \
+python3.12 tools/daemonarchy/capture-seed.py \
   --inventory /absolute/reviewed-inventory.json \
   --inventory-sha256 <reviewed-64-character-sha256> \
   --output /absolute/isolated-output/compiler-seed
 ```
 
-The source root defaults to `/`; a separate `--source-root` supports captured
+Use the declared versioned `python3.12` executable; an unversioned `python3`
+command is not required on the operator machine. The source root defaults to `/`; a separate `--source-root` supports captured
 test trees. No compiler or captured executable runs. Input budgets are 8 MiB of
 inventory metadata, 10,000 entries, 128 MiB per file and 512 MiB of regular-file
 bytes. Reads bind exact modes, sizes and hashes, refuse source ancestor links,
@@ -235,7 +236,7 @@ Declare the complete selected inventory, including cases requiring root. The
 converter refuses missing, extra, duplicate or orphan program/case/result rows.
 
 ```sh
-python3 tools/daemonarchy/report-kyua.py \
+python3.12 tools/daemonarchy/report-kyua.py \
   --results /absolute/run/results.db \
   --inventory /absolute/reviewed-cases.json --action original-tests \
   --output /absolute/run/original-report.json \
@@ -270,7 +271,7 @@ compilation or complete original-suite acceptance.
 ## Controller checks
 
 ```sh
-PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+PYTHONDONTWRITEBYTECODE=1 python3.12 -m unittest discover \
   -s tools/daemonarchy -p 'test_*.py' -v
 ```
 
