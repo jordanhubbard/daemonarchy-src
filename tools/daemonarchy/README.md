@@ -141,6 +141,30 @@ accessible `/dev/filemon` and a make binary with filemon support. The controller
 does not load modules or change device permissions. Configure worker features
 through the declared worker bootstrap/alignment procedure before dispatch.
 
+The optional native worker feature bootstrap is `prepare-worker.py`. On an idle,
+dedicated FreeBSD build worker, inspect readiness for its actual unprivileged
+build account (replace `builder` below):
+
+```sh
+python3 tools/daemonarchy/prepare-worker.py --build-user builder
+```
+
+When this feature is selected, enable it once through the privileged bootstrap:
+
+```sh
+sudo -n python3 tools/daemonarchy/prepare-worker.py --build-user builder --enable-filemon
+python3 tools/daemonarchy/prepare-worker.py --build-user builder
+```
+
+Default inspection makes no changes. Explicit enablement loads the installed
+`filemon` module and sets `/dev/filemon` to that account and primary group, mode
+0600. Root accounts/groups, redirected devices and unexpected make providers
+refuse. No package installation, persistent boot configuration or module unload
+is performed. Reboot requires inspection and, if absent, the same explicit
+bootstrap again. Run normal worker alignment and the feature inspection before
+dispatch; success here does not imply tracing/build qualification. Never enable
+this feature on the protected signer or a physical acceptance machine.
+
 Retain command/input metadata as immutable content-addressed copies after each
 successful phase. Require real filemon data in compilation metadata and preserve
 every successful phase's snapshot across resumes. Metadata capture time is part
