@@ -1,0 +1,27 @@
+name: Daemonarchy source build controller
+
+on:
+  push:
+    paths:
+      - 'tools/daemonarchy/**'
+      - 'sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC'
+      - '.github/workflows/daemonarchy-source.yml'
+  pull_request:
+    paths:
+      - 'tools/daemonarchy/**'
+      - 'sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC'
+      - '.github/workflows/daemonarchy-source.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  controller:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Controller refusal and custody tests (not native acceptance)
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 -m unittest discover -s tools/daemonarchy -p 'test_*.py' -v
