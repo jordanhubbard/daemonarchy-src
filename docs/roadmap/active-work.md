@@ -20,6 +20,8 @@
     through the qualified Standard retained lifecycle.
   - [ ] Compile the original parser and utility and run all four parser cases and
     all twenty utility cases, including privileged deallocation in a disposable VM.
+    Preserve the explicit unprivileged-user requirements of `bad_truncate` and
+    `cannot_open` and bind any guest privilege switching in reviewed configuration.
   - [ ] Independently accept sealed file effects and parser/library behavior.
   - [ ] Inspect per-unit pkg products, both BOMs, provenance and dependencies.
   - [ ] Measure unchanged builds and separate source/header/options/toolchain

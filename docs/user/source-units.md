@@ -39,6 +39,11 @@ The parser cases are `expand_number__ok`, `expand_number__bad`,
 inventory; its `deallocate` case requires root. An unprivileged skip does not
 establish complete coverage. Use the closed native Kyua database reporter
 described in `tools/daemonarchy/README.md` without inventing pass reports.
+`bad_truncate` and `cannot_open` require an unprivileged user. The original
+Kyua requirements checker rejects these when invoked as root without configured
+`unprivileged_user`; bind that selection explicitly in the reviewed guest
+configuration. Preserve each case's required-user semantics rather than running
+all cases as root or counting a context-related skip as complete coverage.
 
 Independent acceptance must inspect actual file sizes/content preservation and
 malformed-input refusal separately from original tests. Changed source, shared

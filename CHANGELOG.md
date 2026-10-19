@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Preserve both root-only deallocation and unprivileged permission-error case
+  requirements in the original utility acceptance contract and test plan.
+
 - Add initial canonical original-source contracts for the libutil public header,
   number-parser slice and truncate utility, with explicit dependencies, public
   interfaces and original-test/independent-acceptance requirements. Preserve all
