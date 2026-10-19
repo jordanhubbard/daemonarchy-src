@@ -219,6 +219,54 @@ still enter the framework's normal custody/admission path, with the reviewed
 resource directory, sysroot, linker and runtime bindings. Relocated execution
 and linker-script resolution remain required before using it as a qualified SDK.
 
+## Preserve original Kyua test outcomes
+
+`report-kyua.py` converts an explicitly selected, closed Kyua schema-v3 SQLite
+results file into the original-case JSON consumed by retained-project test
+policy. Use the original results database: Kyua's JUnit export represents
+expected failures without failure nodes and puts skipped-result reasons into
+diagnostic text. That lossy export cannot establish original pass/skip state.
+
+The reviewed inventory has schema `daemonarchy/kyua-case-inventory@1` and a
+`cases` array. Every entry binds the exact test-program relative path, original
+case name and a sorted unique retained case ID; for example,
+`{"program":"expand_number_test","case":"expand_generic","id":"libutil.expand_generic"}`.
+Declare the complete selected inventory, including cases requiring root. The
+converter refuses missing, extra, duplicate or orphan program/case/result rows.
+
+```sh
+python3 tools/daemonarchy/report-kyua.py \
+  --results /absolute/run/results.db \
+  --inventory /absolute/reviewed-cases.json --action original-tests \
+  --output /absolute/run/original-report.json \
+  --provenance /absolute/run/original-report-origin.json
+```
+
+Both outputs must be new files. Conversion reads a bounded immutable private
+copy, verifies the known schema and relationships, and leaves the original DB
+untouched. Views, triggers, virtual/unknown tables, unsupported schema versions,
+SQLite companions/WAL mode, unsafe paths and exceeded limits refuse. Limits are
+64 MiB of DB bytes, 8 MiB of inventory, 100,000 cases, 16 MiB of retained report,
+and a ten-second/ten-million-step SQL budget.
+
+Only original `passed` results become passes. Failed, broken and expected-failure
+results remain non-passing; original state/reason and database, inventory and
+report hashes are retained in the provenance companion. Skips preserve their
+exact reason and grant no skip permission. In particular, an unprivileged run's
+`Requires root privileges` result cannot satisfy complete privileged acceptance.
+Run that original case in the disposable privileged acceptance environment.
+
+Exit zero means conversion succeeded, including conversion of non-passing
+results. Literate AI's test policy must still reject failed cases, unauthorized
+skips and incomplete coverage. Bind the reporter/runtime, original executable,
+reviewed inventory, result DB and both reports through the normal locked
+execution/output closure. These outputs do not independently grant a lifecycle
+receipt, attest that a binary came from source, or qualify the public retained
+execution handler. Native integration checks run an actual Kyua plain fixture
+and, on an unprivileged FreeBSD worker, actual ATF expected-failure/root-skip
+fixtures; those are report-translation evidence rather than original-unit
+compilation or complete original-suite acceptance.
+
 ## Controller checks
 
 ```sh
