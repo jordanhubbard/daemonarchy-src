@@ -11,8 +11,11 @@
 - **Conclusion:** Begin with the actual truncate/parser/shared-header closure,
   then grow the same canonical path to complete source and ports coverage.
 - **Implementation and evidence:**
+  - [x] Keep framework documentation/queue commands on their conventional `docs/`
+    paths and land owned changes through an integration branch distinct from
+    upstream-tracking `main`. Move only newly authored metadata documents.
   - [x] Validate three authored unit contracts and resolve exact dependency locks.
-  - [ ] Review and apply original-source authority without moving original files.
+  - [x] Review and apply original-source authority without moving original files.
   - [ ] Bind selected inputs, native configuration, compiler and test resources
     through the qualified Standard retained lifecycle.
   - [ ] Compile the original parser and utility and run all four parser cases and
@@ -29,7 +32,18 @@ native Flavors and do not qualify a compiler, executable build or pkg provider.
 The typed current-lock reader and explicit target checks pass. The older
 repository verifier incorrectly re-plans every lock as `host`; framework #79
 tracks this defect. Preserve the declared target rather than rewriting these
-locks to obtain a passing gate.
-**Next action in progress:** review in-place original authority after committing
-the authored project; native lifecycle admission remains unfinished.
+locks to obtain a passing gate. The development repair now accepts all three
+current locks; installed framework renewal is still required.
+
+The reviewed in-place adoption binds authored source commit
+`4b9bb347c132f537fb612e266c880f1b9b3e5439` and plan identity
+`sha256:c1960a595185a5ad26d82d2bb93bb442fa870080112fc8e79f7700556d7f62ac`.
+It created only the two authority/evidence JSON files under `.literate`,
+preserved all tracked source bytes and retained original release authority.
+Its record explicitly grants no execution admission.
+The owned `daemonarchy` integration branch starts at the selected upstream tip;
+the source-development review targets it while `main` remains upstream-tracking.
+**Next action in progress:** configure the actual Standard/native profile,
+complete selected input ownership and SDK/test custody, then earn execution
+admission; no original unit has yet been compiled through this lifecycle.
 No unit is admitted, built, accepted or package-qualified by this checklist.

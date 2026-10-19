@@ -18,7 +18,7 @@
     "tools/daemonarchy/routing"
   ],
   "documentation_roots": [
-    "tools/daemonarchy/docs"
+    "docs"
   ],
   "source_intelligence": {
     "schema": "urn:literate-ai:schema:v1:project-source-intelligence-policy",
@@ -37,7 +37,7 @@
     "artifact_publication": "metadata-only"
   },
   "repository_policy": {
-    "default_branch": "main",
+    "default_branch": "daemonarchy",
     "schema": "literate-ai/repository-policy@1"
   }
 }

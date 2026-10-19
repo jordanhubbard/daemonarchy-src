@@ -1,11 +1,11 @@
 # Source authority and acceptance map
 
-<!-- literate-ai:authority-reviewed sha256:600429722e43c29af4a9475c00399087e87b667d402f30f793787fd860262031 -->
+<!-- literate-ai:authority-reviewed sha256:d976496a56a5c08beb1847c41663d2cc5a36e4064612a1ada73941869d67428e -->
 
 `PROJECT.md` owns the full original-source development requirements. The
-[source-unit guide](source-units.md) maps the first concrete parser/header/utility
+[source-unit guide](../user/source-units.md) maps the first concrete parser/header/utility
 closure. Each unit's public interface and acceptance contract are versioned with
-its Component. The [active queue](active-work.md) retains unfinished qualification.
+its Component. The [active queue](../roadmap/active-work.md) retains unfinished qualification.
 
 | Requirement | Authored authority | Evidence still required |
 | --- | --- | --- |

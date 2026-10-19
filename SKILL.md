@@ -6,14 +6,17 @@ metadata:
 ---
 # Daemonarchy source development
 
-Read `PROJECT.md`, the [source-unit guide](tools/daemonarchy/docs/source-units.md)
-and the [active work](tools/daemonarchy/docs/active-work.md) before changing unit
+Read `PROJECT.md`, the [documentation index](docs/README.md),
+the [source-unit guide](docs/user/source-units.md)
+and the [active work](docs/roadmap/active-work.md) before changing unit
 boundaries. Native controller procedures remain in
 `tools/daemonarchy/README.md`.
 
 The original FreeBSD implementation remains authoritative. Keep `/usr/src`
 editable and preserve source locations, native Makefiles, tests and licensing.
-Use review branches on the owned fork; keep upstream `main` synchronized separately.
+Use review branches targeting the owned `daemonarchy` integration branch;
+keep upstream `main` synchronized separately. Use an explicit owned repository
+for forge commands, as described in the documentation index.
 Do not quarantine, delete or regenerate original source during adoption.
 
 Use `litai project validate`, `litai lock` and read-only retained-project planning

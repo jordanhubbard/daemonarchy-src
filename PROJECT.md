@@ -4,6 +4,7 @@ This owned FreeBSD source fork supplies the editable `/usr/src` tree for
 Daemonarchy. Literate AI must manage exact original inputs, native dependency
 composition, incremental build/test actions and per-unit pkg provenance while
 preserving upstream implementation authority and conventional source locations.
+The owned integration target is `daemonarchy`; `main` remains upstream-tracking.
 
 The development contract version is 1.2.0; it is not a release publication or
 the upstream FreeBSD version. The separate Daemonarchy product repository owns
@@ -30,7 +31,7 @@ owned ports fork at `/usr/ports`.
   normal fork/upstream contribution path. Keep unselected and unqualified units
   visible. Never infer success from catalogue membership or aggregate packages.
 
-See [the unit boundaries](tools/daemonarchy/docs/source-units.md) and
-[the active queue](tools/daemonarchy/docs/active-work.md). No native lifecycle
+See [the unit boundaries](docs/user/source-units.md) and
+[the active queue](docs/roadmap/active-work.md). No native lifecycle
 driver, execution admission, package qualification or release receipt is claimed
 by this initial project metadata.

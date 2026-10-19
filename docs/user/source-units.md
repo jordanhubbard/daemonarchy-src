@@ -4,7 +4,7 @@ These three authored contracts select a small real dependency closure. They do
 not catalogue the whole source tree or constitute execution admission. Keep
 discovered, registered, locked, admitted, built, tested, accepted and packaged
 counts separate. Unselected inputs remain in their original source locations.
-The [authority and acceptance map](design-traceability.md) connects these
+The [authority and acceptance map](../architecture/design-traceability.md) connects these
 boundaries to the complete source-development requirements and missing evidence.
 
 | Unit | Original inputs | Relationships |
