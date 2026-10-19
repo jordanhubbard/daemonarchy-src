@@ -187,6 +187,38 @@ They do not constitute a complete Component graph, receipt, package provenance
 or performance improvement. Compiler bootstrap, shared inputs, variants and
 independent acceptance still require qualification.
 
+## Capture the bootstrap compiler seed
+
+`capture-seed.py` copies the exact installed files selected by a reviewed
+`daemonarchy/bootstrap-toolchain-inventory@1` inventory. Supply its independently
+reviewed SHA-256 and a fresh absolute output directory with an existing parent:
+
+```sh
+python3 tools/daemonarchy/capture-seed.py \
+  --inventory /absolute/reviewed-inventory.json \
+  --inventory-sha256 <reviewed-64-character-sha256> \
+  --output /absolute/isolated-output/compiler-seed
+```
+
+The source root defaults to `/`; a separate `--source-root` supports captured
+test trees. No compiler or captured executable runs. Input budgets are 8 MiB of
+inventory metadata, 10,000 entries, 128 MiB per file and 512 MiB of regular-file
+bytes. Reads bind exact modes, sizes and hashes, refuse source ancestor links,
+special nodes and mutation, and preserve bounded relative symlinks only when
+their direct target is also captured. Declared `GROUP` linker-script references
+must match the copied script and selected closure. File modes normalize to
+0644/0755; live input modes and files remain untouched.
+
+An existing output always refuses. A failed attempt retains its incomplete
+directory without `capture.json`; choose a new path on retry and preserve the
+failed evidence. A successful `capture.json` records byte acquisition only.
+Installed compiler provenance remains `unknown-host-bootstrap`. This helper
+does not admit an SDK, infer complete toolchain coverage, issue a LitAI receipt,
+build source, install packages or qualify relocation. The copied `tree` must
+still enter the framework's normal custody/admission path, with the reviewed
+resource directory, sysroot, linker and runtime bindings. Relocated execution
+and linker-script resolution remain required before using it as a qualified SDK.
+
 ## Controller checks
 
 ```sh
