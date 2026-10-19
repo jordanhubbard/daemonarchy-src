@@ -17,6 +17,7 @@ import signal
 import stat
 import subprocess
 import sys
+import tempfile
 import time
 
 
@@ -24,7 +25,8 @@ SOURCE = Path(__file__).resolve().parents[2]
 PHASES = ("buildworld", "buildkernel", "packages", "release-obj", "sets")
 PATH = "/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin"
 SCHEMA = "daemonarchy/source-build-plan@1"
-TRACE_FILE_LIMIT = 16 * 1024**2
+TRACE_FILE_LIMIT = 64 * 1024**2
+TRACE_CHUNK_SIZE = 1024**2
 TRACE_TOTAL_LIMIT = 16 * 1024**3
 TRACE_ENTRY_LIMIT = 500000
 
@@ -265,12 +267,13 @@ def verify_manifest_closure(root, entries):
             raise ValueError("installer manifest closure is missing or changed: " + name)
 
 
-def trace_bytes(path):
-    """Bounded direct-file read, including replacement/growth refusal."""
+def capture_trace_record(path, blobs):
+    """Stream a bounded record into immutable custody, with stable-file checks."""
     if path.resolve() != path:
         raise ValueError("trace metadata is redirected")
     fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | os.O_NONBLOCK)
-    with os.fdopen(fd, "rb") as stream:
+    with os.fdopen(fd, "rb") as stream, tempfile.SpooledTemporaryFile(
+            max_size=TRACE_CHUNK_SIZE, dir=blobs) as retained:
         before = os.fstat(stream.fileno())
         if not stat.S_ISREG(before.st_mode):
             raise ValueError("trace metadata type refused")
@@ -279,13 +282,40 @@ def trace_bytes(path):
             return None  # A release mtree manifest, not make metadata.
         if before.st_size > TRACE_FILE_LIMIT:
             raise ValueError("trace metadata exceeds the per-file budget")
-        data = prefix + stream.read(TRACE_FILE_LIMIT + 1 - len(prefix))
+        identity = hashlib.sha256()
+        size = 0
+        overlap = b""
+        has_filemon = False
+        has_input = False
+        block = prefix
+        while block:
+            size += len(block)
+            if size > TRACE_FILE_LIMIT:
+                raise ValueError("trace metadata exceeds the per-file budget")
+            identity.update(block)
+            retained.write(block)
+            window = overlap + block
+            has_filemon |= b"\n-- filemon acquired metadata --\n" in window
+            has_input |= re.search(rb"\n[RE] \d+ ", window) is not None
+            overlap = window[-128:]
+            block = stream.read(TRACE_CHUNK_SIZE)
         after = os.fstat(stream.fileno())
-    current = path.lstat()
-    stamp = lambda s: (s.st_dev, s.st_ino, s.st_mode, s.st_size, s.st_mtime_ns, s.st_ctime_ns)
-    if len(data) > TRACE_FILE_LIMIT or stamp(before) != stamp(after) or stamp(after) != stamp(current):
-        raise ValueError("trace metadata changed during capture")
-    return data
+        current = path.lstat()
+        stamp = lambda s: (s.st_dev, s.st_ino, s.st_mode, s.st_size, s.st_mtime_ns, s.st_ctime_ns)
+        if size != before.st_size or stamp(before) != stamp(after) or stamp(after) != stamp(current):
+            raise ValueError("trace metadata changed during capture")
+        sha256 = identity.hexdigest()
+        blob = blobs / sha256
+        if blob.exists() or blob.is_symlink():
+            if blob.resolve() != blob or not blob.is_file() or digest(blob) != sha256:
+                raise ValueError("retained trace blob changed or redirected")
+        else:
+            retained.seek(0)
+            with blob.open("xb") as output:
+                shutil.copyfileobj(retained, output, TRACE_CHUNK_SIZE)
+            blob.chmod(0o444)
+    return {"size": size, "sha256": sha256, "filemon": has_filemon,
+            "has_input": has_input}
 
 
 def capture_trace_metadata(root, phase):
@@ -298,31 +328,22 @@ def capture_trace_metadata(root, phase):
     total = 0
     compiled = 0
     for path in sorted((root / "obj").rglob("*.meta")):
-        data = trace_bytes(path)
+        record = capture_trace_record(path, blobs)
         # Release mtree files also use .meta; they are not make observations.
-        if data is None:
+        if record is None:
             if re.search(r"\.(?:o|pico|pieo)\.meta$", path.name):
                 raise ValueError("compilation metadata has an invalid make header")
             continue
-        total += len(data)
+        total += record["size"]
         if len(entries) >= TRACE_ENTRY_LIMIT or total > TRACE_TOTAL_LIMIT:
             raise ValueError("trace metadata exceeds the aggregate budget")
-        has_filemon = b"\n-- filemon acquired metadata --\n" in data
+        has_filemon = record["filemon"]
         if re.search(r"\.(?:o|pico|pieo)\.meta$", path.name):
-            if not has_filemon or not re.search(rb"\n[RE] \d+ ", data):
+            if not has_filemon or not record["has_input"]:
                 raise ValueError("compilation metadata lacks actual filemon input records")
             compiled += 1
-        identity = hashlib.sha256(data).hexdigest()
-        blob = blobs / identity
-        if blob.exists() or blob.is_symlink():
-            if blob.resolve() != blob or not blob.is_file() or digest(blob) != identity:
-                raise ValueError("retained trace blob changed or redirected")
-        else:
-            with blob.open("xb") as stream:
-                stream.write(data)
-            blob.chmod(0o444)
-        entries.append({"path": str(path.relative_to(root)), "size": len(data),
-                        "sha256": identity, "filemon": has_filemon})
+        entries.append({"path": str(path.relative_to(root)), "size": record["size"],
+                        "sha256": record["sha256"], "filemon": has_filemon})
     if not entries or compiled == 0:
         raise ValueError("traced build produced no observed compilation metadata")
     return {"phase": phase, "metadata": entries, "compiled_targets_with_filemon": compiled,

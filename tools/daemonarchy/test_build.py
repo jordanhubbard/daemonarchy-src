@@ -276,6 +276,52 @@ class BuildTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "inventory"):
             build.verify_trace_metadata(self.output, [observed], ["buildworld"])
 
+    def test_large_archive_trace_is_preserved_without_a_whole_record_read(self):
+        self.trace_fixture()
+        archive = self.output / "obj/src.txz.meta"
+        with archive.open("wb") as stream:
+            stream.write(b"# Meta data file src.txz\n")
+            for _ in range(17):
+                stream.write(b"x" * 1024**2)
+            stream.write(b"\n-- filemon acquired metadata --\nR 123 /source/file\n")
+        observed = build.capture_trace_metadata(self.output, "sets")
+        entry = next(e for e in observed["metadata"] if e["path"].endswith("src.txz.meta"))
+        self.assertGreater(entry["size"], 16 * 1024**2)
+        self.assertEqual(entry["sha256"], build.digest(archive))
+        self.assertTrue(entry["filemon"])
+        blob = self.output / "trace-blobs" / entry["sha256"]
+        self.assertEqual(blob.stat().st_mode & 0o777, 0o444)
+        build.verify_trace_metadata(self.output, [observed], ["sets"])
+
+    def test_streamed_filemon_markers_can_cross_read_boundaries(self):
+        path = self.trace_fixture()
+        path.write_bytes(b"# Meta data file " + b"x" * 30 +
+                         b"\n-- filemon acquired metadata --\nR 123 /source/file\n")
+        with patch.object(build, "TRACE_CHUNK_SIZE", 32):
+            observed = build.capture_trace_metadata(self.output, "buildworld")
+        self.assertEqual(observed["compiled_targets_with_filemon"], 1)
+        self.assertTrue(observed["metadata"][0]["filemon"])
+
+    def test_streamed_trace_growth_is_refused_before_blob_publication(self):
+        path = self.trace_fixture()
+        real_fstat = build.os.fstat
+        original = path.stat()
+        changed = False
+
+        def mutate_after_initial_stat(fd):
+            nonlocal changed
+            info = real_fstat(fd)
+            if not changed and (info.st_dev, info.st_ino) == (original.st_dev, original.st_ino):
+                changed = True
+                with path.open("ab") as stream:
+                    stream.write(b"R 123 /changed\n")
+            return info
+
+        with patch.object(build.os, "fstat", side_effect=mutate_after_initial_stat):
+            with self.assertRaisesRegex(ValueError, "changed"):
+                build.capture_trace_metadata(self.output, "buildworld")
+        self.assertEqual(list((self.output / "trace-blobs").iterdir()), [])
+
     def test_trace_preflight_requires_existing_device_without_worker_mutation(self):
         with patch.object(build.platform, "system", return_value="FreeBSD"), \
                 patch.object(build.platform, "machine", return_value="amd64"), \

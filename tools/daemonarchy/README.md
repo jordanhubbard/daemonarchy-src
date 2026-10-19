@@ -20,8 +20,8 @@ Allow additional space for retained builds; a full first world/kernel build can
 take hours. Use the existing single-slot worker allocation. The protected signer
 and physical acceptance machines are not build workers.
 
-Keep checkouts, objects and staging outside `/usr/src`, `/usr/obj` and the live
-root. The controller refuses root execution and installation/publication are not
+Editable operator checkouts may use the conventional `/usr/src` path. Keep
+objects and staging outside the source tree, `/usr/obj` and the live root. The controller refuses root execution and installation/publication are not
 operations it exposes. It supplies `NO_ROOT`, isolated staging directories,
 explicit src.conf, an empty make.conf/src-env.conf and a bounded job count. It
 does not read signing keys, modify host services, change a package feed or reboot.
@@ -133,6 +133,13 @@ No host installation, signing, upload, release tag or physical acceptance is
 implied by `status: built` or `status: bytes-verified`.
 
 ## Observe native actions
+
+Metadata is streamed in bounded chunks with at most 1 MiB of in-memory spooling.
+Each make record is limited to 64 MiB; the complete observation retains its
+16 GiB and 500,000-entry limits. Source-archive filemon records can exceed the
+previous 16 MiB per-record limit. Oversized, redirected, replaced or changing
+records still refuse capture. Immutable blobs retain the complete record bytes.
+
 
 `--trace-mode filemon` requests native make metadata with filemon input tracing,
 keeps dependency-file updates disabled, and uses a distinct development package
