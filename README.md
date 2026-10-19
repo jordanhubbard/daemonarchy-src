@@ -46,3 +46,12 @@ Source Roadmap:
 | usr.sbin | System administration commands. |
 
 For information on synchronizing your source tree with one or more of the FreeBSD Project's development branches, please see [FreeBSD Handbook](https://docs.freebsd.org/en/books/handbook/cutting-edge/#current-stable).
+
+Daemonarchy development:
+-----------------------
+This owned fork preserves the source hierarchy and upstream implementation.
+[PROJECT.md](PROJECT.md) describes Literate AI-managed source development;
+[the source-unit guide](tools/daemonarchy/docs/source-units.md) names the initial
+three contract boundaries and their qualification gaps. Native build procedures
+remain in [tools/daemonarchy/README.md](tools/daemonarchy/README.md). This project
+metadata does not qualify native execution, per-unit packages or release images.

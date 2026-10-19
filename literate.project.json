@@ -1,0 +1,43 @@
+{
+  "schema": "urn:literate-ai:schema:v2:project-definition",
+  "project_id": "daemonarchy-src",
+  "version": "1.2.0",
+  "profile": "canonical",
+  "agent_skill": "SKILL.md",
+  "component_roots": [
+    "tools/daemonarchy/components"
+  ],
+  "flavor_roots": [],
+  "skill_roots": [
+    "tools/daemonarchy/skills"
+  ],
+  "workflow_roots": [
+    "tools/daemonarchy/workflows"
+  ],
+  "routing_roots": [
+    "tools/daemonarchy/routing"
+  ],
+  "documentation_roots": [
+    "tools/daemonarchy/docs"
+  ],
+  "source_intelligence": {
+    "schema": "urn:literate-ai:schema:v1:project-source-intelligence-policy",
+    "provider_id": "none",
+    "command": null,
+    "minimum_version": null,
+    "artifact_path": null,
+    "stages": {
+      "project-maintenance": "off",
+      "source-generation": "off",
+      "cache-consumption": "off",
+      "source-to-specification": "off",
+      "repository-source-admission": "off",
+      "structural-review": "off"
+    },
+    "artifact_publication": "metadata-only"
+  },
+  "repository_policy": {
+    "default_branch": "main",
+    "schema": "literate-ai/repository-policy@1"
+  }
+}

@@ -41,3 +41,8 @@ tags
 sys/*/compile
 /src.conf
 .tgrep
+
+# Literate AI metadata diagnostics; native objects/staging remain outside src.
+/_build/
+/.literate/conversion-authority.lock
+**/.component*.write.lock

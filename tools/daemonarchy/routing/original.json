@@ -1,0 +1,9 @@
+{
+  "schema": "literate-ai/generation-routing@1",
+  "routing_id": "daemonarchy-source-review",
+  "version": "1.0.0",
+  "group_id": "daemonarchy-src",
+  "required_locality": null,
+  "fallback_allowed": false,
+  "data_egress": "metadata-only"
+}
