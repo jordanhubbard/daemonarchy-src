@@ -50,7 +50,8 @@ class BuildTests(unittest.TestCase):
 
     def plan(self, **kwargs):
         return build.make_plan(kwargs.get("revision", self.revision), kwargs.get("output", str(self.output)),
-                               kwargs.get("profile", "baseline"), kwargs.get("jobs", 2))
+                               kwargs.get("profile", "baseline"), kwargs.get("jobs", 2),
+                               kwargs.get("trace_mode", "off"))
 
     def built_fixture(self):
         plan = self.plan()
@@ -168,6 +169,94 @@ class BuildTests(unittest.TestCase):
         args = type("Args", (), {"resume": True})()
         with self.assertRaisesRegex(ValueError, "resume plan differs"):
             build.run(changed, args)
+
+    def test_trace_plan_is_explicit_and_preserves_untraced_plan_identity(self):
+        plain = self.plan()
+        self.assertNotIn("trace_mode", plain)
+        self.assertEqual(plain, self.plan(trace_mode="off"))
+        traced = self.plan(trace_mode="filemon")
+        self.assertNotEqual(plain["identity"], traced["identity"])
+        self.assertNotEqual(plain["package_version"], traced["package_version"])
+        for command in traced["commands"].values():
+            self.assertIn("UPDATE_DEPENDFILE=NO", command)
+            self.assertIn("WITH_META_MODE=yes", command)
+            self.assertTrue(any(a.startswith(".MAKE.MODE=") and "missing-filemon=yes" in a for a in command))
+            self.assertFalse(any(a.startswith(".MAKE.MODE=") and "nofilemon" in a for a in command))
+        with self.assertRaises(ValueError):
+            self.plan(trace_mode="unknown")
+
+    def trace_fixture(self):
+        self.output.mkdir()
+        path = self.output / "obj/unit/file.pieo.meta"
+        path.parent.mkdir(parents=True)
+        path.write_bytes(b"# Meta data file example\nCWD /fixture\nTARGET file.pieo\nCMD cc -c file.c\n"
+                         b"\n-- filemon acquired metadata --\nV 5\nR 123 /fixture/file.c\n")
+        (self.output / "obj/base.meta").write_text("./root type=dir mode=0755\n")
+        return path
+
+    def test_trace_snapshots_preserve_prior_bytes_across_later_phase_updates(self):
+        path = self.trace_fixture()
+        first = build.capture_trace_metadata(self.output, "buildworld")
+        self.assertEqual(first["compiled_targets_with_filemon"], 1)
+        self.assertEqual(len(first["metadata"]), 1)
+        self.assertFalse(first["action_graph_complete"])
+        self.assertEqual(first["acceptance"], "not-qualified")
+        path.write_bytes(path.read_bytes() + b"R 123 /fixture/new-header.h\n")
+        second = build.capture_trace_metadata(self.output, "buildkernel")
+        self.assertNotEqual(first["metadata"][0]["sha256"], second["metadata"][0]["sha256"])
+        build.verify_trace_metadata(self.output, [first, second], ["buildworld", "buildkernel"])
+        blob = self.output / "trace-blobs" / first["metadata"][0]["sha256"]
+        blob.chmod(0o644)
+        blob.write_bytes(b"tampered historical observation")
+        with self.assertRaisesRegex(ValueError, "changed"):
+            build.verify_trace_metadata(self.output, [first, second], ["buildworld", "buildkernel"])
+
+    def test_trace_without_real_filemon_compilation_is_refused(self):
+        path = self.trace_fixture()
+        path.write_bytes(b"# Meta data file example\nCMD cc -c file.c\n")
+        with self.assertRaisesRegex(ValueError, "filemon"):
+            build.capture_trace_metadata(self.output, "buildworld")
+        path.write_bytes(b"# Meta data file example\n-- filemon acquired metadata --\n")
+        with self.assertRaisesRegex(ValueError, "filemon"):
+            build.capture_trace_metadata(self.output, "buildworld")
+        path.unlink()
+        with self.assertRaisesRegex(ValueError, "no observed compilation"):
+            build.capture_trace_metadata(self.output, "buildworld")
+
+    def test_trace_redirection_and_budgets_are_refused(self):
+        path = self.trace_fixture()
+        original = path.read_bytes()
+        with patch.object(build, "TRACE_FILE_LIMIT", 10):
+            with self.assertRaisesRegex(ValueError, "per-file"):
+                build.capture_trace_metadata(self.output, "buildworld")
+        with patch.object(build, "TRACE_TOTAL_LIMIT", 10):
+            with self.assertRaisesRegex(ValueError, "aggregate"):
+                build.capture_trace_metadata(self.output, "buildworld")
+        path.unlink()
+        other = self.parent / "outside.meta"
+        other.write_bytes(original)
+        path.symlink_to(other)
+        with self.assertRaisesRegex(ValueError, "redirected"):
+            build.capture_trace_metadata(self.output, "buildworld")
+
+    def test_trace_phase_coverage_and_inventory_cannot_be_substituted(self):
+        self.trace_fixture()
+        observed = build.capture_trace_metadata(self.output, "buildworld")
+        with self.assertRaisesRegex(ValueError, "cover"):
+            build.verify_trace_metadata(self.output, [observed], ["buildworld", "buildkernel"])
+        observed["metadata"][0]["path"] = "../outside"
+        with self.assertRaisesRegex(ValueError, "inventory"):
+            build.verify_trace_metadata(self.output, [observed], ["buildworld"])
+
+    def test_trace_preflight_requires_existing_device_without_worker_mutation(self):
+        with patch.object(build.platform, "system", return_value="FreeBSD"), \
+                patch.object(build.platform, "machine", return_value="amd64"), \
+                patch.object(build.os, "geteuid", return_value=1001), \
+                patch.object(build.os, "access", return_value=False), \
+                patch.object(build.subprocess, "check_output") as process:
+            with self.assertRaisesRegex(ValueError, "already configured"):
+                build.native_preflight(self.parent, 1, 1, "filemon")
+            process.assert_not_called()
 
 
 if __name__ == "__main__":

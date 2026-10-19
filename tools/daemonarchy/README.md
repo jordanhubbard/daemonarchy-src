@@ -126,6 +126,28 @@ Before production selection:
 No host installation, signing, upload, release tag or physical acceptance is
 implied by `status: built` or `status: bytes-verified`.
 
+## Observe native actions
+
+`--trace-mode filemon` requests native make metadata with filemon input tracing,
+keeps dependency-file updates disabled, and uses a distinct development package
+version. Planning remains portable. Execution requires an already configured,
+accessible `/dev/filemon` and a make binary with filemon support. The controller
+does not load modules or change device permissions. Configure worker features
+through the declared worker bootstrap/alignment procedure before dispatch.
+
+Retain command/input metadata as immutable content-addressed copies after each
+successful phase. Require real filemon data in compilation metadata and preserve
+every successful phase's snapshot across resumes. Metadata capture time is part
+of the phase timing. Missing, changed, redirected or over-budget observations
+must fail rather than silently falling back to command-only tracing. Allow at
+least 100 GiB free for a traced build. Raw metadata can contain private worker
+paths; keep it outside Git and published assets.
+
+These are native observations for later canonical Component/action admission.
+They do not constitute a complete Component graph, receipt, package provenance
+or performance improvement. Compiler bootstrap, shared inputs, variants and
+independent acceptance still require qualification.
+
 ## Controller checks
 
 ```sh

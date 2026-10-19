@@ -14,6 +14,7 @@ import platform
 import re
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import time
@@ -23,6 +24,9 @@ SOURCE = Path(__file__).resolve().parents[2]
 PHASES = ("buildworld", "buildkernel", "packages", "release-obj", "sets")
 PATH = "/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin"
 SCHEMA = "daemonarchy/source-build-plan@1"
+TRACE_FILE_LIMIT = 16 * 1024**2
+TRACE_TOTAL_LIMIT = 16 * 1024**3
+TRACE_ENTRY_LIMIT = 500000
 
 
 def canonical(value):
@@ -65,7 +69,7 @@ def safe_path(value):
     return path
 
 
-def make_plan(revision, output, profile, jobs):
+def make_plan(revision, output, profile, jobs, trace_mode="off"):
     clean_revision(revision)
     root = safe_path(output)
     safe_path(str(SOURCE))
@@ -73,6 +77,8 @@ def make_plan(revision, output, profile, jobs):
         raise ValueError("output must be outside the source tree and its ancestors")
     if not 1 <= jobs <= 256:
         raise ValueError("jobs must be between 1 and 256")
+    if trace_mode not in ("off", "filemon"):
+        raise ValueError("unsupported native trace mode")
     kernel = {"baseline": "GENERIC", "diagnostic": "DAEMONARCHY_DIAGNOSTIC"}[profile]
     config = SOURCE / "tools/daemonarchy/src.conf"
     kernel_config = SOURCE / "sys/amd64/conf" / kernel
@@ -84,6 +90,8 @@ def make_plan(revision, output, profile, jobs):
         int(git("show", "-s", "--format=%ct", revision)), datetime.timezone.utc
     ).strftime("%Y%m%d%H%M%S")
     version = f"{match[1]}.snap{stamp}.{revision[:12]}.{profile}"
+    if trace_mode == "filemon":
+        version += ".filemon"
     common = [
         "TARGET=amd64", "TARGET_ARCH=amd64", f"KERNCONF={kernel}",
         "__MAKE_CONF=/dev/null", "SRC_ENV_CONF=/dev/null", f"SRCCONF={config}",
@@ -93,6 +101,10 @@ def make_plan(revision, output, profile, jobs):
         f"SSTAGEDIR={root / 'sourcestage'}", "PKG_REPO_SIGNING_KEY=",
         "PKG_CMD=/usr/local/sbin/pkg",
     ]
+    if trace_mode == "filemon":
+        mode = "meta verbose missing-meta=yes missing-filemon=yes"
+        common += ["WITH_META_MODE=yes", "UPDATE_DEPENDFILE=NO",
+                   f"META_MODE={mode}", f".MAKE.MODE={mode}"]
     make = ["/usr/bin/make", "-C", str(SOURCE), *common]
     release = ["/usr/bin/make", "-C", str(SOURCE / "release"), *common,
                f"WORLDDIR={SOURCE}", "NOPORTS=yes", "NOPKGBASE=yes"]
@@ -117,6 +129,8 @@ def make_plan(revision, output, profile, jobs):
         "commands": commands, "release_directory_query": [*release, "-V", ".OBJDIR"],
         "publication": "unsigned-development-only", "acceptance": "not-qualified",
     }
+    if trace_mode != "off":
+        plan["trace_mode"] = trace_mode
     plan["identity"] = hashlib.sha256(canonical(plan)).hexdigest()
     return plan
 
@@ -131,11 +145,21 @@ def write_json(path, value):
     temporary.replace(path)
 
 
-def native_preflight(root, jobs, minimum_free_gib):
+def native_preflight(root, jobs, minimum_free_gib, trace_mode="off"):
     if platform.system() != "FreeBSD" or platform.machine() not in ("amd64", "x86_64"):
         raise ValueError("execution requires a native amd64 FreeBSD worker; plan works on other hosts")
     if os.geteuid() == 0:
         raise ValueError("use an unprivileged build account")
+    if trace_mode == "filemon":
+        minimum_free_gib = max(100, minimum_free_gib)
+        if not os.access("/dev/filemon", os.R_OK | os.W_OK):
+            raise ValueError("tracing requires an already configured accessible /dev/filemon")
+        provider = subprocess.check_output(
+            ["/usr/bin/make", "-r", "-f", "/dev/null", "-V", ".MAKE.PATH_FILEMON",
+             ".MAKE.MODE=meta"], env={"PATH": PATH, "LC_ALL": "C", "TZ": "UTC"},
+            text=True, timeout=10).strip()
+        if provider != "/dev/filemon":
+            raise ValueError("native make does not expose the required filemon provider")
     for tool in ("/usr/bin/make", "/usr/bin/cc", "/usr/local/sbin/pkg"):
         if not os.access(tool, os.X_OK):
             raise ValueError(f"required installed tool missing: {tool}")
@@ -194,6 +218,93 @@ def artifacts(plan):
     return entries
 
 
+def trace_bytes(path):
+    """Bounded direct-file read, including replacement/growth refusal."""
+    if path.resolve() != path:
+        raise ValueError("trace metadata is redirected")
+    fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | os.O_NONBLOCK)
+    with os.fdopen(fd, "rb") as stream:
+        before = os.fstat(stream.fileno())
+        if not stat.S_ISREG(before.st_mode):
+            raise ValueError("trace metadata type refused")
+        prefix = stream.read(len(b"# Meta data file "))
+        if prefix != b"# Meta data file ":
+            return None  # A release mtree manifest, not make metadata.
+        if before.st_size > TRACE_FILE_LIMIT:
+            raise ValueError("trace metadata exceeds the per-file budget")
+        data = prefix + stream.read(TRACE_FILE_LIMIT + 1 - len(prefix))
+        after = os.fstat(stream.fileno())
+    current = path.lstat()
+    stamp = lambda s: (s.st_dev, s.st_ino, s.st_mode, s.st_size, s.st_mtime_ns, s.st_ctime_ns)
+    if len(data) > TRACE_FILE_LIMIT or stamp(before) != stamp(after) or stamp(after) != stamp(current):
+        raise ValueError("trace metadata changed during capture")
+    return data
+
+
+def capture_trace_metadata(root, phase):
+    """Immutable native make observations; not an executable Component graph."""
+    blobs = root / "trace-blobs"
+    blobs.mkdir(exist_ok=True)
+    if blobs.resolve() != blobs:
+        raise ValueError("trace blob directory is redirected")
+    entries = []
+    total = 0
+    compiled = 0
+    for path in sorted((root / "obj").rglob("*.meta")):
+        data = trace_bytes(path)
+        # Release mtree files also use .meta; they are not make observations.
+        if data is None:
+            if re.search(r"\.(?:o|pico|pieo)\.meta$", path.name):
+                raise ValueError("compilation metadata has an invalid make header")
+            continue
+        total += len(data)
+        if len(entries) >= TRACE_ENTRY_LIMIT or total > TRACE_TOTAL_LIMIT:
+            raise ValueError("trace metadata exceeds the aggregate budget")
+        has_filemon = b"\n-- filemon acquired metadata --\n" in data
+        if re.search(r"\.(?:o|pico|pieo)\.meta$", path.name):
+            if not has_filemon or not re.search(rb"\n[RE] \d+ ", data):
+                raise ValueError("compilation metadata lacks actual filemon input records")
+            compiled += 1
+        identity = hashlib.sha256(data).hexdigest()
+        blob = blobs / identity
+        if blob.exists() or blob.is_symlink():
+            if blob.resolve() != blob or not blob.is_file() or digest(blob) != identity:
+                raise ValueError("retained trace blob changed or redirected")
+        else:
+            with blob.open("xb") as stream:
+                stream.write(data)
+            blob.chmod(0o444)
+        entries.append({"path": str(path.relative_to(root)), "size": len(data),
+                        "sha256": identity, "filemon": has_filemon})
+    if not entries or compiled == 0:
+        raise ValueError("traced build produced no observed compilation metadata")
+    return {"phase": phase, "metadata": entries, "compiled_targets_with_filemon": compiled,
+            "action_graph_complete": False, "acceptance": "not-qualified"}
+
+
+def verify_trace_metadata(root, observations, successful):
+    if not isinstance(observations, list) or [o.get("phase") for o in observations] != successful:
+        raise ValueError("trace observations do not cover the successful phases")
+    for observation in observations:
+        if (observation.get("action_graph_complete") is not False
+                or observation.get("acceptance") != "not-qualified"
+                or not observation.get("metadata")
+                or observation.get("compiled_targets_with_filemon", 0) < 1):
+            raise ValueError("invalid native trace observation")
+        seen = set()
+        for entry in observation["metadata"]:
+            name = Path(entry["path"])
+            if (name.is_absolute() or len(name.parts) < 2 or ".." in name.parts
+                    or name.parts[0] != "obj" or str(name) != entry["path"]
+                    or entry["path"] in seen or not re.fullmatch(r"[0-9a-f]{64}", entry["sha256"])):
+                raise ValueError("invalid native trace inventory")
+            seen.add(entry["path"])
+            blob = root / "trace-blobs" / entry["sha256"]
+            if (blob.resolve() != blob or not blob.is_file()
+                    or blob.stat().st_size != entry["size"] or digest(blob) != entry["sha256"]):
+                raise ValueError("retained trace blob changed or missing")
+
+
 def require_inventory(entries):
     if not entries or len({e["path"] for e in entries}) != len(entries):
         raise ValueError("missing or duplicate artifact inventory")
@@ -225,6 +336,8 @@ def verify(root):
         raise ValueError("required successful phases missing")
     entries = state.get("artifacts", [])
     require_inventory(entries)
+    if plan.get("trace_mode") == "filemon":
+        verify_trace_metadata(root, state.get("trace_observations"), list(PHASES))
     for item in entries + [{"path": p["log"], "sha256": p["log_sha256"]} for p in state["phases"]]:
         path = root / item["path"]
         if path.is_symlink() or root not in path.resolve().parents or digest(path) != item["sha256"]:
@@ -247,12 +360,12 @@ def run(plan, args):
     else:
         if not root.parent.is_dir():
             raise ValueError("output parent must already exist")
-        native_preflight(root.parent, args.jobs, args.minimum_free_gib)
+        native_preflight(root.parent, args.jobs, args.minimum_free_gib, plan.get("trace_mode", "off"))
         root.mkdir()  # Exclusive; never overwrite or clean an existing build.
         write_json(root / "plan.json", plan)
     with (root / "build.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        native_preflight(root, args.jobs, args.minimum_free_gib)
+        native_preflight(root, args.jobs, args.minimum_free_gib, plan.get("trace_mode", "off"))
         for name in ("obj", "repo", "home", "tmp", "logs"):
             (root / name).mkdir(exist_ok=True)
         state_path = root / "result.json"
@@ -273,6 +386,8 @@ def run(plan, args):
         successful = [p["name"] for p in state["phases"] if p["exit"] == 0]
         if successful != list(PHASES[:len(successful)]):
             raise ValueError("completed phases are not an ordered prefix")
+        if plan.get("trace_mode") == "filemon" and successful:
+            verify_trace_metadata(root, state.get("trace_observations"), successful)
         for phase in state["phases"]:
             if digest(root / phase["log"]) != phase["log_sha256"]:
                 raise ValueError("retained phase log changed")
@@ -281,7 +396,7 @@ def run(plan, args):
         for phase in PHASES:
             clean_revision(plan["source_revision"])
             if phase not in successful:
-                native_preflight(root, args.jobs, args.minimum_free_gib)
+                native_preflight(root, args.jobs, args.minimum_free_gib, plan.get("trace_mode", "off"))
                 attempt = 1 + sum(p["name"] == phase for p in state["phases"])
                 log = root / "logs" / f"{phase}-{attempt}.log"
                 state["status"] = "running"
@@ -293,6 +408,8 @@ def run(plan, args):
                 try:
                     status = run_command(plan["commands"][phase], plan["environment"], log, args.phase_timeout)
                     clean_revision(plan["source_revision"])
+                    if status == 0 and plan.get("trace_mode") == "filemon":
+                        state.setdefault("trace_observations", []).append(capture_trace_metadata(root, phase))
                 except BaseException as error:
                     status = -1
                     state["error"] = f"{type(error).__name__}: {error}"
@@ -321,6 +438,7 @@ def main():
     parser.add_argument("--revision")
     parser.add_argument("--profile", choices=("baseline", "diagnostic"), default="baseline")
     parser.add_argument("--jobs", type=int, default=8)
+    parser.add_argument("--trace-mode", choices=("off", "filemon"), default="off")
     parser.add_argument("--through", choices=PHASES, default="sets")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--minimum-free-gib", type=int, default=80)
@@ -336,7 +454,7 @@ def main():
         elif args.operation == "status":
             result = json.loads((safe_path(args.output) / "result.json").read_text())
         else:
-            plan = make_plan(args.revision, args.output, args.profile, args.jobs)
+            plan = make_plan(args.revision, args.output, args.profile, args.jobs, args.trace_mode)
             result = plan if args.operation == "plan" else run(plan, args)
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0
