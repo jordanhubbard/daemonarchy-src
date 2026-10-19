@@ -102,7 +102,9 @@ def make_plan(revision, output, profile, jobs, trace_mode="off"):
         "PKG_CMD=/usr/local/sbin/pkg",
     ]
     if trace_mode == "filemon":
-        mode = "meta verbose missing-meta=yes missing-filemon=yes"
+        # Native helpers (notably crunchgen) parse make recipe stdout.
+        # Meta verbosity bypasses quiet recipes and corrupts that protocol.
+        mode = "meta missing-meta=yes missing-filemon=yes"
         common += ["WITH_META_MODE=yes", "UPDATE_DEPENDFILE=NO",
                    f"META_MODE={mode}", f".MAKE.MODE={mode}"]
     make = ["/usr/bin/make", "-C", str(SOURCE), *common]

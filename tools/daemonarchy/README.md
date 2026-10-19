@@ -136,7 +136,9 @@ implied by `status: built` or `status: bytes-verified`.
 
 `--trace-mode filemon` requests native make metadata with filemon input tracing,
 keeps dependency-file updates disabled, and uses a distinct development package
-version. Planning remains portable. Execution requires an already configured,
+version. It leaves meta verbosity disabled: helpers such as crunchgen parse
+quiet make recipe output as structured data. Planning remains portable.
+Execution requires an already configured,
 accessible `/dev/filemon` and a make binary with filemon support. The controller
 does not load modules or change device permissions. Configure worker features
 through the declared worker bootstrap/alignment procedure before dispatch.

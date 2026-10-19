@@ -188,8 +188,30 @@ class BuildTests(unittest.TestCase):
             self.assertIn("WITH_META_MODE=yes", command)
             self.assertTrue(any(a.startswith(".MAKE.MODE=") and "missing-filemon=yes" in a for a in command))
             self.assertFalse(any(a.startswith(".MAKE.MODE=") and "nofilemon" in a for a in command))
+            self.assertFalse(any(a.startswith(".MAKE.MODE=") and "verbose" in a.split() for a in command))
         with self.assertRaises(ValueError):
             self.plan(trace_mode="unknown")
+
+    @unittest.skipUnless(build.platform.system() == "FreeBSD", "requires native meta-mode make")
+    def test_native_trace_mode_preserves_structured_make_query_stdout(self):
+        mode = next(arg.split("=", 1)[1] for arg in self.plan(trace_mode="filemon")["commands"]["buildworld"]
+                    if arg.startswith(".MAKE.MODE="))
+        query = self.parent / "query"
+        query.mkdir()
+        (query / "Makefile").write_text("OBJS=main.o\nloop:\n\t@echo 'OBJS= '${OBJS}\n")
+        for name, value in (("quiet", mode), ("verbose-control", mode + " verbose")):
+            objects = self.parent / name
+            objects.mkdir()
+            environment = {"PATH": build.PATH, "LC_ALL": "C", "HOME": str(self.parent),
+                           "MAKEOBJDIR": str(objects)}
+            result = subprocess.run(["/usr/bin/make", "-r", "-B", "-C", str(query),
+                                     "loop", f".MAKE.MODE={value}"], env=environment,
+                                    capture_output=True, text=True, timeout=20)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            if name == "quiet":
+                self.assertEqual(result.stdout, "OBJS= main.o\n")
+            else:
+                self.assertIn("Building ", result.stdout)
 
     def trace_fixture(self):
         self.output.mkdir()
