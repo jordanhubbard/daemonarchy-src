@@ -180,3 +180,21 @@ terminal hashes. This is a complete failed-run observation, not a passing
 receipt or an equivalent-workload performance comparison. The live input
 selection remained frozen; a future native profile must also include the
 authored specification inputs prepared in the subsequent local profile.
+
+### [ ] SRC-NULLFS-001 — Honor standalone nullfs comma-separated options
+
+- **Priority:** P2
+- **Requirements:** SRC-G5 and SRC-G6
+- **Issue:** https://github.com/jordanhubbard/daemonarchy-src/issues/5
+- **Observed:** On the official 20261019 FreeBSD 16.0-CURRENT guest, direct
+  `mount_nullfs -o ro,nosuid` exits zero but applies neither flag; root writes
+  through the alias succeed. The helper currently adds the complete option
+  string as one iovec entry, although its manual documents comma-separated
+  options. The `mount -t nullfs` frontend correctly applies both flags.
+- **Next:** Prepare a separate upstreamable helper correction and native
+  regressions for direct lists, repeated options and the frontend. Keep this
+  independent of the retained runtime implementation.
+- **Current caller:** The read-only-view prototype uses mount(8), verifies kernel
+  flags before sharing, rejects writes, retains relative aliases and unmounts
+  cleanly. Its thirteen isolated checks pass; full SDK/lifecycle and package
+  admission remain open.
