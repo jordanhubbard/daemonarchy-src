@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Select explicit original-FreeBSD OS and pinned native-pkg policies through
+  each unit's Flavor slots. Preserve retained origin and live-admission guards;
+  a selected provider is not a constructed or qualified package.
+
 - Preserve both root-only deallocation and unprivileged permission-error case
   requirements in the original utility acceptance contract and test plan.
 

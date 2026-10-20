@@ -1,28 +1,37 @@
 ---
-namespace: daemonarchy-src
-version: 1.0.0
-display_name: Original libutil public header
-profiles: ["retained-contract"]
+namespace: "daemonarchy-src"
+version: "1.0.0"
+display_name: "Original libutil public header"
+profiles:
+  - "retained-contract"
 sample: false
 provides:
-  - name: daemonarchy.src.libutil-header
-    version: 1.0.0
+  - name: "daemonarchy.src.libutil-header"
+    version: "1.0.0"
     interface:
-      uri: interfaces/contract.md
+      uri: "interfaces/contract.md"
       pin: null
 requires: []
 authoring_inputs:
-  - kind: specification-to-source-skill
-    uri: tools/daemonarchy/skills/specification-to-source/original-boundaries/SKILL.md
+  - kind: "specification-to-source-skill"
+    uri: "tools/daemonarchy/skills/specification-to-source/original-boundaries/SKILL.md"
 workflow_definition:
-  uri: tools/daemonarchy/workflows/original.md
+  uri: "tools/daemonarchy/workflows/original.md"
 routing_policy:
-  uri: tools/daemonarchy/routing/original.json
-flavor_slots: []
+  uri: "tools/daemonarchy/routing/original.json"
+flavor_slots:
+  - slot_id: "os"
+    axis: "platform.os"
+    cardinality: "exactly-one"
+    capability_contract: "daemonarchy.src.libutil-header"
+  - slot_id: "package"
+    axis: "packaging"
+    cardinality: "exactly-one"
+    capability_contract: "daemonarchy.src.libutil-header"
 entrypoints: []
 acceptance_contracts:
-  - kind: acceptance-contract
-    uri: acceptance.md
+  - kind: "acceptance-contract"
+    uri: "acceptance.md"
 source_dependencies: []
 ---
 # Original libutil public header

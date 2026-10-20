@@ -7,9 +7,12 @@
   "component_roots": [
     "tools/daemonarchy/components"
   ],
-  "flavor_roots": [],
+  "flavor_roots": [
+    "flavors"
+  ],
   "skill_roots": [
-    "tools/daemonarchy/skills"
+    "tools/daemonarchy/skills",
+    "skills"
   ],
   "workflow_roots": [
     "tools/daemonarchy/workflows"
@@ -39,5 +42,9 @@
   "repository_policy": {
     "default_branch": "daemonarchy",
     "schema": "literate-ai/repository-policy@1"
-  }
+  },
+  "default_flavor_selectors": [
+    "+source-freebsd",
+    "+package-pkg"
+  ]
 }

@@ -1,0 +1,48 @@
+{
+  "schema": "literate-ai/catalog-imports@3",
+  "imports": [
+    {
+      "schema": "literate-ai/catalog-import@2",
+      "kind": "flavor",
+      "name": "package-pkg",
+      "source": {
+        "schema": "literate-ai/catalog-import-source@1",
+        "project_id": "literate-ai",
+        "project_identity": "sha256:5a69bf6e3900b7eaf3c659750a4f2bb1c19fa0c8dd9c7ffb03c3ccc3900a3956",
+        "ref": "git:https://github.com/jordanhubbard/literate-ai.git@ab15e04e9fb6aadadf26c9a8085640eec275edcc",
+        "transitive_ancestors": []
+      },
+      "files": [
+        {
+          "path": "flavors/package-pkg/flavor.md",
+          "identity": "sha256:ac290a208e4dd1c24366ddf375d1b8b250ea35d1dd82e1220e2e61c841355003"
+        },
+        {
+          "path": "flavors/package-pkg/openspec/spec.md",
+          "identity": "sha256:67d96d872f54706e5962444f4e1328e94b2ba8ce5f9e2c4c196ba84fc12e647e"
+        }
+      ],
+      "copied_at": "2026-10-19T23:58:43.698338+00:00"
+    },
+    {
+      "schema": "literate-ai/catalog-import@2",
+      "kind": "skill",
+      "name": "agent/package-artifacts",
+      "source": {
+        "schema": "literate-ai/catalog-import-source@1",
+        "project_id": "literate-ai",
+        "project_identity": "sha256:5a69bf6e3900b7eaf3c659750a4f2bb1c19fa0c8dd9c7ffb03c3ccc3900a3956",
+        "ref": "git:https://github.com/jordanhubbard/literate-ai.git@ab15e04e9fb6aadadf26c9a8085640eec275edcc",
+        "transitive_ancestors": []
+      },
+      "files": [
+        {
+          "path": "skills/agent/package-artifacts/SKILL.md",
+          "identity": "sha256:d33635731b4e01e7e58850d670b29b3dd772db4b56d6faf87ba09f60a47a5bc6"
+        }
+      ],
+      "copied_at": "2026-10-19T23:58:43.698338+00:00"
+    }
+  ],
+  "decisions": []
+}

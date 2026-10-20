@@ -3,6 +3,8 @@
 The original FreeBSD tree stays editable in its conventional layout. This
 development project currently has three authored source-unit contracts and
 target locks, with no native execution or package admission yet.
+Native OS and pkg intent are explicit Flavor choices; compiler/runtime
+admission and the actual Standard build profile remain separate work.
 
 Use a development framework candidate with original-source adoption and
 declared-target lock verification ([#22](https://github.com/jordanhubbard/literate-ai/issues/22),

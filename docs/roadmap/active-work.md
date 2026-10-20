@@ -18,6 +18,8 @@
   - [x] Review and apply original-source authority without moving original files.
   - [ ] Bind selected inputs, native configuration, compiler and test resources
     through the qualified Standard retained lifecycle.
+    - [x] Select explicit native FreeBSD and pkg Flavors for the three unit locks;
+      keep compiler/runtime admission and execution qualification separate.
   - [ ] Compile the original parser and utility and run all four parser cases and
     all twenty utility cases, including privileged deallocation in a disposable VM.
     Preserve the explicit unprivileged-user requirements of `bad_truncate` and
@@ -29,8 +31,11 @@
 
 **Partial evidence:** Canonical project validation accepts all three contracts
 and the acyclic header/parser/utility graph. Each `freebsd` target lock resolves
-through the actual Component catalog. These contract-only locks select no
-native Flavors and do not qualify a compiler, executable build or pkg provider.
+through the actual Component catalog. The initial locks selected no Flavors;
+explicit FreeBSD and pkg choices now resolve through native OS/package slots
+on all three current locks. Project authority and locks verify; all three skills
+pass the configured evaluator checks. These choices do not qualify a compiler,
+executable build or pkg product.
 The typed current-lock reader and explicit target checks pass. The older
 repository verifier incorrectly re-plans every lock as `host`; framework #79
 tracks this defect. Preserve the declared target rather than rewriting these

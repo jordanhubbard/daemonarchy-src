@@ -27,12 +27,15 @@ need explicit custody and bootstrap provenance. A copied host SDK has unknown
 source-build provenance. Never attribute it to this fork without a recorded build.
 
 Bind native target, ABI, options, flags, packaging and toolchain through selected
-Flavors and the retained profile, separately from unit identity. Until those
-Flavors, current locks, Standard binding and execution gates exist, these are
-authored contracts with no executable or package qualification.
-The initial `freebsd` target locks describe only the three contract/dependency
-closures. Their empty Flavor selections do not claim a native toolchain,
-packaging provider or executable build profile.
+Flavors and the retained profile, separately from unit identity. The unit slots
+require the local `source-freebsd` OS policy and the framework's pinned
+`package-pkg` provider. The provider is imported at framework revision
+`ab15e04e9fb6aadadf26c9a8085640eec275edcc`, including its retained-origin,
+live-admission and independent native-inspection requirements.
+These choices select OS and package intent, not a compiler or executable build
+profile. Standard binding, admitted compiler/runtime inputs, actual execution
+and package qualification remain required. The source target Flavor contributes
+no generation command or ambient compiler fallback.
 
 The parser cases are `expand_number__ok`, `expand_number__bad`,
 `expand_unsigned` and `expand_generic`. Preserve the utility's complete original
