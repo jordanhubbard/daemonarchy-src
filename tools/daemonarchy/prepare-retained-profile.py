@@ -27,13 +27,29 @@ def digest(path):
     return ContentIdentity.parse_uri('sha256:' + hashlib.sha256(path.read_bytes()).hexdigest())
 
 
+def secondary_identity(name):
+    """Observe an existing account; profile preparation never creates one."""
+    if 'secondary_access' not in RetainedProjectProfile.__dataclass_fields__:
+        raise ValueError('secondary profiles require a framework with enforcing secondary access')
+    import os
+    import pwd
+    from literate_ai.contracts.retained_test_identity import RetainedSecondaryTestIdentity
+    from literate_ai.adapters.retained_test_identity import require_current_secondary_test_identity
+    account = pwd.getpwnam(name)
+    reviewed = RetainedSecondaryTestIdentity(name, account.pw_uid, account.pw_gid,
+        tuple(sorted(set(os.getgrouplist(name, account.pw_gid)))))
+    return require_current_secondary_test_identity(reviewed)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--project', type=Path, default=Path.cwd())
     parser.add_argument('--name', required=True)
+    parser.add_argument('--secondary-account', help='existing reviewed nonroot test account')
     args = parser.parse_args()
     if not args.name or any(c not in 'abcdefghijklmnopqrstuvwxyz0123456789-' for c in args.name):
         raise ValueError('profile name must be a short lowercase identifier')
+    account = secondary_identity(args.secondary_account) if args.secondary_account is not None else None
     root = args.project.resolve(strict=True)
     snapshot = ProjectConfigurationStore.discover(root)
     if snapshot.root != root:
@@ -89,12 +105,23 @@ def main():
                                               limits, allow_internal_symlinks=True)
     arguments = _parser().parse_args(['build', '--project', str(root), '--target', 'freebsd'])
     worker = select_execution_worker(arguments, project_root=root, target_profile='freebsd').worker
+    secondary = None
+    if account is not None:
+        from literate_ai.contracts.retained_secondary_access import RetainedReadOnlyView, RetainedSecondaryAccessPolicy
+        secondary = RetainedSecondaryAccessPolicy(worker.identity, account, ('original-tests',),
+            (RetainedReadOnlyView('runtime', 'inputs', bootstrap+'/tree'),
+             RetainedReadOnlyView('products', 'exports', 'products')), ('work',))
     acceptance = RetainedProjectAcceptancePolicy.from_dict(json.loads(
         (root / 'verification/retained-project-acceptance.json').read_bytes()))
     def action(name, stage, requires, items, outputs):
         command = ( '-B', '{input_root}/tools/daemonarchy/retained-source-stage.py',
                     {'build':'build','test':'tests','docs':'docs','accept':'accept'}[stage],
                     '--inputs', '{input_root}', '--objects', '{object_root}', '--outputs', '{output_root}')
+        if secondary is not None:
+            command += ('--runtime-view', '{secondary_view:runtime}',
+                        '--product-view', '{secondary_view:products}',
+                        '--fixture-view', '{secondary_fixture:work}',
+                        '--secondary-user', '{secondary_account}')
         return RetainedProjectAction(name, stage, 'python', command, requires, items, outputs, 300)
     profile = RetainedProjectProfile('freebsd', worker.identity,
         initial.role_identity({'sdk','toolchain'}), initial.role_identity({'dependency'}),
@@ -108,7 +135,8 @@ def main():
          'products/include/libutil.h','documentation'),
         digest(root/'verification/retained-project-acceptance.json'),
         (bootstrap+'/tree/lib',bootstrap+'/tree/usr/lib',bootstrap+'/tree/usr/local/lib'),
-        ('products/bin',))
+        ('products/bin',),
+        **({'secondary_access': secondary} if secondary is not None else {}))
     profile_path.write_bytes(canonical_json_bytes(profile.to_dict()))
     selected[profile_path.relative_to(root).as_posix()] = ('build-definition','native-build-support')
     manifest = discover_retained_project_inputs(root, {k:v[0] for k,v in selected.items()},

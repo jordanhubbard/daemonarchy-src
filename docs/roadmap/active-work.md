@@ -181,6 +181,25 @@ receipt or an equivalent-workload performance comparison. The live input
 selection remained frozen; a future native profile must also include the
 authored specification inputs prepared in the subsequent local profile.
 
+Secondary-account harness integration is prepared locally. The profile constructor
+can observe an existing native account and bind optional worker/account/view/fixture
+policy without creating accounts or choosing a provisioner. Stage arguments name
+the reviewed runtime/product views, fixture and account explicitly. The launcher,
+ATF variables, loader paths, Kyua user and temporary root use those bindings; newly
+created export directories remain readable under a private umask. Eight local
+stage checks pass, including stubbed runner wiring. The recorded `d6070ba5`
+framework lacks this API; a newly qualified framework and actual private allocation
+inspector are required before installed execution. Original 24-case coverage,
+current receipt, SDK provenance and per-unit packages remain open.
+
+
+Controller verification of the secondary-account harness changes selects 66
+checks: 62 pass and four native-only checks skip in 3.700 seconds. Current source
+authority validation and all five committed FreeBSD-target locks pass. This does
+not supply a current lifecycle receipt, original-suite qualification or package
+admission. The existing SQLite test fixtures emit ResourceWarnings on the
+controller Python 3.14 runtime; no checks fail.
+
 ### [ ] SRC-NULLFS-001 — Honor standalone nullfs comma-separated options
 
 - **Priority:** P2

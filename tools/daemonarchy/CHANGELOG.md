@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Prepare optional reviewed secondary-account profiles and pass explicit SDK,
+  product and fixture views into original test execution. Bind the exact account
+  to Kyua, select captured runtime libraries and create readable new exports
+  under a private umask. Reject partial or ambiguous view arguments. Eight local
+  stage checks pass. The controller suite passes 62 checks with four native-only
+  skips; authority and all five FreeBSD-target locks pass. New installed/native
+  qualification remains open.
+
 - Bind the controller review to a qualified framework wheel through the reviewed
   Standard rebind transaction and a verified dependency wheelhouse, preserving
   all sixteen evidence kinds. Native renewal and acceptance remain separate.

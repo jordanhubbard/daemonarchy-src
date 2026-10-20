@@ -5,6 +5,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 import shlex
 import shutil
 import subprocess
@@ -39,13 +40,61 @@ def require_linker_listing(content, expected):
         raise ValueError('compiler did not select the exact captured linker')
 
 
+def secondary_paths(args):
+    values = (args.runtime_view, args.product_view, args.fixture_view, args.secondary_user)
+    if all(v is None for v in values):
+        return None
+    if any(v is None for v in values):
+        raise ValueError('secondary tests require all reviewed views, fixture and account')
+    if re.fullmatch(r'[a-z_][a-z0-9_-]{0,62}\$?', args.secondary_user) is None:
+        raise ValueError('secondary account name is invalid')
+    paths = tuple(values[:3])
+    for path in paths:
+        if not path.is_absolute() or path.resolve(strict=True) != path or not path.is_dir():
+            raise ValueError('secondary paths must be canonical absolute directories')
+    for i, path in enumerate(paths):
+        if any(path.is_relative_to(other) or other.is_relative_to(path)
+               for other in paths[i+1:]):
+            raise ValueError('secondary views and fixture must be disjoint')
+    return paths
+
+
+def launcher_variables(seed, products, *, scoped=False):
+    result = {'ATF_SHELL': str(seed / 'bin/sh'),
+              'ATF_LIBEXECDIR': str(seed / 'usr/libexec'),
+              'ATF_PKGDATADIR': str(seed / 'usr/share/atf'),
+              'PATH': ':'.join(str(p) for p in (products / 'bin', seed / 'bin',
+                              seed / 'usr/bin', seed / 'usr/libexec', seed / 'usr/local/bin'))}
+    if scoped:
+        result['LD_LIBRARY_PATH'] = ':'.join(str(seed / p) for p in
+                                           ('lib', 'usr/lib', 'usr/local/lib'))
+    return result
+
+
+def product_directory(path):
+    """Create readable new export directories without widening existing ones."""
+    missing = []
+    current = path
+    while not current.exists():
+        missing.append(current)
+        current = current.parent
+    for directory in reversed(missing):
+        directory.mkdir()
+        directory.chmod(0o755)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('stage', choices=('build', 'tests', 'docs', 'accept'))
     parser.add_argument('--inputs', type=Path, required=True)
     parser.add_argument('--objects', type=Path, required=True)
     parser.add_argument('--outputs', type=Path, required=True)
+    parser.add_argument('--runtime-view', type=Path)
+    parser.add_argument('--product-view', type=Path)
+    parser.add_argument('--fixture-view', type=Path)
+    parser.add_argument('--secondary-user')
     args = parser.parse_args()
+    scoped = secondary_paths(args)
     inputs, objects, outputs = (p.resolve(strict=True) for p in (args.inputs, args.objects, args.outputs))
     seed = inputs / 'tools/daemonarchy/retained/bootstrap/tree'
     env = dict(os.environ)
@@ -53,6 +102,7 @@ def main():
     env.update(ATF_SHELL=str(seed / 'bin/sh'), ATF_LIBEXECDIR=str(seed / 'usr/libexec'),
                ATF_PKGDATADIR=str(seed / 'usr/share/atf'))
     products = outputs / 'products'
+    visible_seed, visible_products = scoped[:2] if scoped is not None else (seed, products)
     if args.stage == 'build':
         compiler = [seed / 'usr/bin/cc', '--sysroot=' + str(seed),
                     '-resource-dir', seed / 'usr/lib/clang/21', '-B' + str(seed / 'usr/bin')]
@@ -95,24 +145,26 @@ def main():
                                  ('tests/expand_number_test', parser_tests / 'expand_number_test'),
                                  ('tests/truncate_test.body', shell_tests / 'truncate_test')]:
             destination = products / relative
-            destination.parent.mkdir(parents=True, exist_ok=True)
+            if scoped is not None:
+                product_directory(destination.parent)
+            else:
+                destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, destination)
         launcher = products / 'tests/truncate_test'
-        variables = {'ATF_SHELL': str(seed / 'bin/sh'),
-                     'ATF_LIBEXECDIR': str(seed / 'usr/libexec'),
-                     'ATF_PKGDATADIR': str(seed / 'usr/share/atf'),
-                     'PATH': ':'.join(str(p) for p in (products / 'bin', seed / 'bin',
-                                     seed / 'usr/bin', seed / 'usr/libexec', seed / 'usr/local/bin'))}
-        launcher.write_text('#!' + str(seed / 'bin/sh') + '\n' +
+        variables = launcher_variables(visible_seed, visible_products, scoped=scoped is not None)
+        launcher.write_text('#!' + str(visible_seed / 'bin/sh') + '\n' +
                             ''.join('export ' + k + '=' + shlex.quote(v) + '\n' for k, v in variables.items()) +
-                            'exec ' + shlex.quote(str(seed / 'usr/libexec/atf-sh')) + ' ' +
-                            shlex.quote(str(products / 'tests/truncate_test.body')) + ' "$@"\n')
+                            'exec ' + shlex.quote(str(visible_seed / 'usr/libexec/atf-sh')) + ' ' +
+                            shlex.quote(str(visible_products / 'tests/truncate_test.body')) + ' "$@"\n')
         launcher.chmod(0o755)
     elif args.stage == 'tests':
+        if scoped is not None:
+            env.update(launcher_variables(visible_seed, visible_products, scoped=True))
+            env['TMPDIR'] = str(scoped[2])
         inventory = inputs / 'tools/daemonarchy/retained/original-cases.json'
         cases = json.loads(inventory.read_bytes())['cases']
         for program in sorted({c['program'] for c in cases}):
-            actual = subprocess.check_output([str(products / 'tests' / program), '-l'],
+            actual = subprocess.check_output([str(visible_products / 'tests' / program), '-l'],
                                              env=env, stdin=subprocess.DEVNULL, text=True, timeout=30)
             expected = {c['case'] for c in cases if c['program'] == program}
             require_case_listing(actual, expected)
@@ -120,8 +172,11 @@ def main():
         kyuafile.write_text('syntax(2)\ntest_suite("daemonarchy-original")\n' +
                            ''.join('atf_test_program{name="' + c + '"}\n' for c in sorted({v['program'] for v in cases})))
         database = objects / 'original.db'
-        run([seed / 'usr/bin/kyua', '-c', 'none', 'test', '--kyuafile=' + str(kyuafile),
-             '--build-root=' + str(products / 'tests'), '--results-file=' + str(database)], env=env)
+        runner = [visible_seed / 'usr/bin/kyua', '-c', 'none']
+        if scoped is not None:
+            runner.append('--variable=unprivileged_user=' + args.secondary_user)
+        run([*runner, 'test', '--kyuafile=' + str(kyuafile),
+             '--build-root=' + str(visible_products / 'tests'), '--results-file=' + str(database)], env=env)
         run([sys.executable, '-B', inputs / 'tools/daemonarchy/report-kyua.py', '--results', database,
              '--inventory', inventory, '--action', 'original-tests',
              '--output', outputs / 'original-tests.json',

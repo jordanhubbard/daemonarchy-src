@@ -334,3 +334,43 @@ and all five locks pass. Installed native focused checks report 29 passes and
 one optional source-corpus skip. Original privileged/unprivileged acceptance
 and a passing lifecycle receipt remain required. Existing
 operator aliases and active workspace selections have not changed.
+
+### Reviewed secondary-account profile preparation (development)
+
+The stage harness accepts an explicit runtime view, product view, writable fixture
+and secondary account together. The profile constructor can bind those resources
+with `--secondary-account NAME`, observing an existing account on the native
+worker. It creates no account and selects no provisioning endpoint. All original
+case IDs and required-user metadata remain unchanged.
+
+This option requires a qualified framework containing the enforcing secondary
+access API; the currently recorded `d6070ba5` baseline does not provide that API.
+Once the new framework and its operator-private allocation inspector are
+qualified, prepare the profile inside the disposable native worker:
+
+```sh
+/path/to/qualified/python -B tools/daemonarchy/prepare-retained-profile.py \
+  --project "$PWD" --name secondary-original --secondary-account litaitest
+```
+
+The generated profile reserves `runtime` for the captured bootstrap tree,
+`products` for sealed build exports and `work` for fresh test fixtures. Reviewed
+arguments pass these paths and the account into the helper. The test launcher
+uses the views for its interpreter, ATF tools, program search and runtime library
+paths. Kyua receives the exact unprivileged account and uses the fixture as its
+temporary root. New export directories are explicitly readable even under a
+private umask; existing and original directory permissions remain intact.
+
+The helper refuses partial, overlapping, redirected or relative view arguments.
+Its legacy mode keeps the previous private paths. Eight local stage checks pass,
+including explicit Kyua argument/environment wiring with stubbed programs. These
+checks do not execute the original native suite, qualify the installed CLI or
+admit an SDK or package. Native execution of all 24 cases and the remaining
+provenance/package gates are still required.
+
+Controller verification of the secondary-account harness changes selects 66
+checks: 62 pass and four native-only checks skip in 3.700 seconds. Current source
+authority validation and all five committed FreeBSD-target locks pass. This does
+not supply a current lifecycle receipt, original-suite qualification or package
+admission. The existing SQLite test fixtures emit ResourceWarnings on the
+controller Python 3.14 runtime; no checks fail.
