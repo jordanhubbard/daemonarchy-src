@@ -37,6 +37,15 @@ profile. Standard binding, admitted compiler/runtime inputs, actual execution
 and package qualification remain required. The source target Flavor contributes
 no generation command or ambient compiler fallback.
 
+This adopted project currently has no Standard lifecycle binding or test receipt
+policy. The installed development CLI's `project lifecycle rebind-standard`
+command rejects that state with `standard_rebind.binding_required`; it updates
+an existing binding rather than establishing one. The first binding therefore
+needs a supported reviewed transaction using the installed wheel's observed
+distribution and complete Standard policy. Do not copy pins from another project,
+hand-edit a distribution identity, or repeat adoption to work around this gap.
+Binding alone will not admit native tools or qualify an execution.
+
 The parser cases are `expand_number__ok`, `expand_number__bad`,
 `expand_unsigned` and `expand_generic`. Preserve the utility's complete original
 inventory; its `deallocate` case requires root. An unprivileged skip does not

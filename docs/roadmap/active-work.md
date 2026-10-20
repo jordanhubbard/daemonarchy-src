@@ -18,6 +18,13 @@
   - [x] Review and apply original-source authority without moving original files.
   - [ ] Bind selected inputs, native configuration, compiler and test resources
     through the qualified Standard retained lifecycle.
+    - [ ] Establish the first Standard binding through a reviewed installed-wheel
+      transaction. The existing `rebind-standard` operation requires a prior
+      Standard binding; this adopted project has neither a lifecycle driver nor
+      a receipt policy. Extend the framework operation under issue #22 before
+      proceeding. Preserve original adoption authority and all installed Standard
+      evidence requirements; do not hand-enter distribution identities or
+      reinitialize the source tree.
     - [x] Select explicit native FreeBSD and pkg Flavors for the three unit locks;
       keep compiler/runtime admission and execution qualification separate.
   - [ ] Compile the original parser and utility and run all four parser cases and
@@ -59,7 +66,8 @@ preserved all tracked source bytes and retained original release authority.
 Its record explicitly grants no execution admission.
 The owned `daemonarchy` integration branch starts at the selected upstream tip;
 the source-development review targets it while `main` remains upstream-tracking.
-**Next action in progress:** configure the actual Standard/native profile,
+**Next action in progress:** provide the reviewed initial Standard binding,
+then configure the actual Standard/native profile,
 complete selected input ownership and SDK/test custody, then earn execution
 admission; no original unit has yet been compiled through this lifecycle.
 No unit is admitted, built, accepted or package-qualified by this checklist.
