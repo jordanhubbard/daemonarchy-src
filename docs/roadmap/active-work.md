@@ -49,6 +49,12 @@
     all twenty utility cases, including privileged deallocation in a disposable VM.
     Preserve the explicit unprivileged-user requirements of `bad_truncate` and
     `cannot_open` and bind any guest privilege switching in reviewed configuration.
+    - [ ] Qualify explicit secondary-user resource grants through
+      [framework #85](https://github.com/jordanhubbard/literate-ai/issues/85).
+      Actual run and output roots are mode `0700`; selecting Kyua's
+      `unprivileged_user` alone cannot grant traversal to test programs or
+      captured runtime resources. Preserve private defaults and custody checks;
+      do not chmod the run broadly or weaken original test requirements.
     - [x] Author the exact 24-case Kyua report inventory from the selected original
       registration lists and validate it with the existing report producer.
     - [ ] Compare actual newly built ATF program listings with that inventory
