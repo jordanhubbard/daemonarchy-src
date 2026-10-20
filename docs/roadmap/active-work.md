@@ -208,6 +208,21 @@ not supply a current lifecycle receipt, original-suite qualification or package
 admission. The existing SQLite test fixtures emit ResourceWarnings on the
 controller Python 3.14 runtime; no checks fail.
 
+The [installed native development record](../../verification/source-native-development.json)
+now supersedes the pending-execution description above for its explicit scope:
+installed `6e370033` completes the selected original build, all 24 original cases
+without skips and eleven independent cases. Receipt
+`sha256:924264d401159e317059b69c80087ec3a9cd047ca4652a53ca7903fa6c29f559`
+is admitted for local-runtime use; all 34 retained records reverify and account,
+ACL and mount cleanup is complete. Earlier failed runs remain retained.
+The separate raw source baseline completes world/kernel/pkgbase/sets and verifies
+537 artifacts plus exact source-archive parity. Its six-package compiler/sysroot
+candidate requires faithful symbolic and hard-link custody through framework
+[issue #93](https://github.com/jordanhubbard/literate-ai/issues/93).
+Canonical Standard lifecycle, SDK admission and per-unit pkg gates stay open.
+Next: admit that source-built SDK through its actual producer and renew consumers;
+aggregate package groups and copied bootstrap tools cannot satisfy this step.
+
 ### [ ] SRC-NULLFS-001 — Honor standalone nullfs comma-separated options
 
 - **Priority:** P2

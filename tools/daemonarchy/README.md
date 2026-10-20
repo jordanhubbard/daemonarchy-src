@@ -48,9 +48,34 @@ inputs require a new profile and authorization; a stale plan must fail.
 This prototype retains original make compilation, all 24 original ATF cases,
 documentation and eleven withheld utility acceptance cases. No skip is authorized.
 The privileged `deallocate` case and explicitly unprivileged permission cases
-still require a reviewed disposable-VM execution configuration before complete
-acceptance can pass. Captured bootstrap provenance remains unknown; selected
-unit pkg construction, complete-tree ownership and release admission remain open.
+require a reviewed disposable-VM execution configuration. An installed development
+run now passes all 24 original cases and eleven independent cases in that
+configuration; see the evidence boundary below. Captured bootstrap provenance
+remains unknown; canonical SDK admission, selected-unit pkg construction,
+complete-tree ownership and release admission remain open.
+
+## Current native evidence boundary
+
+The [development record](../../verification/source-native-development.json)
+separates two completed observations over source revision `d98e6c2da757`:
+
+- Installed framework `6e370033` compiles the selected original units, passes all
+  24 original cases without skips and matches eleven independent acceptance
+  cases, including one declared invalid-input exit of 1. Its admitted receipt
+  is explicitly **local-runtime**. All 34 retained records reverify; scoped
+  account permissions are restored and no nullfs mounts remain.
+- The unprivileged native controller completes world, kernel, pkgbase and
+  installer sets with four jobs. All 537 artifacts verify; the source archive
+  matches all 114,710 tracked Git members, including 138 symlinks. Read-only
+  inspection verifies 524 pkgbase manifests and identifies a six-package
+  compiler/sysroot candidate, including both symbolic and hard-link aliases.
+
+Neither observation supplies canonical Standard lifecycle acceptance, an admitted
+source-built SDK, per-unit packages, a booted ISO or release authority. The checked-in
+controller review remains bound to `d6070ba5`; the `6e370033` execution used a separate
+reviewed disposable native project. Do not silently copy its distribution pin into
+this checkout or replace the operator's default CLI. Renew the Standard binding
+through its reviewed plan/apply transaction when the next candidate is qualified.
 
 ## Worker setup
 
@@ -331,9 +356,10 @@ kinds. The native dependency build completed with exit 0, and its verified
 37-distribution closure installs on the build worker and disposable guest. A
 separate native source review applies its own recorded rebind plan; authority
 and all five locks pass. Installed native focused checks report 29 passes and
-one optional source-corpus skip. Original privileged/unprivileged acceptance
-and a passing lifecycle receipt remain required. Existing
-operator aliases and active workspace selections have not changed.
+one optional source-corpus skip. This is the preceding binding checkpoint.
+The later installed `6e370033` local-runtime result is recorded above; canonical
+Standard lifecycle acceptance remains required. Existing operator aliases and
+active workspace selections have not changed.
 
 ### Reviewed secondary-account profile preparation (development)
 

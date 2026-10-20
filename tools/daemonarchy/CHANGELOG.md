@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Reconcile native execution and source-build documentation with retained
+  evidence: installed local-runtime execution passes all 24 original cases and
+  eleven independent cases; aggregate world/kernel/pkgbase/sets and 537 artifact
+  hashes verify. Record the source-built compiler/sysroot candidate and both
+  symbolic and hard-link custody requirements. Canonical SDK, Standard lifecycle,
+  per-unit package and release admission remain open.
+
 - Prepare optional reviewed secondary-account profiles and pass explicit SDK,
   product and fixture views into original test execution. Bind the exact account
   to Kyua, select captured runtime libraries and create readable new exports

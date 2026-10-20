@@ -45,11 +45,15 @@ revision `4613eda2447eca5ad02b1abee2130375b83b29de`, plan identity
 `sha256:a8369c3fc540e0f8cf6d186eb23c6cc2fa45ab005e5e74e44dd228965dabf14f`,
 and installed distribution identity
 `sha256:6c341fe24f1c3fbc859620227ea453d122cd842fc73bc5c920a99063e4ad3cdb`.
-The current reviewed rebind uses framework revision
-`ca604c000d6a2eae1906fe10a6f7f1156bab2b43`, plan identity
-`sha256:7d14cf0557dd281087dca3d34cabdf41ce44aab7d37fa7f3fbe9f533b5651108`,
+The controller review's current rebind uses framework revision
+`d6070ba530a743f323e12e23b37b2c7840d49a3b`, plan identity
+`sha256:f274b56021aa1800589687b631fe41349fdff5ebf12a058c8dab0fc153bb95a0`,
 and installed distribution identity
-`sha256:95ff863c311e475172efbca8a7a2fd012d727974368ce84293503804462b8fe0`.
+`sha256:45a9c62db237a2b5facee35f992b33fde07b8643c44eccf94f6a654debb633e4`.
+A separate reviewed native project using installed `6e370033` now passes the
+selected original and independent suites. The [development record](../../verification/source-native-development.json)
+retains its local-runtime receipt and cleanup evidence; it does not advance this
+checkout's Standard pin or qualify its source-built SDK.
 The rebind preserves original-source authority but marks accepted source
 membership and the test receipt stale until a complete rebuild. It grants no
 native tool admission or execution qualification.
@@ -75,8 +79,9 @@ by the existing Kyua report producer. It declares the four original parser and
 twenty original utility registrations as `parser.*` and `truncate.*` report IDs,
 using test-program names `expand_number_test` and `truncate_test`. Before a run,
 compare the actual newly built ATF listings with this exact selection. The source
-registration check and inventory parser validate authoring only; native discovery
-and execution remain pending. No selected case has an authorized skip.
+registration check and inventory parser validate authoring only. The later native
+run matches the complete inventory and passes all 24 cases without skips. No
+selected case has an authorized skip.
 
 Independent acceptance must inspect actual file sizes/content preservation and
 malformed-input refusal separately from original tests. Changed source, shared
@@ -103,6 +108,7 @@ shell runner that independently awards acceptance.
 Keep this verifier policy outside the retained input manifest's roots: the
 framework withholds independent expectations from build commands and rejects a
 policy included among build inputs. Component lock changes require a fresh
-review of the policy binding. These are prepared expectations, not observed
-results or a test receipt. No case has yet qualified a built utility; parser
-acceptance, original ATF suites and VM qualification remain open.
+review of the policy binding. The separate native run now matches all eleven
+declared cases against the built utility and admits its local-runtime receipt. That result does not supply an
+admitted SDK, the canonical Standard lifecycle receipt, per-unit package
+acceptance or installation/update/rollback qualification.
