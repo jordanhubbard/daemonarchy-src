@@ -319,3 +319,14 @@ PYTHONDONTWRITEBYTECODE=1 python3.12 -m unittest discover \
 These tests use small synthetic fixtures to exercise refusals, byte verification
 and actual subprocess timeout/failure behavior. They do not stand in for native
 FreeBSD compilation or package acceptance.
+
+### Qualified framework renewal
+
+The controller review now binds framework `d6070ba5`, whose complete local
+regression and installed-wheel qualification pass. Its exact wheel, distribution,
+verified dependency closure and reviewed rebind are recorded in
+[`verification/standard-d6070ba5.json`](../../verification/standard-d6070ba5.json).
+The update preserves the Standard policy and all sixteen required evidence
+kinds. The native dependency wheelhouse is a separate ongoing build; native
+execution renewal and a passing lifecycle receipt remain required. Existing
+operator aliases and active workspace selections have not changed.

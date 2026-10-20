@@ -53,6 +53,14 @@
       Distribution `sha256:95ff863c311e475172efbca8a7a2fd012d727974368ce84293503804462b8fe0`
       preserves all sixteen evidence kinds and the Standard policy. Source
       authority and five locks pass; the lifecycle receipt remains missing.
+    - [x] Rebind the controller review project to qualified framework
+      `d6070ba530a743f323e12e23b37b2c7840d49a3b` through reviewed plan
+      `sha256:f274b56021aa1800589687b631fe41349fdff5ebf12a058c8dab0fc153bb95a0`.
+      [Renewal record](../../verification/standard-d6070ba5.json) binds the
+      tested wheel and verified controller dependency closure. All sixteen
+      evidence kinds and the Standard policy are preserved. Native dependency
+      wheels are being built separately; no native rebind or lifecycle receipt
+      is claimed from this controller update.
     - [x] Select explicit native FreeBSD and pkg Flavors for the three unit locks;
       keep compiler/runtime admission and execution qualification separate.
   - [ ] Compile the original parser and utility and run all four parser cases and

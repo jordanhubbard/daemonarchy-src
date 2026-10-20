@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Bind the controller review to a qualified framework wheel through the reviewed
+  Standard rebind transaction and a verified dependency wheelhouse, preserving
+  all sixteen evidence kinds. Native renewal and acceptance remain separate.
+
 - Capture the renewed installed native run's actual CLI exit and hashed command
   observations. Compilation and documentation have empty stderr; the original
   23-pass/one-root-skip result still correctly refuses acceptance and packaging.

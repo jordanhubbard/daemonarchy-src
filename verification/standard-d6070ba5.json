@@ -1,0 +1,21 @@
+{
+  "schema": "daemonarchy/standard-rebind-checkpoint@1",
+  "framework_revision": "d6070ba530a743f323e12e23b37b2c7840d49a3b",
+  "wheel_sha256": "c36be2bb76cfd41ca0e5e185eeb95e3f73e6c4f2fd327e28e9c53241e59d7d7a",
+  "distribution_identity": "sha256:45a9c62db237a2b5facee35f992b33fde07b8643c44eccf94f6a654debb633e4",
+  "distribution_members": 1204,
+  "plan_identity": "sha256:f274b56021aa1800589687b631fe41349fdff5ebf12a058c8dab0fc153bb95a0",
+  "standard_policy_identity": "sha256:a5ca0d6d13daff0199f218c5e4af723a2cec87b927e75dd3a731c511b5d85ac7",
+  "required_evidence_kinds_preserved": 16,
+  "controller_rebind_applied": true,
+  "native_rebind_applied": false,
+  "native_dependency_wheels": "building on dedicated native build worker",
+  "qualified_framework_wheel": true,
+  "controller_dependency_closure_identity": "sha256:62fc4bfb7a1c6f4ea6699ea87abb7e1520aae8d3b10cca1af43ca0b37c3ab687",
+  "default_cli_changed": false,
+  "development_alias_changed": false,
+  "active_workspace_selection_changed": false,
+  "receipt": "missing",
+  "acceptance_qualified": false,
+  "packages_qualified": false
+}
