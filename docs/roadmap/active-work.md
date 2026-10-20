@@ -24,6 +24,10 @@
     all twenty utility cases, including privileged deallocation in a disposable VM.
     Preserve the explicit unprivileged-user requirements of `bad_truncate` and
     `cannot_open` and bind any guest privilege switching in reviewed configuration.
+    - [x] Author the exact 24-case Kyua report inventory from the selected original
+      registration lists and validate it with the existing report producer.
+    - [ ] Compare actual newly built ATF program listings with that inventory
+      before running the full suites; refuse missing or additional cases.
   - [ ] Independently accept sealed file effects and parser/library behavior.
     - [x] Author eleven typed utility file-effect cases bound to the current
       three Component locks; retain their expectations outside build inputs.

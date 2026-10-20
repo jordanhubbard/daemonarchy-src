@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Bind the selected original parser and utility suites to an exact 24-case
+  inventory for the existing Kyua report producer. Native program-list comparison
+  and actual execution remain pending; no case may silently disappear or become
+  an authorized skip.
+
 - Prepare eleven independent utility filesystem acceptance cases through the
   existing typed verifier policy, bound to the current source-unit locks. Check
   exact file contents and lengths as well as command results; execution against

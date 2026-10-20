@@ -48,6 +48,14 @@ Kyua requirements checker rejects these when invoked as root without configured
 configuration. Preserve each case's required-user semantics rather than running
 all cases as root or counting a context-related skip as complete coverage.
 
+`tools/daemonarchy/retained/original-cases.json` is the reviewed selection consumed
+by the existing Kyua report producer. It declares the four original parser and
+twenty original utility registrations as `parser.*` and `truncate.*` report IDs,
+using test-program names `expand_number_test` and `truncate_test`. Before a run,
+compare the actual newly built ATF listings with this exact selection. The source
+registration check and inventory parser validate authoring only; native discovery
+and execution remain pending. No selected case has an authorized skip.
+
 Independent acceptance must inspect actual file sizes/content preservation and
 malformed-input refusal separately from original tests. Changed source, shared
 header, dependency, options or compiler must invalidate the affected plan,
