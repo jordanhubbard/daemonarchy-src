@@ -10,6 +10,12 @@
   skips; authority and all five FreeBSD-target locks pass. New installed/native
   qualification remains open.
 
+- Verify the committed original-test stage on FreeBSD with captured SDK views
+  and existing compiled products: all 24 cases pass without skips, including
+  root and unprivileged cases. Retain exact helper, inventory, database and report
+  identities and verify account, payload, ACL, mount and fixture cleanup. Complete
+  selected-profile execution and installed lifecycle/package admission remain open.
+
 - Bind the controller review to a qualified framework wheel through the reviewed
   Standard rebind transaction and a verified dependency wheelhouse, preserving
   all sixteen evidence kinds. Native renewal and acceptance remain separate.

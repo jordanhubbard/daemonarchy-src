@@ -365,8 +365,17 @@ The helper refuses partial, overlapping, redirected or relative view arguments.
 Its legacy mode keeps the previous private paths. Eight local stage checks pass,
 including explicit Kyua argument/environment wiring with stubbed programs. These
 checks do not execute the original native suite, qualify the installed CLI or
-admit an SDK or package. Native execution of all 24 cases and the remaining
-provenance/package gates are still required.
+admit an SDK or package.
+
+A subsequent [native harness check](../../verification/secondary-harness-native.json)
+runs this committed test stage with previously compiled products and the captured
+SDK exposed through read-only, nosuid views. All 24 original cases pass without
+skips, including privileged and unprivileged cases. Accounts and compiled products
+are unchanged; mounts, ACLs and writable fixtures are restored. The check prepares
+its shell launcher with the committed launcher-variable function. It does not run
+the selected build profile, qualify the installed CLI, admit the compiler SDK or
+issue a lifecycle receipt. Those provenance, acceptance and package gates remain
+required.
 
 Controller verification of the secondary-account harness changes selects 66
 checks: 62 pass and four native-only checks skip in 3.700 seconds. Current source

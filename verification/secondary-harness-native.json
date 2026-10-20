@@ -1,0 +1,46 @@
+{
+  "schema": "daemonarchy/reviewed-source-test-harness-native@1",
+  "source_revision": "dcac180c84477e9e084635526ed7d406d63eba7d",
+  "file_sha256": {
+    "retained-source-stage.py": "95d48420bf1741376b5f6b0853e4fb18f750615931b13e69061d4e71d9a25d61",
+    "report-kyua.py": "7bc012d04dd9bad03842a7ff7abdcf8db29fc02d62c36814b0d4ccbc27012dc8",
+    "retained/original-cases.json": "f27b4e827b42b0d553a8603ad2842a0dd8e95f0f2448890e2eaa89d322f5146e"
+  },
+  "source_probe_only": true,
+  "installed_framework_integration": false,
+  "selected_profile_executed": false,
+  "lifecycle_admitted": false,
+  "source_sdk_admitted": false,
+  "per_unit_packages_qualified": false,
+  "previously_compiled_products": true,
+  "scope": "Run the committed original-test stage using captured SDK read-only/nosuid views, exact original inventory and existing compiled programs. Prepare its shell launcher using the committed launcher-variable function. This does not execute the full selected build profile.",
+  "selected": 24,
+  "passed": 24,
+  "skipped": 0,
+  "failed": 0,
+  "exit_code": 0,
+  "same_owned_qemu_instance_before_and_after": true,
+  "checks": {
+    "accounts_unchanged": true,
+    "compiled_programs_and_body_unchanged": true,
+    "fixture_empty": true,
+    "mounts_removed": true,
+    "original_acls_restored": true
+  },
+  "record_sha256": "863d544843f36099c1675835b0ca7886c25499d042970c8e7b9686ff5e41af3a",
+  "result_artifact_sha256": {
+    "database": "ca95e59d3ff1b462605f52fb521170141ec5781a01679c20640c76d2b04c394d",
+    "provenance": "8dad26abef389e6f5e205ec0105da65811c96b6ac698f91f4e9d58b0e6266e30",
+    "report": "d5de391a49f80e0cdb060938632bd90d7686e2b1e46e3086912ca5ed5e3b0ace",
+    "stdout": "b29856050f3daa11e8d56483f9463a2469c10a342816fa51decc4313b63bb08e",
+    "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "harness_sha256": "cc0e49452427d137687b78d76f4fef51cfcb44dd46483005b4f1d1aa50ca8513",
+  "remaining": [
+    "independent framework review and installed qualification",
+    "actual reusable allocation inspector",
+    "complete selected native profile and independent acceptance",
+    "runtime dependency observations and source-built SDK provenance",
+    "per-unit package admission and complete source/ports catalogs"
+  ]
+}

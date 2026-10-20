@@ -192,6 +192,14 @@ framework lacks this API; a newly qualified framework and actual private allocat
 inspector are required before installed execution. Original 24-case coverage,
 current receipt, SDK provenance and per-unit packages remain open.
 
+The subsequent [native harness check](../../verification/secondary-harness-native.json)
+executes the committed original-test stage against the captured SDK and existing
+compiled products. All 24 reviewed cases pass without skips, including root and
+unprivileged cases. Exact program/body bytes and accounts are unchanged; ACLs,
+mounts and writable fixtures are restored. This validates the new stage path,
+not a complete selected-profile run or installed framework admission. The
+retained database, provenance and report hashes keep that distinction explicit.
+
 
 Controller verification of the secondary-account harness changes selects 66
 checks: 62 pass and four native-only checks skip in 3.700 seconds. Current source
