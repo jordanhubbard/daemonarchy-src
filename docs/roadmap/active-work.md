@@ -75,4 +75,14 @@ the source-development review targets it while `main` remains upstream-tracking.
 **Next action in progress:** configure the actual Standard/native profile,
 complete selected input ownership and SDK/test custody, then earn execution
 admission; no original unit has yet been compiled through this lifecycle.
-No unit is admitted, built, accepted or package-qualified by this checklist.
+A direct native make diagnostic at selected source revision
+`978fed917ba2b391c3eace661c21a7a65549cb23` compiles the original parser and utility.
+The complete original ATF inventory reports 23 passes and one retained
+root-required skip (`truncate.deallocate`); permission-error cases run
+unprivileged. ELF inspection confirms the parser test uses the privately built
+parser archive and no host libutil. The
+[exact product-side record](https://github.com/jordanhubbard/daemonarchy/blob/a9838100a25f51a2d153e1c6de92f3980e43f5e6/verification/native-source-original-tests.json)
+retains the actual phase commands, timings and per-case outcomes. These
+diagnostics are not installed LitAI execution, privileged acceptance, independent
+sealed-product acceptance or package qualification. All those requirements
+remain open; no unit is admitted by this checklist.

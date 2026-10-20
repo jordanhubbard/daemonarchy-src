@@ -3,9 +3,10 @@
 ## Unreleased
 
 - Bind the selected original parser and utility suites to an exact 24-case
-  inventory for the existing Kyua report producer. Native program-list comparison
-  and actual execution remain pending; no case may silently disappear or become
-  an authorized skip.
+  inventory for the existing Kyua report producer. A direct native probe
+  now records 23 passes and the root-required deallocation skip. Canonical
+  program-list comparison, installed lifecycle execution and privileged acceptance
+  remain pending; no case may silently disappear or become an authorized skip.
 
 - Prepare eleven independent utility filesystem acceptance cases through the
   existing typed verifier policy, bound to the current source-unit locks. Check
