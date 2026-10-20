@@ -25,6 +25,11 @@
     Preserve the explicit unprivileged-user requirements of `bad_truncate` and
     `cannot_open` and bind any guest privilege switching in reviewed configuration.
   - [ ] Independently accept sealed file effects and parser/library behavior.
+    - [x] Author eleven typed utility file-effect cases bound to the current
+      three Component locks; retain their expectations outside build inputs.
+    - [ ] Bind that verifier policy to the executable profile and observe every
+      case against the sealed, newly compiled utility. Parser/library acceptance
+      and the complete original test inventories remain separate requirements.
   - [ ] Inspect per-unit pkg products, both BOMs, provenance and dependencies.
   - [ ] Measure unchanged builds and separate source/header/options/toolchain
     invalidation; prove relocated installation, update and rollback.

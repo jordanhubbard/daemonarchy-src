@@ -53,3 +53,26 @@ malformed-input refusal separately from original tests. Changed source, shared
 header, dependency, options or compiler must invalidate the affected plan,
 actions, receipts and packages. Package source/build support units as well as
 runtime products. Preserve license notices and observed dependency metadata.
+
+### Prepared utility verifier policy
+
+`verification/retained-project-acceptance.json` uses the framework's typed
+retained acceptance policy and filesystem cases. Eleven cases declare exact
+fixture bytes, expected file lengths/content digests, command results and bounded
+resources. They cover prefix preservation, zero-filled growth, relative sizes,
+creation, no-create, reference sizes, multiple operands, binary suffixes,
+rounding up and invalid-size refusal without changing the fixture.
+
+The policy binds all three current Component lock identities. Its intended
+sealed executable is `products/bin/truncate`, with acceptance action
+`accept-truncate`. The eventual profile must select that policy identity, declare
+the same exact acceptance inventory and include the executable in its build and
+package inventories. Use the existing Standard acceptance owner; do not add a
+shell runner that independently awards acceptance.
+
+Keep this verifier policy outside the retained input manifest's roots: the
+framework withholds independent expectations from build commands and rejects a
+policy included among build inputs. Component lock changes require a fresh
+review of the policy binding. These are prepared expectations, not observed
+results or a test receipt. No case has yet qualified a built utility; parser
+acceptance, original ATF suites and VM qualification remain open.

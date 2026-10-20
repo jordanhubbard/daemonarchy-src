@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Prepare eleven independent utility filesystem acceptance cases through the
+  existing typed verifier policy, bound to the current source-unit locks. Check
+  exact file contents and lengths as well as command results; execution against
+  sealed, newly compiled products remains pending.
+
 - Select explicit original-FreeBSD OS and pinned native-pkg policies through
   each unit's Flavor slots. Preserve retained origin and live-admission guards;
   a selected provider is not a constructed or qualified package.
