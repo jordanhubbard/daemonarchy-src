@@ -80,6 +80,10 @@ def main():
                  'usr.bin/truncate/Makefile.inc', 'usr.bin/truncate/tests/Makefile'):
         if (root / name).is_file():
             selected[name] = ('build-definition', 'native-build-support')
+    component_directories = {path.name: path for path in project_component_roots(project)}
+    for owner in sorted({name for _role, name in selected.values()}):
+        metadata = component_directories[owner]
+        selected[metadata.relative_to(root).as_posix()] = ('build-definition', owner)
     limits = RetainedProjectLimits(12000, 128 * 1024 * 1024, 512 * 1024 * 1024)
     initial = discover_retained_project_inputs(root, {k:v[0] for k,v in selected.items()},
                                               limits, allow_internal_symlinks=True)

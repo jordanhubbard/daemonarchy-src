@@ -76,6 +76,10 @@
       case against the sealed, newly compiled utility. Parser/library acceptance
       and the complete original test inventories remain separate requirements.
   - [ ] Inspect per-unit pkg products, both BOMs, provenance and dependencies.
+    - [ ] Retain the selected canonical Component specifications and public
+      contracts in the input manifest. Profiles v2/v3 omitted those files;
+      the package owner correctly refuses missing authored specifications.
+      Keep the separate machine-verifier expectations outside build inputs.
   - [ ] Measure unchanged builds and separate source/header/options/toolchain
     invalidation; prove relocated installation, update and rollback.
 
