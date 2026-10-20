@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Include selected units' authored specifications, contracts and lock metadata
+  in retained package inputs. Validate exact specification-byte coverage while
+  keeping independent machine-verifier expectations outside build inputs.
+
 - Retain the first installed native run's verified compilation, documentation,
   and 23-pass/one-root-skip test observations without awarding acceptance.
   Add missing version-query input selection and bind/check the captured linker;
