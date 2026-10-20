@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Run all 24 original parser/utility cases successfully in a disposable FreeBSD
+  guest against the unchanged retained native products, including privileged
+  deallocation and both unprivileged cases. Verify the closed Kyua database
+  against the exact inventory and restore the probe permissions and account
+  state. This manual capability result does not supply installed framework
+  grants, independent acceptance or per-unit package admission.
+
 - Rebind reviewed project authority to the exact installed framework wheel with
   the shared retained `build`/`test` frontend, preserving all sixteen Standard
   evidence requirements. Native profile execution and package admission remain

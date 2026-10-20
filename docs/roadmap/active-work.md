@@ -76,6 +76,14 @@
       `unprivileged_user` alone cannot grant traversal to test programs or
       captured runtime resources. Preserve private defaults and custody checks;
       do not chmod the run broadly or weaken original test requirements.
+    - [x] Exercise the retained native products in a disposable FreeBSD guest:
+      all 24 exact original cases pass with no skips, including privileged
+      deallocation and both unprivileged cases. The existing closed-database
+      reporter verifies the original inventory. A manually scoped fixture
+      probe restores pre-existing ACLs and leaves account and payload bytes
+      unchanged. [Product evidence](https://github.com/jordanhubbard/daemonarchy/blob/feat/native-release-program/verification/original-native-suite-guest-probe.json)
+      retains the failed default-deny fixture-inheritance attempt as well.
+      Installed framework grants, SDK admission and lifecycle acceptance remain open.
     - [x] Author the exact 24-case Kyua report inventory from the selected original
       registration lists and validate it with the existing report producer.
     - [x] Compare actual newly built ATF program listings with that inventory
