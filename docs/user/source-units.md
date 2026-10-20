@@ -46,10 +46,10 @@ revision `4613eda2447eca5ad02b1abee2130375b83b29de`, plan identity
 and installed distribution identity
 `sha256:6c341fe24f1c3fbc859620227ea453d122cd842fc73bc5c920a99063e4ad3cdb`.
 The current reviewed rebind uses framework revision
-`5b9afcd7c9016341620695b9110ec073809d239c`, plan identity
-`sha256:d8788377ad6f684e11d9b0db310c66d1172ad1399532a07efad12db595c7e771`,
+`ca604c000d6a2eae1906fe10a6f7f1156bab2b43`, plan identity
+`sha256:7d14cf0557dd281087dca3d34cabdf41ce44aab7d37fa7f3fbe9f533b5651108`,
 and installed distribution identity
-`sha256:01c193fa8e09bfd5c38eee2d5aaa71594421c1e67840fad46d40b1740c4a8bc9`.
+`sha256:95ff863c311e475172efbca8a7a2fd012d727974368ce84293503804462b8fe0`.
 The rebind preserves original-source authority but marks accepted source
 membership and the test receipt stale until a complete rebuild. It grants no
 native tool admission or execution qualification.

@@ -47,6 +47,12 @@
       all sixteen evidence kinds and the Standard policy are preserved.
       Installed project authority and three locks pass; native preview deployment
       and actual retained execution remain open.
+    - [x] Rebind the corrected local and native build-worker review projects to
+      installed framework `ca604c000d6a2eae1906fe10a6f7f1156bab2b43` through
+      the same reviewed plan `sha256:7d14cf0557dd281087dca3d34cabdf41ce44aab7d37fa7f3fbe9f533b5651108`.
+      Distribution `sha256:95ff863c311e475172efbca8a7a2fd012d727974368ce84293503804462b8fe0`
+      preserves all sixteen evidence kinds and the Standard policy. Source
+      authority and five locks pass; the lifecycle receipt remains missing.
     - [x] Select explicit native FreeBSD and pkg Flavors for the three unit locks;
       keep compiler/runtime admission and execution qualification separate.
   - [ ] Compile the original parser and utility and run all four parser cases and
@@ -118,7 +124,8 @@ selection, inventory and capture-record hashes. Local controller tests report
 60 passing. These checks qualify helper refusal/custody, not product acceptance.
 
 The installed CLI accepts a real 5,266-member retained manifest with five
-canonical owners and 5,618 managed graph nodes. Changing a selected helper
+canonical owners and 5,618 owned input nodes (files and directories). The managed
+graph has five units plus the retained-project root. Changing a selected helper
 invalidates the earlier plan. The first installed native run has now ended.
 Its build, documentation and original-test commands all exited zero, with 23
 original passes and one root-required skip. The exact production-policy recheck
