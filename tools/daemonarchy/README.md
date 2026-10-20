@@ -327,6 +327,10 @@ regression and installed-wheel qualification pass. Its exact wheel, distribution
 verified dependency closure and reviewed rebind are recorded in
 [`verification/standard-d6070ba5.json`](../../verification/standard-d6070ba5.json).
 The update preserves the Standard policy and all sixteen required evidence
-kinds. The native dependency wheelhouse is a separate ongoing build; native
-execution renewal and a passing lifecycle receipt remain required. Existing
+kinds. The native dependency build completed with exit 0, and its verified
+37-distribution closure installs on the build worker and disposable guest. A
+separate native source review applies its own recorded rebind plan; authority
+and all five locks pass. Installed native focused checks report 29 passes and
+one optional source-corpus skip. Original privileged/unprivileged acceptance
+and a passing lifecycle receipt remain required. Existing
 operator aliases and active workspace selections have not changed.

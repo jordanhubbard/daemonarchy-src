@@ -58,9 +58,12 @@
       `sha256:f274b56021aa1800589687b631fe41349fdff5ebf12a058c8dab0fc153bb95a0`.
       [Renewal record](../../verification/standard-d6070ba5.json) binds the
       tested wheel and verified controller dependency closure. All sixteen
-      evidence kinds and the Standard policy are preserved. Native dependency
-      wheels are being built separately; no native rebind or lifecycle receipt
-      is claimed from this controller update.
+      evidence kinds and the Standard policy are preserved. The native verified
+      37-distribution closure now installs on the build worker and disposable
+      guest. A separate native review at `949a40c88544` applies plan
+      `sha256:518ae5edd39c6deddcef78a0a7dffa2d25a7878a06e2c41d735dbbc4569d2e77`;
+      source authority and all five locks pass. Installed focused checks
+      report 29 passes and one optional skip; no lifecycle receipt is claimed.
     - [x] Select explicit native FreeBSD and pkg Flavors for the three unit locks;
       keep compiler/runtime admission and execution qualification separate.
   - [ ] Compile the original parser and utility and run all four parser cases and

@@ -8,8 +8,8 @@
   "standard_policy_identity": "sha256:a5ca0d6d13daff0199f218c5e4af723a2cec87b927e75dd3a731c511b5d85ac7",
   "required_evidence_kinds_preserved": 16,
   "controller_rebind_applied": true,
-  "native_rebind_applied": false,
-  "native_dependency_wheels": "building on dedicated native build worker",
+  "native_rebind_applied": true,
+  "native_dependency_wheels": "verified native 37-distribution closure built and installed",
   "qualified_framework_wheel": true,
   "controller_dependency_closure_identity": "sha256:62fc4bfb7a1c6f4ea6699ea87abb7e1520aae8d3b10cca1af43ca0b37c3ab687",
   "default_cli_changed": false,
@@ -17,5 +17,15 @@
   "active_workspace_selection_changed": false,
   "receipt": "missing",
   "acceptance_qualified": false,
-  "packages_qualified": false
+  "packages_qualified": false,
+  "native_rebind_plan_identity": "sha256:518ae5edd39c6deddcef78a0a7dffa2d25a7878a06e2c41d735dbbc4569d2e77",
+  "native_source_revision": "949a40c88544a6a64bca0f8877f38ed77f71e656",
+  "native_dependency_closure_identity": "sha256:76baaf5f2c670b5178b7896866d2a157de2730e2443ba279bde1b46e832372c7",
+  "native_installed_checks": {
+    "passed": 29,
+    "skipped": 1,
+    "failed": 0,
+    "selected": 30,
+    "log_sha256": "fff4b8079d473ba6c5fe888c2f3be789238ec7923dfa9b91ed2615d73e242dc6"
+  }
 }
