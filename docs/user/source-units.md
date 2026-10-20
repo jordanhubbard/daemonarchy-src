@@ -1,6 +1,6 @@
 # Initial original-source units
 
-These three authored contracts select a small real dependency closure. They do
+These three leaf contracts and two support contracts select a small real dependency closure. They do
 not catalogue the whole source tree or constitute execution admission. Keep
 discovered, registered, locked, admitted, built, tested, accepted and packaged
 counts separate. Unselected inputs remain in their original source locations.
@@ -12,13 +12,15 @@ boundaries to the complete source-development requirements and missing evidence.
 | libutil-header | `lib/libutil/libutil.h` | Shared public header owned once; all consumers bind its exact bytes. Other declarations remain present, without claiming their implementations. |
 | expand-number | `lib/libutil/expand_number.c`, `lib/libutil/expand_number.3`, `lib/libutil/tests/expand_number_test.c` | Build dependency on the header; original signed/unsigned parser implementation and four original ATF cases. This is a parser slice, not the complete libutil library. |
 | truncate | `usr.bin/truncate/truncate.c`, `usr.bin/truncate/truncate.1`, `usr.bin/truncate/tests/truncate_test.sh` | Build dependency on the header and runtime dependency on the parser slice; twenty original ATF shell cases. |
+| native-build-support | Shared `share/mk`, selected parent/leaf Makefiles, profile and test/report helpers | Build dependency on the captured bootstrap; owned once for all three leaves. |
+| native-bootstrap | Explicit captured compiler, sysroot, resources, runtime and test tools | Unknown host-bootstrap provenance; copying or locking these bytes does not admit their producer. |
 
 The original `usr.bin/truncate/Makefile` declares `LIBADD=util`. A selected parser
 slice must use a distinct private library identity and installation prefix; it
 must not replace system libutil or claim all its symbols. Retain the original
 Makefiles and shared native build rules as explicitly owned build inputs when
-forming the executable manifest. These three leaf contracts do not yet own the
-complete bootstrap/build/test infrastructure. Missing ownership must refuse
+forming the executable manifest. The two support contracts own the selected
+bootstrap/build/test infrastructure. Missing ownership must refuse
 admission rather than assigning unreviewed files to an arbitrary leaf.
 
 Compiler/linker binaries, resource directories, system headers, startup objects,
@@ -44,10 +46,10 @@ revision `4613eda2447eca5ad02b1abee2130375b83b29de`, plan identity
 and installed distribution identity
 `sha256:6c341fe24f1c3fbc859620227ea453d122cd842fc73bc5c920a99063e4ad3cdb`.
 The current reviewed rebind uses framework revision
-`cffef3238ba48f2c0876270aa4a1aeacce4c86e1`, plan identity
-`sha256:094d62225fb9729c981f26def2f1122de9e9e5c1a0759d5e78ac9c4da7ffb501`,
+`5b9afcd7c9016341620695b9110ec073809d239c`, plan identity
+`sha256:d8788377ad6f684e11d9b0db310c66d1172ad1399532a07efad12db595c7e771`,
 and installed distribution identity
-`sha256:ed899116420edda0c803acf424067f102b6face4870e180104add4da431cb534`.
+`sha256:01c193fa8e09bfd5c38eee2d5aaa71594421c1e67840fad46d40b1740c4a8bc9`.
 The rebind preserves original-source authority but marks accepted source
 membership and the test receipt stale until a complete rebuild. It grants no
 native tool admission or execution qualification.
@@ -91,7 +93,7 @@ resources. They cover prefix preservation, zero-filled growth, relative sizes,
 creation, no-create, reference sizes, multiple operands, binary suffixes,
 rounding up and invalid-size refusal without changing the fixture.
 
-The policy binds all three current Component lock identities. Its intended
+The policy binds all five current Component lock identities. Its intended
 sealed executable is `products/bin/truncate`, with acceptance action
 `accept-truncate`. The eventual profile must select that policy identity, declare
 the same exact acceptance inventory and include the executable in its build and

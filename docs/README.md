@@ -1,10 +1,13 @@
 # Daemonarchy source development
 
 The original FreeBSD tree stays editable in its conventional layout. This
-development project currently has three authored source-unit contracts and
+development project currently has three authored leaf contracts, two shared
+support/bootstrap contracts and five
 target locks, with no native execution or package admission yet.
 Native OS and pkg intent are explicit Flavor choices; compiler/runtime
 admission and the actual Standard build profile remain separate work.
+An executable retained-profile prototype now selects the original native make
+targets and original tests; it has not earned a complete accepted receipt.
 
 Use a development framework candidate with original-source adoption and
 declared-target lock verification ([#22](https://github.com/jordanhubbard/literate-ai/issues/22),

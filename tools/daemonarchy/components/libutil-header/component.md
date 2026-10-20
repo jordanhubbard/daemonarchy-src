@@ -11,7 +11,13 @@ provides:
     interface:
       uri: "interfaces/contract.md"
       pin: null
-requires: []
+requires:
+  - requirement_id: "native-support"
+    capability: "daemonarchy.src.native-build-support"
+    version_range: ">=1,<2"
+    dependency_kind: "build"
+    optional: false
+    constraints: []
 authoring_inputs:
   - kind: "specification-to-source-skill"
     uri: "tools/daemonarchy/skills/specification-to-source/original-boundaries/SKILL.md"

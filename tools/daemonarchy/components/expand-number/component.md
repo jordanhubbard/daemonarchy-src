@@ -12,6 +12,12 @@ provides:
       uri: "interfaces/contract.md"
       pin: null
 requires:
+  - requirement_id: "native-support"
+    capability: "daemonarchy.src.native-build-support"
+    version_range: ">=1,<2"
+    dependency_kind: "build"
+    optional: false
+    constraints: []
   - requirement_id: "public-header"
     capability: "daemonarchy.src.libutil-header"
     version_range: ">=1,<2"

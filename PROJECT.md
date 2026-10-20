@@ -16,7 +16,8 @@ owned ports fork at `/usr/ports`.
 - **SRC-G1:** Account for every tracked source, build, support, test, vendor,
   license and metadata input through canonical owners. Resolve conditional
   native dependencies for the selected target/options/toolchain. The initial
-  three contracts do not establish full-tree coverage.
+  three leaf contracts and two shared-support/bootstrap contracts do not
+  establish full-tree coverage.
 - **SRC-G2:** Build selected original source with admitted compiler resources,
   headers and sysroot. Retain complete original test outcomes and independent
   acceptance; unauthorized skips and substituted ambient tools must refuse.

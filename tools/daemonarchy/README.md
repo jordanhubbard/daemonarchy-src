@@ -11,6 +11,47 @@ installer sets, VM boot or hardware acceptance. These commands do not invoke a
 Literate AI lifecycle or issue its acceptance receipt. Daemonarchy's retained
 lifecycle integration remains a separate gate.
 
+## Selected-unit retained entry point
+
+For the selected header/parser/utility closure, the common entry point is the
+installed candidate's `litai build`, using an explicit retained manifest/profile.
+The native controller below remains a separate aggregate diagnostic path.
+Use the Python belonging to that same installed candidate as `LITAI_PYTHON`;
+do not silently replace the operator's default CLI or install system packages.
+
+On an allocated FreeBSD worker, inventory the reviewed bootstrap selection into
+fresh external evidence paths, review its observed dependencies and digest, then
+capture it into the ignored project-local bootstrap directory:
+
+```sh
+"$LITAI_PYTHON" tools/daemonarchy/inventory-bootstrap.py \
+  --selection tools/daemonarchy/retained/bootstrap-selection.json \
+  --output <fresh-inventory.json> --observation <fresh-observation.json>
+"$LITAI_PYTHON" tools/daemonarchy/capture-seed.py \
+  --inventory <inventory.json> --inventory-sha256 <reviewed-sha256> \
+  --output "$PWD/tools/daemonarchy/retained/bootstrap"
+"$LITAI_PYTHON" tools/daemonarchy/prepare-retained-profile.py --name native-v1
+litai build --project . --target freebsd \
+  --retained-project tools/daemonarchy/retained/generated/native-v1/manifest.json \
+  --retained-project-profile tools/daemonarchy/retained/generated/native-v1/profile.json \
+  --json
+```
+
+This last command is a read-only plan. Review its exact authorization identity,
+then repeat with `--authorize-retained-project <identity>`,
+`--allow-host-execution`, and fresh external `--obj-dir` and `--build-dir` paths.
+Keep inputs frozen during execution. Capture stdout/stderr and exit status on
+the worker so an SSH observation timeout cannot discard the run's terminal result.
+An occupied generated profile name or capture destination is refused. Changed
+inputs require a new profile and authorization; a stale plan must fail.
+
+This prototype retains original make compilation, all 24 original ATF cases,
+documentation and eleven withheld utility acceptance cases. No skip is authorized.
+The privileged `deallocate` case and explicitly unprivileged permission cases
+still require a reviewed disposable-VM execution configuration before complete
+acceptance can pass. Captured bootstrap provenance remains unknown; selected
+unit pkg construction, complete-tree ownership and release admission remain open.
+
 ## Worker setup
 
 Use a dedicated unprivileged FreeBSD-CURRENT build account with installed Git,

@@ -1,0 +1,20 @@
+{
+  "schema": "daemonarchy/bootstrap-capture-observation@1",
+  "admitted": false,
+  "scope": "selected-native-bootstrap-diagnostic",
+  "entries": 5476,
+  "file_bytes": 306736138,
+  "observed_elf_files": 161,
+  "selection_sha256": "c58aae0f9b83fc9d4e41c5f17d5fdc87a6692c85bb3edf11fe27422c8d92a190",
+  "inventory_sha256": "7407d54e0dd18888f2e78df162bf107f102373cc57c0d146c100485eced34a43",
+  "capture_record_sha256": "71fbd9e5f0aa38f197cf21856726488b1f15909bb5a4d640af57ec8286fc746d",
+  "source_build_provenance": "unknown-host-bootstrap",
+  "normalized_file_modes": "0644-or-0755",
+  "remaining": [
+    "framework-input-and-sdk-admission",
+    "complete-original-tests-with-privilege-semantics",
+    "independent-sealed-product-acceptance",
+    "per-unit-package-qualification",
+    "complete-source-tree-coverage"
+  ]
+}

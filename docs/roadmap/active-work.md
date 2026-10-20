@@ -16,6 +16,10 @@
     upstream-tracking `main`. Move only newly authored metadata documents.
   - [x] Validate three authored unit contracts and resolve exact dependency locks.
   - [x] Review and apply original-source authority without moving original files.
+  - [x] Establish explicit shared native build-support and external bootstrap
+    owners, inventory the selected compiler/resources/headers/runtime/test tools,
+    and copy the reviewed bytes through the existing bounded seed capture.
+    Bootstrap source-build provenance remains unknown until independently proved.
   - [ ] Bind selected inputs, native configuration, compiler and test resources
     through the qualified Standard retained lifecycle.
     - [x] Establish the first Standard binding through a reviewed installed-wheel
@@ -94,3 +98,24 @@ retains the actual phase commands, timings and per-case outcomes. These
 diagnostics are not installed LitAI execution, privileged acceptance, independent
 sealed-product acceptance or package qualification. All those requirements
 remain open; no unit is admitted by this checklist.
+
+Five current locked contracts now include shared native build support and an
+explicit unknown-provenance bootstrap owner. The bounded native inventory and
+capture observe 5,476 entries, 306,736,138 file bytes and 161 ELF files; the
+[capture summary](../../verification/bootstrap-capture.json) retains exact
+selection, inventory and capture-record hashes. Local controller tests report
+56 passes and four native-only skips; the native controller suite reports all
+60 passing. These checks qualify helper refusal/custody, not product acceptance.
+
+The installed CLI accepts a real 5,266-member retained manifest with five
+canonical owners and 5,618 managed graph nodes. Changing a selected helper
+invalidates the earlier plan. The native executable profile has produced the
+selected original compiled products, but its managed run remains unqualified.
+Full original tests, withheld acceptance, receipts and pkg products remain open.
+The local SSH observation wrapper expired while the worker process remained
+live; preserve that process and its outputs rather than start a duplicate.
+
+Large-inventory source-BOM construction exposed quadratic strict-schema
+uniqueness validation. Framework [#84](https://github.com/jordanhubbard/literate-ai/issues/84)
+owns the reusable repair; retain complete per-file provenance and validation.
+No build-executor decision is justified by that unrelated overhead.

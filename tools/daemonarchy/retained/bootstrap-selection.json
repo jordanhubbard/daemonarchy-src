@@ -1,0 +1,101 @@
+{
+  "schema": "daemonarchy/bootstrap-toolchain-selection@1",
+  "files": [
+    "/bin/sh",
+    "/bin/cat",
+    "/bin/cp",
+    "/bin/echo",
+    "/bin/ln",
+    "/bin/mkdir",
+    "/bin/mv",
+    "/bin/rm",
+    "/bin/test",
+    "/usr/bin/ar",
+    "/usr/bin/awk",
+    "/usr/bin/basename",
+    "/usr/bin/cut",
+    "/usr/bin/dirname",
+    "/usr/bin/env",
+    "/bin/expr",
+    "/usr/bin/grep",
+    "/usr/bin/head",
+    "/usr/bin/id",
+    "/usr/bin/install",
+    "/usr/bin/make",
+    "/usr/bin/nm",
+    "/usr/bin/objcopy",
+    "/usr/bin/ranlib",
+    "/usr/bin/readelf",
+    "/bin/realpath",
+    "/usr/bin/sed",
+    "/usr/bin/sort",
+    "/usr/bin/touch",
+    "/usr/bin/tr",
+    "/usr/bin/uname",
+    "/usr/bin/which",
+    "/usr/bin/cc",
+    "/usr/bin/ld.lld",
+    "/usr/bin/kyua",
+    "/usr/libexec/atf-sh",
+    "/usr/libexec/atf-check",
+    "/libexec/ld-elf.so.1",
+    "/usr/local/bin/python3.12",
+    "/usr/lib/Scrt1.o",
+    "/usr/lib/crti.o",
+    "/usr/lib/crtbeginS.o",
+    "/usr/lib/crtendS.o",
+    "/usr/lib/crtn.o",
+    "/usr/lib/libc.so",
+    "/usr/lib/libprivateatf-c.so",
+    "/usr/lib/libprivateatf-c.a",
+    "/usr/bin/llvm-ar",
+    "/usr/bin/llvm-nm",
+    "/usr/bin/llvm-objcopy",
+    "/usr/bin/llvm-ranlib",
+    "/usr/bin/llvm-readelf",
+    "/usr/lib/libcompiler_rt.a",
+    "/usr/lib/libgcc.a",
+    "/usr/lib/libgcc_s.so",
+    "/usr/lib/crt1.o",
+    "/usr/lib/crtbegin.o",
+    "/usr/lib/crtend.o",
+    "/usr/bin/mandoc",
+    "/bin/chmod",
+    "/usr/bin/stat",
+    "/usr/bin/cmp",
+    "/bin/dd",
+    "/usr/bin/diff"
+  ],
+  "trees": [
+    {
+      "path": "/usr/include",
+      "exclude": []
+    },
+    {
+      "path": "/usr/lib/clang/21/include",
+      "exclude": []
+    },
+    {
+      "path": "/usr/share/atf",
+      "exclude": []
+    },
+    {
+      "path": "/usr/local/lib/python3.12",
+      "exclude": [
+        "site-packages",
+        "__pycache__",
+        "test",
+        "tests",
+        "idlelib",
+        "tkinter",
+        "turtledemo",
+        "ensurepip"
+      ]
+    }
+  ],
+  "library_roots": [
+    "/lib",
+    "/usr/lib",
+    "/usr/local/lib"
+  ]
+}
