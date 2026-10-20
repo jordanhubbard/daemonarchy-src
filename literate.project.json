@@ -39,12 +39,71 @@
     },
     "artifact_publication": "metadata-only"
   },
-  "repository_policy": {
-    "default_branch": "daemonarchy",
-    "schema": "literate-ai/repository-policy@1"
+  "lifecycle_driver": {
+    "schema": "urn:literate-ai:schema:v2:project-lifecycle-driver",
+    "binding": "standard",
+    "framework_distribution_identity": {
+      "schema": "urn:literate-ai:schema:v1:content-identity",
+      "algorithm": "sha256",
+      "digest": "6c341fe24f1c3fbc859620227ea453d122cd842fc73bc5c920a99063e4ad3cdb"
+    },
+    "policy_identity": {
+      "schema": "urn:literate-ai:schema:v1:content-identity",
+      "algorithm": "sha256",
+      "digest": "a5ca0d6d13daff0199f218c5e4af723a2cec87b927e75dd3a731c511b5d85ac7"
+    }
+  },
+  "test_receipt": "verification/current.json",
+  "test_receipt_policy": {
+    "schema": "urn:literate-ai:schema:v1:project-test-receipt-policy",
+    "suite_id": "literate-ai-standard",
+    "suite_version": "1.0.0",
+    "runner_identity": {
+      "schema": "urn:literate-ai:schema:v1:content-identity",
+      "algorithm": "sha256",
+      "digest": "b43820614e3bdef1b3b1002f9bc76c474141eb1b9c9607f972b33dfa0f5f0b21"
+    },
+    "required_evidence_kinds": [
+      "acceptance-result",
+      "build-result",
+      "generation-provenance",
+      "lifecycle-command",
+      "lifecycle-plan",
+      "lifecycle-request",
+      "observation-result",
+      "resolved-sbom",
+      "security-scan-report",
+      "source-cache-decision",
+      "source-cache-lifecycle",
+      "source-intelligence",
+      "source-sbom",
+      "test-report",
+      "test-runner",
+      "workspace-admission"
+    ],
+    "minimum_test_count": 1
   },
   "default_flavor_selectors": [
     "+source-freebsd",
     "+package-pkg"
-  ]
+  ],
+  "repository_policy": {
+    "schema": "literate-ai/repository-policy@1",
+    "default_branch": "daemonarchy",
+    "main_state": "free",
+    "pre_release_version": null,
+    "default_component": null,
+    "sample_component_roots": [
+      "samples"
+    ],
+    "work_queue": "docs/roadmap/active-work.md",
+    "remote": "origin",
+    "merge_method": "merge",
+    "pull_request_labels": [],
+    "release_engineer_source": "README.md#release-engineers",
+    "release_ci_workflow": "CI",
+    "patch_authority": "strict",
+    "writers": [],
+    "branch_gc_minimum_age_days": 7
+  }
 }

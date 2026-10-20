@@ -1,6 +1,6 @@
 # Source authority and acceptance map
 
-<!-- literate-ai:authority-reviewed sha256:2f11a53b16a76f5e168e4d876dee71ede203e968a237903785f2ac3b90edf297 -->
+<!-- literate-ai:authority-reviewed sha256:15e6e6c355cf3e62898cfc2da972006fe416af725b6e041bf183709fe06411e2 -->
 
 `PROJECT.md` owns the full original-source development requirements. The
 [source-unit guide](../user/source-units.md) maps the first concrete parser/header/utility
@@ -17,7 +17,8 @@ its Component. The [active queue](../roadmap/active-work.md) retains unfinished 
 | SRC-G6 original authority | Onboarding and original-boundaries skills; source-unit guide | Reviewed in-place adoption and continued source custody through each execution |
 
 The generation-workflow declaration is a schema-level candidate-review contract.
-No lifecycle driver is configured or qualified by this authoring step. The
-independent original authority mode must block regenerative execution; no
+The reviewed Standard binding selects the installed framework but has not
+qualified native execution. The independent original authority mode must block
+regenerative execution; no
 generated candidate can silently become upstream implementation or release
 authority. The selected units currently have no execution acceptance receipt.

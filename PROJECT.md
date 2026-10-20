@@ -32,6 +32,6 @@ owned ports fork at `/usr/ports`.
   visible. Never infer success from catalogue membership or aggregate packages.
 
 See [the unit boundaries](docs/user/source-units.md) and
-[the active queue](docs/roadmap/active-work.md). No native lifecycle
-driver, execution admission, package qualification or release receipt is claimed
-by this initial project metadata.
+[the active queue](docs/roadmap/active-work.md). The installed Standard lifecycle
+binding is configured; no native execution admission, package qualification or
+release receipt is claimed by this initial project metadata.
