@@ -1,0 +1,56 @@
+{
+  "schema": "daemonarchy/retained-source-run-observation@1",
+  "admitted": false,
+  "acceptance_qualified": false,
+  "framework_revision": "ca604c000d6a2eae1906fe10a6f7f1156bab2b43",
+  "source_checkout_base": "949a40c88544a6a64bca0f8877f38ed77f71e656",
+  "source_checkout_overlay": "reviewed Standard rebind metadata only",
+  "manifest_identity": "sha256:b3b95f194a006f04e98fe84394a7be53ef620cd9f1c075145889f16f952d9761",
+  "profile_input_members": 5270,
+  "canonical_units": 5,
+  "plan_identity": "sha256:6f5fea016007308a753aaec4e7c7dc345350c27adaabd5f60831bd1083c741ae",
+  "command_observations": [
+    {
+      "action": "build-original",
+      "exit_code": 0,
+      "observation_digest": "a150cd8e9e41cbde8f471e9458063d67aaa5df6d94c2b5030b704dbf27823d2b",
+      "stdout_digest": "255e0dccee0c844053531409d6541714f414e53532b704c46aba93a40b14b2ee",
+      "stderr_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "action": "docs-original",
+      "exit_code": 0,
+      "observation_digest": "701aa42fd1b791370e1ba8c9e705a75ae312d0bb577caee49150c9f2b613a459",
+      "stdout_digest": "e30518cd79c384b6ac8dbaeb0f405ad550c53abd8d698d64717b9d36e43ac739",
+      "stderr_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "action": "original-tests",
+      "exit_code": 0,
+      "observation_digest": "51246445e02fed2daa128df951ee6606230b17b275e9430c0e29519a3e25d931",
+      "stdout_digest": "7202c8be1781df496f6ae4b74700b65cf4d0c93cbcb5c99eadd19996ac682ff1",
+      "stderr_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "original_tests": {
+    "admitted": false,
+    "policy_refusal": "retained.tests.skip-not-authorized: truncate.deallocate",
+    "passed": 23,
+    "skipped": 1
+  },
+  "test_report_sha256": "0249faeb0927551904bda4d52466979983c757db87c89a621a24553f0aaf90f0",
+  "acceptance_action_observed": false,
+  "top_level_exit_code": 2,
+  "elapsed_seconds": 2037.584,
+  "top_level_stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "top_level_stderr_sha256": "736441de4afe844cb658cbd517d5e47820383bf54a74982d236f966da0d219d4",
+  "terminal_capture": "supervised child exit with independently checked stdout/stderr hashes",
+  "build_stderr_empty": true,
+  "remaining": [
+    "complete privileged and unprivileged original cases in a disposable guest",
+    "independent sealed-product acceptance",
+    "authored specification inputs in renewed native profile",
+    "per-unit pkg products",
+    "complete source and ports catalogs and selected release closure"
+  ]
+}

@@ -20,7 +20,7 @@
     owners, inventory the selected compiler/resources/headers/runtime/test tools,
     and copy the reviewed bytes through the existing bounded seed capture.
     Bootstrap source-build provenance remains unknown until independently proved.
-    - [ ] Close observed version-query and linker-detection gaps: retain the
+    - [x] Close observed version-query and linker-detection gaps: retain the
       original version script, parameter header and copyright inputs; bind the
       captured linker explicitly and check the compiler's actual link selection.
       Preserve the first run's warnings and issue no admission from compiler success.
@@ -67,7 +67,7 @@
       do not chmod the run broadly or weaken original test requirements.
     - [x] Author the exact 24-case Kyua report inventory from the selected original
       registration lists and validate it with the existing report producer.
-    - [ ] Compare actual newly built ATF program listings with that inventory
+    - [x] Compare actual newly built ATF program listings with that inventory
       before running the full suites; refuse missing or additional cases.
   - [ ] Independently accept sealed file effects and parser/library behavior.
     - [x] Author eleven typed utility file-effect cases bound to the current
@@ -149,3 +149,15 @@ Large-inventory source-BOM construction exposed quadratic strict-schema
 uniqueness validation. Framework [#84](https://github.com/jordanhubbard/literate-ai/issues/84)
 owns the reusable repair; retain complete per-file provenance and validation.
 No build-executor decision is justified by that unrelated overhead.
+
+The renewed installed `ca604c00` run has a supervised terminal result:
+exit 2 after 2,037.584 seconds. All three original commands exited zero with
+empty stderr; the version-query and linker warnings did not recur. The same
+23 original cases passed, and the required privileged case remained skipped.
+The lifecycle correctly refused that unauthorized skip before independent
+acceptance or packaging. [Renewed observation](../../verification/retained-run-v3.json)
+binds the exact five-unit profile, command objects, report bytes and CLI
+terminal hashes. This is a complete failed-run observation, not a passing
+receipt or an equivalent-workload performance comparison. The live input
+selection remained frozen; a future native profile must also include the
+authored specification inputs prepared in the subsequent local profile.

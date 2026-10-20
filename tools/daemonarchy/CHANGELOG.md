@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Capture the renewed installed native run's actual CLI exit and hashed command
+  observations. Compilation and documentation have empty stderr; the original
+  23-pass/one-root-skip result still correctly refuses acceptance and packaging.
+
 - Include selected units' authored specifications, contracts and lock metadata
   in retained package inputs. Validate exact specification-byte coverage while
   keeping independent machine-verifier expectations outside build inputs.
