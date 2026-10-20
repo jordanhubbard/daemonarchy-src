@@ -34,7 +34,7 @@
     "passed": 23,
     "skipped": 1
   },
-  "test_report_sha256": "1a53ed5b98928d38c4199d48969a84d6af7acce1126d572e3df6287fec5768ec",
+  "test_report_sha256": "0249faeb0927551904bda4d52466979983c757db87c89a621a24553f0aaf90f0",
   "acceptance_action_observed": false,
   "top_level_exit_code": null,
   "top_level_exit_code_note": "SSH observation wrapper timed out; no terminal CLI exit code was retained. Process ended and verified command diagnostics were recovered.",
@@ -48,5 +48,7 @@
     "independent sealed-product acceptance",
     "per-unit pkg products",
     "complete source tree and selected release closure"
-  ]
+  ],
+  "canonical_test_report_sha256": "1a53ed5b98928d38c4199d48969a84d6af7acce1126d572e3df6287fec5768ec",
+  "test_report_serialization": "canonical JSON followed by one newline; native file hash independently observed"
 }
