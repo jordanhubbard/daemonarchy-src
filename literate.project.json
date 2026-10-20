@@ -45,7 +45,7 @@
     "framework_distribution_identity": {
       "schema": "urn:literate-ai:schema:v1:content-identity",
       "algorithm": "sha256",
-      "digest": "ed899116420edda0c803acf424067f102b6face4870e180104add4da431cb534"
+      "digest": "01c193fa8e09bfd5c38eee2d5aaa71594421c1e67840fad46d40b1740c4a8bc9"
     },
     "policy_identity": {
       "schema": "urn:literate-ai:schema:v1:content-identity",
@@ -61,7 +61,7 @@
     "runner_identity": {
       "schema": "urn:literate-ai:schema:v1:content-identity",
       "algorithm": "sha256",
-      "digest": "9f0998abfdf1dd4c163e62f1dc2d4f9c1fa617b8afae932c18b360de496d7d92"
+      "digest": "dd6a818dfa3cdb4ac7b6987c1f6d4c3cb1bd0b0c1f7c195984bda8eed3674395"
     },
     "required_evidence_kinds": [
       "acceptance-result",

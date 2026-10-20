@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Rebind reviewed project authority to the exact installed framework wheel with
+  the shared retained `build`/`test` frontend, preserving all sixteen Standard
+  evidence requirements. Native profile execution and package admission remain
+  unfinished.
+
 - Bind the selected original parser and utility suites to an exact 24-case
   inventory for the existing Kyua report producer. A direct native probe
   now records 23 passes and the root-required deallocation skip. Canonical

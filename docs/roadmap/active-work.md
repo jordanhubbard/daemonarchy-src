@@ -31,6 +31,14 @@
       current distribution identity is
       `sha256:ed899116420edda0c803acf424067f102b6face4870e180104add4da431cb534`.
       Accepted membership and receipt remain stale until rebuild.
+    - [x] Rebind the reviewed project to installed framework revision
+      `5b9afcd7c9016341620695b9110ec073809d239c` through plan
+      `sha256:d8788377ad6f684e11d9b0db310c66d1172ad1399532a07efad12db595c7e771`.
+      Distribution identity is
+      `sha256:01c193fa8e09bfd5c38eee2d5aaa71594421c1e67840fad46d40b1740c4a8bc9`;
+      all sixteen evidence kinds and the Standard policy are preserved.
+      Installed project authority and three locks pass; native preview deployment
+      and actual retained execution remain open.
     - [x] Select explicit native FreeBSD and pkg Flavors for the three unit locks;
       keep compiler/runtime admission and execution qualification separate.
   - [ ] Compile the original parser and utility and run all four parser cases and
