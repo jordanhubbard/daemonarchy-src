@@ -25,6 +25,12 @@
       the installed distribution identity is
       `sha256:6c341fe24f1c3fbc859620227ea453d122cd842fc73bc5c920a99063e4ad3cdb`.
       The receipt output path is declared, but no receipt exists.
+    - [x] Rebind to installed framework revision
+      `cffef3238ba48f2c0876270aa4a1aeacce4c86e1` through reviewed plan
+      `sha256:094d62225fb9729c981f26def2f1122de9e9e5c1a0759d5e78ac9c4da7ffb501`;
+      current distribution identity is
+      `sha256:ed899116420edda0c803acf424067f102b6face4870e180104add4da431cb534`.
+      Accepted membership and receipt remain stale until rebuild.
     - [x] Select explicit native FreeBSD and pkg Flavors for the three unit locks;
       keep compiler/runtime admission and execution qualification separate.
   - [ ] Compile the original parser and utility and run all four parser cases and

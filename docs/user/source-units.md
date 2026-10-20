@@ -37,15 +37,20 @@ profile. Standard binding, admitted compiler/runtime inputs, actual execution
 and package qualification remain required. The source target Flavor contributes
 no generation command or ambient compiler fallback.
 
-This adopted project now has a Standard lifecycle binding and complete installed
-test receipt policy, established through the reviewed plan/apply transaction in
-framework revision `4613eda2447eca5ad02b1abee2130375b83b29de`. The initial
-plan identity is
-`sha256:a8369c3fc540e0f8cf6d186eb23c6cc2fa45ab005e5e74e44dd228965dabf14f`.
-The installed distribution identity is
+This adopted project has a Standard lifecycle binding and complete installed
+test receipt policy. The initial reviewed plan/apply transaction used framework
+revision `4613eda2447eca5ad02b1abee2130375b83b29de`, plan identity
+`sha256:a8369c3fc540e0f8cf6d186eb23c6cc2fa45ab005e5e74e44dd228965dabf14f`,
+and installed distribution identity
 `sha256:6c341fe24f1c3fbc859620227ea453d122cd842fc73bc5c920a99063e4ad3cdb`.
-This binding grants no native tool admission or execution qualification. A later
-installed-wheel update requires another reviewed rebind.
+The current reviewed rebind uses framework revision
+`cffef3238ba48f2c0876270aa4a1aeacce4c86e1`, plan identity
+`sha256:094d62225fb9729c981f26def2f1122de9e9e5c1a0759d5e78ac9c4da7ffb501`,
+and installed distribution identity
+`sha256:ed899116420edda0c803acf424067f102b6face4870e180104add4da431cb534`.
+The rebind preserves original-source authority but marks accepted source
+membership and the test receipt stale until a complete rebuild. It grants no
+native tool admission or execution qualification.
 
 The project declares `verification/current.json` as the eventual Standard test
 receipt path. This is an output destination, not a receipt or evidence claim; the
