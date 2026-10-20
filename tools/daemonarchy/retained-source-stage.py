@@ -31,6 +31,14 @@ def require_case_listing(content, expected):
         raise ValueError('original ATF case listing differs from the reviewed inventory')
 
 
+def require_linker_listing(content, expected):
+    jobs = [shlex.split(line.strip()) for line in content.splitlines()
+            if line.lstrip().startswith('"')]
+    linkers = [job[0] for job in jobs if job and '-cc1' not in job and '-cc1as' not in job]
+    if linkers != [str(expected)]:
+        raise ValueError('compiler did not select the exact captured linker')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('stage', choices=('build', 'tests', 'docs', 'accept'))
@@ -46,6 +54,14 @@ def main():
                ATF_PKGDATADIR=str(seed / 'usr/share/atf'))
     products = outputs / 'products'
     if args.stage == 'build':
+        compiler = [seed / 'usr/bin/cc', '--sysroot=' + str(seed),
+                    '-resource-dir', seed / 'usr/lib/clang/21', '-B' + str(seed / 'usr/bin')]
+        linker_plan = subprocess.run([str(v) for v in [*compiler, '-###', '-x', 'c',
+                                     os.devnull, '-o', objects / 'link-selection']],
+                                    env=env, stdin=subprocess.DEVNULL, text=True,
+                                    capture_output=True, check=True, timeout=30)
+        print(linker_plan.stderr, end='', flush=True)
+        require_linker_listing(linker_plan.stderr, seed / 'usr/bin/ld.lld')
         shell = objects / 'captured-shell.mk'
         shell.write_text('.SHELL: name=sh path=' + str(seed / 'bin/sh') + '\n')
         make = [seed / 'usr/bin/make', '-m', inputs / 'share/mk',
@@ -54,6 +70,7 @@ def main():
                 'MACHINE_ARCH=amd64', 'CC=' + str(seed / 'usr/bin/cc') +
                 ' --sysroot=' + str(seed) + ' -resource-dir ' + str(seed / 'usr/lib/clang/21') +
                 ' -B' + str(seed / 'usr/bin'),
+                'LD=' + str(seed / 'usr/bin/ld.lld'),
                 'AR=' + str(seed / 'usr/bin/ar'), 'RANLIB=' + str(seed / 'usr/bin/ranlib'),
                 'NM=' + str(seed / 'usr/bin/nm'), 'OBJCOPY=' + str(seed / 'usr/bin/objcopy')]
         def build(name, source, options):

@@ -10,6 +10,20 @@ HEADER = 'Content-Type: application/X-atf-tp; version="1"\n\n'
 
 
 class OriginalCaseListingTests(unittest.TestCase):
+    def test_compiler_link_plan_selects_the_exact_captured_linker(self):
+        expected = Path('/private captured tools/ld.lld')
+        listing = 'compiler version header\n "/captured/cc" "-cc1" "-x" "c"\n ' + \
+                  '"/private captured tools/ld.lld" "--sysroot=/captured"\n'
+        stage.require_linker_listing(listing, expected)
+
+    def test_missing_foreign_ambiguous_or_malformed_link_jobs_refuse(self):
+        for listing in ('compiler header only', '"/captured/cc" "-cc1"',
+                        '"/usr/bin/ld" "-o" "program"',
+                        '"/captured/ld.lld"\n"/captured/ld.lld"',
+                        '"/captured/as"\n"/captured/ld.lld"', '"unterminated'):
+            with self.subTest(listing=listing), self.assertRaises(ValueError):
+                stage.require_linker_listing(listing, Path('/captured/ld.lld'))
+
     def test_metadata_is_preserved_and_the_exact_inventory_is_required(self):
         listing = HEADER + 'ident: first\ndescr: First original case\n\nident: second\nrequire.user: root\n'
         stage.require_case_listing(listing, {'first', 'second'})

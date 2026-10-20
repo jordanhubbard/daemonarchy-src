@@ -34,11 +34,11 @@ capture it into the ignored project-local bootstrap directory:
 litai build --project . --target freebsd \
   --retained-project tools/daemonarchy/retained/generated/native-v1/manifest.json \
   --retained-project-profile tools/daemonarchy/retained/generated/native-v1/profile.json \
-  --json
+  --retained-project-plan --json
 ```
 
 This last command is a read-only plan. Review its exact authorization identity,
-then repeat with `--authorize-retained-project <identity>`,
+then repeat without `--retained-project-plan` and with `--authorize-retained-project <identity>`,
 `--allow-host-execution`, and fresh external `--obj-dir` and `--build-dir` paths.
 Keep inputs frozen during execution. Capture stdout/stderr and exit status on
 the worker so an SSH observation timeout cannot discard the run's terminal result.

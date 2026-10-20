@@ -52,7 +52,8 @@ def main():
     tools = tuple((name, bootstrap + '/tree/' + path, digest(root / bootstrap / 'tree' / path))
                   for name, path in [('python', 'usr/local/bin/python3.12'), ('make', 'usr/bin/make'),
                                      ('shell', 'bin/sh'), ('compiler', 'usr/bin/cc'),
-                                     ('kyua', 'usr/bin/kyua'), ('atf-shell', 'usr/libexec/atf-sh')])
+                                     ('kyua', 'usr/bin/kyua'), ('atf-shell', 'usr/libexec/atf-sh'),
+                                     ('linker', 'usr/bin/ld.lld')])
     selected = {bootstrap: ('toolchain', 'native-bootstrap'),
                 'share/mk': ('build-definition', 'native-build-support'),
                 'literate.release.json': ('release-policy', 'native-build-support'),
@@ -71,6 +72,9 @@ def main():
                 'usr.bin/truncate/truncate.c': ('source', 'truncate'),
                 'usr.bin/truncate/truncate.1': ('docs-definition', 'truncate'),
                 'usr.bin/truncate/tests/truncate_test.sh': ('test-definition', 'truncate')}
+    for name in ('sys/conf/newvers.sh', 'sys/sys/param.h', 'COPYRIGHT',
+                 'share/examples/etc/bsd-style-copyright'):
+        selected[name] = ('build-definition', 'native-build-support')
     for name in ('lib/Makefile.inc', 'lib/libutil/Makefile', 'lib/libutil/Makefile.inc',
                  'lib/libutil/tests/Makefile', 'usr.bin/Makefile.inc', 'usr.bin/truncate/Makefile',
                  'usr.bin/truncate/Makefile.inc', 'usr.bin/truncate/tests/Makefile'):

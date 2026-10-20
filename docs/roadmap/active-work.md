@@ -20,6 +20,10 @@
     owners, inventory the selected compiler/resources/headers/runtime/test tools,
     and copy the reviewed bytes through the existing bounded seed capture.
     Bootstrap source-build provenance remains unknown until independently proved.
+    - [ ] Close observed version-query and linker-detection gaps: retain the
+      original version script, parameter header and copyright inputs; bind the
+      captured linker explicitly and check the compiler's actual link selection.
+      Preserve the first run's warnings and issue no admission from compiler success.
   - [ ] Bind selected inputs, native configuration, compiler and test resources
     through the qualified Standard retained lifecycle.
     - [x] Establish the first Standard binding through a reviewed installed-wheel
@@ -115,11 +119,17 @@ selection, inventory and capture-record hashes. Local controller tests report
 
 The installed CLI accepts a real 5,266-member retained manifest with five
 canonical owners and 5,618 managed graph nodes. Changing a selected helper
-invalidates the earlier plan. The native executable profile has produced the
-selected original compiled products, but its managed run remains unqualified.
-Full original tests, withheld acceptance, receipts and pkg products remain open.
-The local SSH observation wrapper expired while the worker process remained
-live; preserve that process and its outputs rather than start a duplicate.
+invalidates the earlier plan. The first installed native run has now ended.
+Its build, documentation and original-test commands all exited zero, with 23
+original passes and one root-required skip. The exact production-policy recheck
+refuses `retained.tests.skip-not-authorized: truncate.deallocate`; no acceptance
+action was observed and no passing receipt was produced. The
+[retained observation](../../verification/retained-run-v2.json) binds the three
+verified command observations and test report. The SSH wrapper lost the
+top-level CLI exit code; it is unknown rather than inferred from child exits.
+Build stderr also exposes missing source-version inputs and fallback linker
+feature detection. Their correction and renewed native execution remain open,
+along with privileged tests, withheld acceptance and per-unit pkg products.
 
 Large-inventory source-BOM construction exposed quadratic strict-schema
 uniqueness validation. Framework [#84](https://github.com/jordanhubbard/literate-ai/issues/84)

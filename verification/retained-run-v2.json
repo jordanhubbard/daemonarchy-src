@@ -1,0 +1,52 @@
+{
+  "schema": "daemonarchy/retained-source-run-observation@1",
+  "admitted": false,
+  "acceptance_qualified": false,
+  "framework_revision": "5b9afcd7c9016341620695b9110ec073809d239c",
+  "plan_identity": "sha256:d2f31487a23a2a807160f0678cc0247d6c049e04ea7ddcde51c365bbb4cdb0ab",
+  "diagnostic_sha256": "491e7de920e846dc01bb68b8051597be715b827b207d1036d2a36d05f1add43f",
+  "command_observations": [
+    {
+      "action": "build-original",
+      "exit_code": 0,
+      "observation_digest": "9576520b2c22f3343ff9691cdf7a93f0b1a7d14026ae8da191a852e9b9494e62",
+      "stdout_digest": "096c3064959386604a30af15774310fc7feecc593c8e41675ac5cfc97b9b0404",
+      "stderr_digest": "8526754c871026ca0fca137a66f112a1407aa28fab6d8d2007f65c497ed711ca"
+    },
+    {
+      "action": "docs-original",
+      "exit_code": 0,
+      "observation_digest": "66b6fa940077e9dba2b2ae30488aa2a06c0a59a70a715c1b4b3207441dff0ee8",
+      "stdout_digest": "c6fb1160bcc0d9d13e4e99b3cd633b3302f048b68fe1209eab768958cfa4a55d",
+      "stderr_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "action": "original-tests",
+      "exit_code": 0,
+      "observation_digest": "12de7612a8a6064ec4918962a4afc5caa83d8a1e1debce60ec463b393f77d984",
+      "stdout_digest": "7d0286f51a27ea3c4d846f4036d1893287c431cbf025caf842125bef56b58ab6",
+      "stderr_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "original_tests": {
+    "admitted": false,
+    "policy_refusal": "retained.tests.skip-not-authorized: truncate.deallocate",
+    "passed": 23,
+    "skipped": 1
+  },
+  "test_report_sha256": "1a53ed5b98928d38c4199d48969a84d6af7acce1126d572e3df6287fec5768ec",
+  "acceptance_action_observed": false,
+  "top_level_exit_code": null,
+  "top_level_exit_code_note": "SSH observation wrapper timed out; no terminal CLI exit code was retained. Process ended and verified command diagnostics were recovered.",
+  "observed_input_gaps": [
+    "Original source-version script was absent from the selected manifest.",
+    "Native make linker feature detection used missing LD=ld; compiler trace selects captured ld.lld."
+  ],
+  "remaining": [
+    "complete privileged and unprivileged original cases in a disposable guest",
+    "close version/linker input and detection gaps",
+    "independent sealed-product acceptance",
+    "per-unit pkg products",
+    "complete source tree and selected release closure"
+  ]
+}

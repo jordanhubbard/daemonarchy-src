@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Retain the first installed native run's verified compilation, documentation,
+  and 23-pass/one-root-skip test observations without awarding acceptance.
+  Add missing version-query input selection and bind/check the captured linker;
+  correct the runbook's explicit read-only planning flag.
+
 - Add explicit shared build-support and unknown-provenance bootstrap contracts
   for the initial header/parser/utility closure, preserving the original tree.
 - Inventory and capture selected native tools, compiler resources, headers,
