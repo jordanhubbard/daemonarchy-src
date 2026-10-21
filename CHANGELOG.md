@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Begin wired UEFI loader debugging with a bounded HMAC-SHA256 packet core,
+  session/sequence binding and replay refusal. Native FreeBSD protocol tests and
+  the actual EFI build pass. Remote console/controller integration, UEFI boot
+  tests and physical laptop qualification remain unfinished.
+- Add single-attempt EFI receive polling for a zero timeout, preserving the
+  existing timed receive path and negative-timeout refusal.
+
 - Run all 24 original parser/utility cases successfully in a disposable FreeBSD
   guest against the unchanged retained native products, including privileged
   deallocation and both unprivileged cases. Verify the closed Kyua database

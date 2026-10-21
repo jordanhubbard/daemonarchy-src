@@ -198,7 +198,7 @@ efinet_get(struct iodesc *desc, void **pkt, time_t timeout)
 	ssize_t ret = -1;
 
 	net = nif->nif_devdata;
-	if (net == NULL)
+	if (net == NULL || timeout < 0)
 		return (ret);
 
 	bufsz = net->Mode->MaxPacketSize + ETHER_HDR_LEN + ETHER_CRC_LEN;
@@ -208,7 +208,8 @@ efinet_get(struct iodesc *desc, void **pkt, time_t timeout)
 	ptr = buf + ETHER_ALIGN;
 
 	t = getsecs();
-	while ((getsecs() - t) < timeout) {
+	/* A zero timeout is one nonblocking poll, needed by console c_ready. */
+	do {
 		status = net->Receive(net, NULL, &bufsz, ptr, NULL, NULL, NULL);
 		if (status == EFI_SUCCESS) {
 			*pkt = buf;
@@ -217,7 +218,7 @@ efinet_get(struct iodesc *desc, void **pkt, time_t timeout)
 		}
 		if (status != EFI_NOT_READY)
 			break;
-	}
+	} while (timeout > 0 && (getsecs() - t) < timeout);
 
 	if (ret == -1)
 		free(buf);

@@ -31,6 +31,16 @@ owned ports fork at `/usr/ports`.
 - **SRC-G6:** Preserve original hierarchy, source authority, licensing and the
   normal fork/upstream contribution path. Keep unselected and unqualified units
   visible. Never infer success from catalogue membership or aggregate packages.
+- **SRC-G7:** Deliver an opt-in wired UEFI loader console for the next release,
+  with authenticated remote input, retained console output, ordinary variable
+  inspection/update and boot control. Preserve local recovery and qualify the
+  actual FreeBSD loader in disposable UEFI guests and on physical firmware.
+  Kernel networking after firmware handoff requires separate qualification.
+
+Daemonarchy runtime and release qualification target FreeBSD only. Other OS
+Flavors and other-OS runtime qualification are not product release requirements.
+The parent framework's independent portability work does not block this loader
+implementation. Build-controller host identity is separate from target identity.
 
 See [the unit boundaries](docs/user/source-units.md) and
 [the active queue](docs/roadmap/active-work.md). The installed Standard lifecycle

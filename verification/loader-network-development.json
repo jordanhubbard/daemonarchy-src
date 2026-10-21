@@ -1,0 +1,55 @@
+{
+  "schema": "daemonarchy/loader-network-development@1",
+  "scope": "Native packet-core development only; EFI network console is not yet integrated or qualified.",
+  "source_base_commit": "4c6403741506e89f3f22e6e62b914f0130117751",
+  "source_issue": "https://github.com/jordanhubbard/daemonarchy-src/issues/6",
+  "source_sha256": {
+    "stand/efi/loader/Makefile": "87f1e828b2a781b3aa26c68638a88b580050c428c86cecec640587d52e4d7139",
+    "stand/efi/loader/netconsole_proto.c": "92b935063aa9afc850e00500c70b9a02a6318344f005c8d4034fd4433429e344",
+    "stand/efi/loader/netconsole_proto.h": "83e2da3dc039c7c3915f5ec14e1134d2b543e48e414ebfe81cf0655200829484",
+    "stand/efi/libefi/efinet.c": "45db646639fc3cbb02230b4b893dd1bb559be18dc1fed6e855279ec73ce57999",
+    "tools/daemonarchy/tests/netconsole-protocol.c": "62c095ee447efd3f91c1e7a019adf0aaa861f955b74694adbb14c61bdc6303f7"
+  },
+  "native_protocol_check": {
+    "platform": "FreeBSD 16.0-CURRENT amd64",
+    "compiler": "FreeBSD clang version 21.1.8 (https://github.com/llvm/llvm-project.git llvmorg-21.1.8-0-g2078da43e25a)",
+    "binary_sha256": "5bd9c3aa91baa909a676804f60ef31a316f3b1ed16f907b1db0bf5ddde7e370d",
+    "input_sha256": "4f0c76bde98be37f04b0beb6410c7796459e1f064fad5abefc2335e140a313d4",
+    "exit_code": 0,
+    "seconds": 0.166,
+    "observation_sha256": "360f1eaa537dab6b7deaf57391ce9412c801a04380553aa476c1b3dc91c2e68d",
+    "hmac_vector": true,
+    "every_byte_mutation_refused": true,
+    "wrong_key_or_session_refused": true,
+    "bounds_and_truncation_refused": true,
+    "ordered_input_and_identical_last_retransmission_checked": true,
+    "replay_changed_same_sequence_and_wrap_refused": true,
+    "bootstrap_compiler_source_provenance": "unknown; native diagnostic, not canonical SDK admission"
+  },
+  "preserved_preceding_native_failure": {
+    "reason": "Missing stdint declaration for UINT64_MAX; corrected include and rerun with fresh source identity.",
+    "exit_code": 1
+  },
+  "efi_zero_timeout_poll_implemented": true,
+  "efi_binary_built": true,
+  "udp_console_integrated": false,
+  "controller_qualified": false,
+  "uefi_vm_qualified": false,
+  "physical_laptops_qualified": false,
+  "kernel_handoff_qualified": false,
+  "release_acceptance": false,
+  "native_efi_build": {
+    "platform": "FreeBSD 16.0-CURRENT amd64",
+    "seconds": 86.313,
+    "exit_code": 0,
+    "jobs": 2,
+    "patch_sha256": "68c34d7254eaf61a3ff49553635e8db41bbed5d981cfdf29932d517d8fc54512",
+    "source_baseline": "Retained native source copy; original changed-file hashes match source base 4c640374 before patching.",
+    "source_and_objects_isolated": true,
+    "packet_core_object_compiled": true,
+    "loader_lua_sha256": "d33337a9ffd5bbeeb812d0b901719f839db7c042e190f4e59ca70041544fa1f7",
+    "loader_lua_bytes": 703488,
+    "observation_sha256": "6be612e647eab1f9362dd3f4b30d670b81c7d2306bd51c7c72bc8577cfe968f4",
+    "scope": "Actual native EFI build only. No integrated remote console, VM/physical boot or release admission."
+  }
+}

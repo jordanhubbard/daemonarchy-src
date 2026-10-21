@@ -240,3 +240,41 @@ aggregate package groups and copied bootstrap tools cannot satisfy this step.
   flags before sharing, rejects writes, retains relative aliases and unmounts
   cleanly. Its thirteen isolated checks pass; full SDK/lifecycle and package
   admission remain open.
+
+### [ ] SRC-DEBUG-001 — Deliver a wired UEFI loader debug console for the next FreeBSD release
+
+- **GitHub issue:** [#6](https://github.com/jordanhubbard/daemonarchy-src/issues/6)
+- **Design and native check:** [Wired loader console](../user/loader-network-debug.md).
+
+- **Priority:** P0
+- **Owner:** UEFI loader console and standalone networking
+- **Direction:** Implement FreeBSD-only remote loader console output, ordinary environment inspection/update and boot control as a release blocker.
+- **Conclusion:** Use the existing EFI NIC and SHA-256 foundations; add an opt-in bounded authenticated session, preserve local console and boot behavior, and independently qualify the actual EFI binary. Kernel handoff coverage remains a separate required phase.
+- **Depends on:** none
+- **Implementation:**
+  - [ ] Add authenticated bounded packet encoding, exact session and sequence checks, and a controller with retained output.
+  - [ ] Connect the protocol to an opt-in EFI console with nonblocking network polling, ordinary interpreter input and clean handoff.
+  - [ ] Build the actual FreeBSD EFI loader and qualify VM plus physical firmware NICs; preserve local boot without a peer.
+- **Evidence:**
+  - [ ] Native FreeBSD protocol tests reject malformed, forged, wrong-session, replayed and oversized records; valid input and retransmission remain ordered.
+  - [ ] Actual UEFI VM and laptop captures show console output, show/set/boot, disconnect/reconnect, absent-NIC/peer behavior and documented kernel handoff.
+
+SRC-DEBUG-001 in progress: the packet core now implements bounded HMAC-SHA256
+records, exact session binding and ordered input with identical-last-packet
+retransmission. Its actual FreeBSD C99 build uses warnings as errors and passes
+the independent vector, every-byte mutation, malformed/bounds and replay checks.
+The initial native compile exposed a missing stdint include; that failed result
+is preserved and the corrected native run passes. EFI receive now has a
+single-attempt zero-timeout polling path; actual EFI compilation and VM behavior
+remain unqualified. Next: console/controller integration, including bounded
+transmit ownership. A transmit timeout must not release a buffer still owned by
+firmware/DMA; do not add a bare early return to the synchronous transmit loop.
+
+The first actual FreeBSD stand build now completes in 86.313 seconds with two
+jobs and isolated source/object roots. It compiles the packet core and EFI polling
+change and produces the amd64 Lua loader (703,488 bytes),
+`sha256:d33337a9ffd5bbeeb812d0b901719f839db7c042e190f4e59ca70041544fa1f7`.
+This is build evidence, not a working remote console or UEFI boot acceptance.
+The [development record](../../verification/loader-network-development.json)
+keeps protocol checks, native binary construction and unimplemented integration
+separate. Console/controller and bounded transmit ownership remain next.
