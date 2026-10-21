@@ -252,6 +252,10 @@ bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
 	 * invalidate the key.  This matches the pre-allocation
 	 * strategy used by the Linux EFI stub.
 	 */
+#ifdef LOADER_NET_SUPPORT
+	if (exit_bs)
+		netconsole_handoff();
+#endif
 	sz = 0;
 	status = BS->GetMemoryMap(&sz, NULL, &efi_mapkey, &dsz, &mmver);
 	if (status != EFI_BUFFER_TOO_SMALL) {

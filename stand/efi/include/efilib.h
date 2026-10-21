@@ -46,6 +46,16 @@ extern struct devsw efihttp_dev;
 extern struct devsw efinet_dev;
 extern struct netif_driver efinetif;
 
+/* Optional console channel; normal netboot keeps ownership of other frames. */
+struct iodesc;
+int efinet_console_bind(struct iodesc *,
+    int (*)(const void *, size_t, void *), void (*)(void *), void *);
+void efinet_console_unbind(void);
+void efinet_console_poll(void);
+int efinet_console_send(const void *, size_t);
+uint64_t efinet_console_drops(void);
+void netconsole_handoff(void);
+
 /* EFI block device data, included here to help efi_zfs_probe() */
 typedef STAILQ_HEAD(pdinfo_list, pdinfo) pdinfo_list_t;
 

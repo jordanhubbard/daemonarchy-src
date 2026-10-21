@@ -54,7 +54,12 @@ ldnet_fields(uint8_t type, uint64_t sequence, size_t length)
 	switch (type) {
 	case LDNET_HELLO:
 		return (sequence == 0 && length == 0);
+	case LDNET_CHALLENGE:
+		return (sequence == 0 && length == 16);
+	case LDNET_WELCOME:
+		return (sequence == 0 && length == 32);
 	case LDNET_ACK:
+	case LDNET_OUTPUT_ACK:
 		return (sequence != 0 && length == 0);
 	case LDNET_INPUT:
 	case LDNET_OUTPUT:
@@ -148,4 +153,24 @@ ldnet_commit(struct ldnet_replay *state, const struct ldnet_message *message)
 
 	state->sequence = message->sequence;
 	memcpy(state->tag, message->tag, sizeof(state->tag));
+}
+
+/* A per-boot monotonic counter also prevents reuse on a repeated challenge. */
+int
+ldnet_session(const uint8_t *key, const uint8_t *boot, uint64_t counter,
+    const uint8_t *challenge, uint8_t *session)
+{
+	uint8_t input[56] = "LDNC-SESSION-V1";
+	uint8_t tag[LDNET_TAG_SIZE];
+
+	if (counter == 0)
+		return (0);
+	memcpy(input + 16, boot, 16);
+	be64enc(input + 32, counter);
+	memcpy(input + 40, challenge, 16);
+	ldnet_hmac(key, input, sizeof(input), tag);
+	memcpy(session, tag, LDNET_SESSION_SIZE);
+	explicit_bzero(input, sizeof(input));
+	explicit_bzero(tag, sizeof(tag));
+	return (1);
 }

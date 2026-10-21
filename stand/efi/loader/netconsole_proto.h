@@ -18,7 +18,10 @@ enum ldnet_type {
 	LDNET_INPUT,
 	LDNET_OUTPUT,
 	LDNET_ACK,
-	LDNET_FINISH
+	LDNET_FINISH,
+	LDNET_CHALLENGE,
+	LDNET_WELCOME,
+	LDNET_OUTPUT_ACK
 };
 
 struct ldnet_message {
@@ -43,5 +46,7 @@ int ldnet_decode(const void *, size_t, const uint8_t *, const uint8_t *,
 enum ldnet_order ldnet_order(const struct ldnet_replay *,
     const struct ldnet_message *);
 void ldnet_commit(struct ldnet_replay *, const struct ldnet_message *);
+int ldnet_session(const uint8_t *, const uint8_t *, uint64_t,
+    const uint8_t *, uint8_t *);
 
 #endif

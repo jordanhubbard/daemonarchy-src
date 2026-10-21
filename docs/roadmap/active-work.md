@@ -252,29 +252,31 @@ aggregate package groups and copied bootstrap tools cannot satisfy this step.
 - **Conclusion:** Use the existing EFI NIC and SHA-256 foundations; add an opt-in bounded authenticated session, preserve local console and boot behavior, and independently qualify the actual EFI binary. Kernel handoff coverage remains a separate required phase.
 - **Depends on:** none
 - **Implementation:**
-  - [ ] Add authenticated bounded packet encoding, exact session and sequence checks, and a controller with retained output.
-  - [ ] Connect the protocol to an opt-in EFI console with nonblocking network polling, ordinary interpreter input and clean handoff.
+  - [x] Add authenticated bounded packet encoding, exact session and sequence checks, and a controller with retained output.
+  - [x] Connect the protocol to an opt-in EFI console with nonblocking network polling, ordinary interpreter input and clean handoff.
   - [ ] Build the actual FreeBSD EFI loader and qualify VM plus physical firmware NICs; preserve local boot without a peer.
 - **Evidence:**
-  - [ ] Native FreeBSD protocol tests reject malformed, forged, wrong-session, replayed and oversized records; valid input and retransmission remain ordered.
-  - [ ] Actual UEFI VM and laptop captures show console output, show/set/boot, disconnect/reconnect, absent-NIC/peer behavior and documented kernel handoff.
+  - [x] Native FreeBSD protocol tests reject malformed, forged, wrong-session, replayed and oversized records; valid input and retransmission remain ordered.
+  - [x] Initial actual UEFI VM captures show console output, show/set/boot, disconnect/reconnect, absent-NIC/peer behavior and separately confirmed kernel boot.
+  - [ ] Physical laptop captures, shared-NIC netboot regressions and injected firmware faults qualify the release candidate.
 
-SRC-DEBUG-001 in progress: the packet core now implements bounded HMAC-SHA256
-records, exact session binding and ordered input with identical-last-packet
-retransmission. Its actual FreeBSD C99 build uses warnings as errors and passes
-the independent vector, every-byte mutation, malformed/bounds and replay checks.
-The initial native compile exposed a missing stdint include; that failed result
-is preserved and the corrected native run passes. EFI receive now has a
-single-attempt zero-timeout polling path; actual EFI compilation and VM behavior
-remain unqualified. Next: console/controller integration, including bounded
-transmit ownership. A transmit timeout must not release a buffer still owned by
-firmware/DMA; do not add a bare early return to the synchronous transmit loop.
+SRC-DEBUG-001 now has an integrated EFI console and standalone controller. The
+actual FreeBSD amd64 stand build passes (103.660 seconds, two jobs); expanded
+native packet checks pass independent HMAC/session vectors, mutation, bounds,
+roles and replay refusal. A real OVMF UEFI VM passes authenticated show/set,
+interface/status, reconnect, invalid input and lost-ack/reflection tests. Remote
+boot over TFTP reaches a separately observed FreeBSD login and native SSH.
+The same-NIC TFTP probe and 128-packet unrelated UDP pressure check pass; 112
+normal RX drops are exposed without losing debug command access. Captures and
+failed preceding build/VM launches are retained privately; the
+[development record](../../verification/loader-network-development.json) records
+source and artifact identities without publishing keys or raw captures.
 
-The first actual FreeBSD stand build now completes in 86.313 seconds with two
-jobs and isolated source/object roots. It compiles the packet core and EFI polling
-change and produces the amd64 Lua loader (703,488 bytes),
-`sha256:d33337a9ffd5bbeeb812d0b901719f839db7c042e190f4e59ca70041544fa1f7`.
-This is build evidence, not a working remote console or UEFI boot acceptance.
-The [development record](../../verification/loader-network-development.json)
-keeps protocol checks, native binary construction and unimplemented integration
-separate. Console/controller and bounded transmit ownership remain next.
+One private transmit owner retains pending firmware/DMA memory; bounded RX
+queues retain ordinary network frames; overflow drops new ordinary frames and
+counts them while continuing debug polling. Fresh challenge/session pairing revokes
+old input and cancels partial lines; remote input echo is suppressed and local
+consoles remain active. Networking closes before the final memory-map capture.
+Physical firmware/NIC qualification, shared-NIC netboot regressions, queue pressure
+and injected firmware faults remain open. Kernel networking after handoff and
+release admission are not earned by this initial VM result.

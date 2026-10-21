@@ -21,6 +21,11 @@ main(void)
 	uint8_t key[LDNET_KEY_SIZE], session[LDNET_SESSION_SIZE];
 	uint8_t packet[LDNET_PACKET_SIZE + 1], saved[LDNET_PACKET_SIZE];
 	uint8_t other[LDNET_PACKET_SIZE], payload[LDNET_PAYLOAD_SIZE + 1];
+	static const uint8_t derived[16] = {
+		0x28, 0x26, 0x02, 0x78, 0x30, 0x66, 0xe7, 0xfc,
+		0x32, 0xb4, 0x32, 0xde, 0xc7, 0x60, 0x9e, 0xc1
+	};
+	uint8_t challenge[16], fresh[16], next[16];
 	struct ldnet_message message;
 	struct ldnet_replay state = { 0 };
 	size_t size, i, n;
@@ -87,6 +92,38 @@ main(void)
 	assert(ldnet_order(&state, &message) == LDNET_REJECT);
 	state.sequence = UINT64_MAX;
 	assert(ldnet_order(&state, &message) == LDNET_REJECT);
-	puts("netconsole protocol: HMAC vector, mutation, bounds and replay checks passed");
+	for (i = 0; i < sizeof(challenge); i++) challenge[i] = i;
+	assert(!ldnet_session(key, session, 0, challenge, fresh));
+	assert(ldnet_session(key, session, 1, challenge, fresh));
+	assert(memcmp(fresh, derived, sizeof(fresh)) == 0);
+	assert(ldnet_session(key, session, 2, challenge, next));
+	assert(memcmp(fresh, next, sizeof(fresh)) != 0);
+	challenge[0] ^= 1;
+	assert(ldnet_session(key, session, 1, challenge, next));
+	assert(memcmp(fresh, next, sizeof(fresh)) != 0);
+	assert(!ldnet_decode(saved, size, key, fresh, &message));
+	/* Pairing schemas and direction-specific ACKs cannot be substituted. */
+	n = ldnet_encode(other, sizeof(other), key, session, LDNET_CHALLENGE,
+	    0, challenge, 16);
+	assert(ldnet_decode(other, n, key, session, &message));
+	assert(message.type == LDNET_CHALLENGE);
+	assert(ldnet_order(&state, &message) == LDNET_REJECT);
+	assert(ldnet_encode(other, sizeof(other), key, session, LDNET_CHALLENGE,
+	    1, challenge, 16) == 0);
+	assert(ldnet_encode(other, sizeof(other), key, session, LDNET_WELCOME,
+	    0, challenge, 16) == 0);
+	n = ldnet_encode(other, sizeof(other), key, session, LDNET_WELCOME,
+	    0, key, 32);
+	assert(ldnet_decode(other, n, key, session, &message));
+	n = ldnet_encode(other, sizeof(other), key, session, LDNET_ACK, 1, NULL, 0);
+	assert(ldnet_decode(other, n, key, session, &message));
+	assert(message.type != LDNET_OUTPUT_ACK);
+	other[5] = LDNET_OUTPUT_ACK;
+	assert(!ldnet_decode(other, n, key, session, &message));
+	n = ldnet_encode(other, sizeof(other), key, session, LDNET_OUTPUT_ACK,
+	    1, NULL, 0);
+	assert(ldnet_decode(other, n, key, session, &message));
+	assert(message.type == LDNET_OUTPUT_ACK);
+	puts("netconsole protocol: HMAC/session vectors, mutation, bounds, roles and replay checks passed");
 	return (0);
 }

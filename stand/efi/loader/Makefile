@@ -38,7 +38,7 @@ SRCS=	autoload.c \
 
 SRCS+= acpi_detect.c
 .if ${LOADER_NET_SUPPORT} == "yes"
-SRCS+= netconsole_proto.c
+SRCS+= netconsole_proto.c netconsole.c
 .endif
 .PATH: ${EFISRC}/acpica
 CFLAGS+=	-I${EFISRC}/acpica/include

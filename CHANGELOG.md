@@ -2,10 +2,13 @@
 
 ## Unreleased
 
-- Begin wired UEFI loader debugging with a bounded HMAC-SHA256 packet core,
-  session/sequence binding and replay refusal. Native FreeBSD protocol tests and
-  the actual EFI build pass. Remote console/controller integration, UEFI boot
-  tests and physical laptop qualification remain unfinished.
+- Implement an opt-in authenticated wired UEFI loader console and standalone
+  controller, retaining local recovery, bounded output and fresh-session replay
+  protection. The native FreeBSD EFI build and initial real UEFI VM checks pass,
+  including remote variable inspection/update, retransmission, reconnect and boot
+  followed by independent kernel/SSH observation. Physical firmware/NIC and
+  remaining fault/netboot checks still block release acceptance.
+
 - Add single-attempt EFI receive polling for a zero timeout, preserving the
   existing timed receive path and negative-timeout refusal.
 

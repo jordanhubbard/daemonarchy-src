@@ -74,6 +74,163 @@ static void efinet_init(struct iodesc *, void *);
 static int efinet_match(struct netif *, void *);
 static int efinet_probe(struct netif *, void *);
 static ssize_t efinet_put(struct iodesc *, void *, size_t);
+static ssize_t efinet_receive(struct iodesc *, void **, time_t);
+
+#define CONSOLE_FRAME_MAX 2048
+#define CONSOLE_RX_MAX 16
+static struct {
+	struct netif *nif;
+	struct iodesc *desc;
+	int (*filter)(const void *, size_t, void *);
+	void (*closed)(void *);
+	void *arg;
+	uint8_t tx[CONSOLE_FRAME_MAX] __aligned(16);
+	bool pending, fault, quarantined;
+	time_t started;
+	struct { void *packet; ssize_t size; } rx[CONSOLE_RX_MAX];
+	unsigned int head, count;
+	uint64_t dropped;
+} console_io;
+
+static int
+console_reap(void)
+{
+	EFI_SIMPLE_NETWORK *net;
+	EFI_STATUS status;
+	void *returned = NULL;
+
+	if (!console_io.pending)
+		return (console_io.fault ? EIO : 0);
+	if (console_io.nif == NULL || console_io.nif->nif_devdata == NULL)
+		return (EIO);
+	net = console_io.nif->nif_devdata;
+	status = net->GetStatus(net, NULL, &returned);
+	if (status == EFI_SUCCESS && returned != NULL) {
+		/* One outstanding transmit, including firmware's legacy quirk. */
+		console_io.pending = false;
+		return (console_io.fault ? EIO : 0);
+	}
+	if ((status != EFI_SUCCESS && status != EFI_NOT_READY) ||
+	    getsecs() - console_io.started >= 2) {
+		console_io.fault = true;
+		return (EIO);
+	}
+	return (EBUSY);
+}
+
+static int
+console_transmit(const void *packet, size_t size)
+{
+	EFI_SIMPLE_NETWORK *net;
+	EFI_STATUS status;
+	int error;
+
+	if (size == 0 || size > sizeof(console_io.tx) || console_io.nif == NULL)
+		return (EINVAL);
+	if ((error = console_reap()) != 0)
+		return (error);
+	net = console_io.nif->nif_devdata;
+	if (net == NULL)
+		return (EIO);
+	memcpy(console_io.tx, packet, size);
+	status = net->Transmit(net, 0, size, console_io.tx, NULL, NULL, NULL);
+	if (status != EFI_SUCCESS)
+		return (status == EFI_NOT_READY ? EBUSY : EIO);
+	console_io.pending = true;
+	console_io.started = getsecs();
+	return (0);
+}
+
+int
+efinet_console_bind(struct iodesc *desc,
+    int (*filter)(const void *, size_t, void *), void (*closed)(void *), void *arg)
+{
+	EFI_SIMPLE_NETWORK *net;
+
+	if (desc == NULL || desc->io_netif == NULL || filter == NULL ||
+	    desc->io_netif->nif_driver != &efinetif ||
+	    desc->io_netif->nif_devdata == NULL)
+		return (EINVAL);
+	net = desc->io_netif->nif_devdata;
+	if (console_io.filter != NULL || console_io.quarantined ||
+	    net->Mode->MaxPacketSize + ETHER_HDR_LEN + ETHER_CRC_LEN >
+	    CONSOLE_FRAME_MAX)
+		return (EBUSY);
+	(void)console_reap();
+	if (console_io.pending || (console_io.count != 0 &&
+	    console_io.nif != desc->io_netif))
+		return (EBUSY);
+	console_io.fault = false;
+	console_io.nif = desc->io_netif;
+	console_io.desc = desc;
+	console_io.filter = filter;
+	console_io.closed = closed;
+	console_io.arg = arg;
+	return (0);
+}
+
+void
+efinet_console_unbind(void)
+{
+	void (*closed)(void *) = console_io.closed;
+	void *arg = console_io.arg;
+
+	console_io.filter = NULL;
+	console_io.closed = NULL;
+	console_io.arg = NULL;
+	if (closed != NULL)
+		closed(arg);
+	/* Retain pending DMA memory and normal netboot packets until reaped. */
+}
+
+int
+efinet_console_send(const void *packet, size_t size)
+{
+	if (console_io.filter == NULL)
+		return (ENXIO);
+	return (console_transmit(packet, size));
+}
+
+uint64_t
+efinet_console_drops(void)
+{
+	return (console_io.dropped);
+}
+
+void
+efinet_console_poll(void)
+{
+	void *packet;
+	ssize_t size;
+	unsigned int i, tail;
+
+	if (console_io.nif == NULL)
+		return;
+	(void)console_reap();
+	if (console_io.filter == NULL)
+		return;
+	for (i = 0; i < 4; i++) {
+		packet = NULL;
+		size = efinet_receive(console_io.desc, &packet, 0);
+		if (size < 0)
+			break;
+		if (console_io.filter((char *)packet + ETHER_ALIGN, size,
+		    console_io.arg)) {
+			free(packet);
+			continue;
+		}
+		if (console_io.count == CONSOLE_RX_MAX) {
+			/* Keep polling debug packets even under normal RX pressure. */
+			console_io.dropped++;
+			free(packet);
+			continue;
+		}
+		tail = (console_io.head + console_io.count) % CONSOLE_RX_MAX;
+		console_io.rx[tail].packet = packet;
+		console_io.rx[tail].size = size;
+		console_io.count++;
+	}
+}
 
 struct netif_driver efinetif = {
 	.netif_bname = "efinet",
@@ -163,6 +320,28 @@ efinet_put(struct iodesc *desc, void *pkt, size_t len)
 	EFI_SIMPLE_NETWORK *net;
 	EFI_STATUS status;
 	void *buf;
+	int error;
+	time_t started;
+
+	if (console_io.nif == nif) {
+		started = getsecs();
+		do {
+			error = console_transmit(pkt, len);
+			if (error != EBUSY)
+				break;
+			BS->Stall(1000);
+		} while (getsecs() - started < 2);
+		if (error != 0)
+			return (-1);
+		do {
+			error = console_reap();
+			if (error != EBUSY)
+				break;
+			BS->Stall(1000);
+		} while (getsecs() - console_io.started < 2);
+		/* Only the private copy may still belong to DMA on refusal. */
+		return (error == 0 ? (ssize_t)len : -1);
+	}
 
 	net = nif->nif_devdata;
 	if (net == NULL)
@@ -187,7 +366,7 @@ efinet_put(struct iodesc *desc, void *pkt, size_t len)
 }
 
 static ssize_t
-efinet_get(struct iodesc *desc, void **pkt, time_t timeout)
+efinet_receive(struct iodesc *desc, void **pkt, time_t timeout)
 {
 	struct netif *nif = desc->io_netif;
 	EFI_SIMPLE_NETWORK *net;
@@ -223,6 +402,46 @@ efinet_get(struct iodesc *desc, void **pkt, time_t timeout)
 	if (ret == -1)
 		free(buf);
 	return (ret);
+}
+
+static ssize_t
+efinet_get(struct iodesc *desc, void **pkt, time_t timeout)
+{
+	void *packet;
+	ssize_t size;
+	time_t started;
+	unsigned int head;
+
+	if (console_io.nif != desc->io_netif)
+		return (efinet_receive(desc, pkt, timeout));
+	if (timeout < 0)
+		return (-1);
+	started = getsecs();
+	do {
+		if (console_io.count != 0) {
+			head = console_io.head;
+			*pkt = console_io.rx[head].packet;
+			size = console_io.rx[head].size;
+			console_io.head = (head + 1) % CONSOLE_RX_MAX;
+			console_io.count--;
+			return (size);
+		}
+		packet = NULL;
+		size = efinet_receive(desc, &packet, 0);
+		if (size >= 0) {
+			if (console_io.filter == NULL ||
+			    !console_io.filter((char *)packet + ETHER_ALIGN,
+			    size, console_io.arg)) {
+				*pkt = packet;
+				return (size);
+			}
+			free(packet);
+		}
+		if (timeout == 0)
+			break;
+		BS->Stall(1000);
+	} while (getsecs() - started < timeout);
+	return (-1);
 }
 
 /*
@@ -539,11 +758,28 @@ efinet_end(struct netif *nif)
 {
 	EFI_SIMPLE_NETWORK *net = nif->nif_devdata;
 	EFI_HANDLE h;
+	EFI_STATUS status;
 
 	if (net == NULL)
 		return;
 
-	net->Shutdown(net);
+	if (console_io.nif == nif) {
+		efinet_console_unbind();
+		while (console_io.count != 0) {
+			free(console_io.rx[console_io.head].packet);
+			console_io.head = (console_io.head + 1) % CONSOLE_RX_MAX;
+			console_io.count--;
+		}
+	}
+	status = net->Shutdown(net);
+	if (console_io.nif == nif) {
+		if (status != EFI_SUCCESS && console_io.pending)
+			console_io.quarantined = true;
+		if (status == EFI_SUCCESS)
+			console_io.pending = false;
+		console_io.nif = NULL;
+		console_io.desc = NULL;
+	}
 	h = nif->nif_driver->netif_ifs[nif->nif_unit].dif_private;
 	BS->CloseProtocol(h, &sn_guid, IH, NULL);
 	nif->nif_devdata = NULL;
