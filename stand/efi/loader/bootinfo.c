@@ -362,6 +362,9 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	vm_offset_t size;
 	char *rootdevname;
 	int howto;
+#ifdef EFI
+	int error;
+#endif
 #ifdef __i386__
 	/*
 	 * The 32-bit UEFI loader is used to
@@ -495,7 +498,9 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	geli_export_key_metadata(kfp);
 #endif
 #ifdef EFI
-	bi_load_efi_data(kfp, exit_bs);
+	error = bi_load_efi_data(kfp, exit_bs);
+	if (error != 0)
+		return (error);
 #else
 	bi_loadsmap(kfp);
 #endif

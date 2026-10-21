@@ -179,7 +179,7 @@ an owned disposable UEFI loader. It changes `ldnc_count`; never run it against
 production hardware. Native packet checks include independent HMAC and session
 vectors, every-byte mutation, bounds, pairing schemas and replay refusal.
 
-Physical firmware/NIC support, broader shared-NIC/NFS regressions, extended
+Physical firmware/NIC support, broader shared-NIC regressions, extended
 pressure and actual firmware behavior under failure remain release work. The
 native callback fixture below separately verifies scripted failure handling. A passing VM or aggregate build does not qualify those cases,
 a source-built SDK, canonical per-unit packages or a release ISO.
@@ -217,3 +217,39 @@ asserts balanced owned RX allocations, including allocation failure, queue drain
 and shutdown cleanup. Address and undefined-behavior errors still halt the test.
 Passing these callback tests does not certify arbitrary physical DMA/firmware
 behavior or establish a release lifecycle receipt.
+
+
+## EFI handoff errors and NFS fragments
+
+`bi_load()` returns EFI metadata/map/exit errors before final module copying.
+The production-code fixture checks initial/final map failures, allocation failure,
+ExitBootServices refusal and fresh-key retry, successful exit/runtime mapping,
+explicit no-exit mode with runtime mapping disabled, and early NIC-quiescence
+refusal. Unexpected allocation/console activity inside the map-to-exit critical
+window fails the fixture. Alternate chain/hypervisor paths and actual firmware
+fault injection remain separate acceptance work.
+
+IPv4 fragments pass through the debug demultiplexer to libsa; their payload bytes
+must never be interpreted as a UDP destination port. Native production-parser
+checks reproduce the former fragment theft, then pass after correction. A private
+NFS lab with two FreeBSD guests also reproduces the old EFI stall and verifies
+that the corrected EFI loads an 8192-byte patterned file with 8192-byte NFS reads
+while the authenticated console is active. Remote NFS kernel boot separately
+reaches a FreeBSD login after local UFS root mounting. TFTP boot reaches independent
+SSH. These observations do not establish physical NIC coverage or kernel debugger
+continuity.
+
+Run each fixture with its own fresh external object directory on FreeBSD amd64:
+
+```sh
+sh "$SRC/tools/daemonarchy/tests/run-efi-bootinfo.sh" "$SRC" "$BOOTINFO_OBJ" sanitize
+sh "$SRC/tools/daemonarchy/tests/run-netconsole-receive.sh" "$SRC" "$RECEIVE_OBJ" sanitize
+```
+
+Both runners halt on address/undefined-behavior errors. FreeBSD LeakSanitizer is
+unsupported; the bootinfo fixture checks page ownership and the parser fixture
+performs no heap allocation. Compiler/bootstrap provenance remains unqualified.
+
+The pre-existing runtime `SetVirtualAddressMap()` return is still not propagated.
+The success-path fixture does not qualify recovery from that failure after boot
+services have exited; this and alternate exec paths remain explicit limitations.

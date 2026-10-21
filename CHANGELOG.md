@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Propagate EFI metadata and boot-service exit errors before final module copying.
+  Native production-code fixtures reproduce the ignored-error failure, then pass
+  map/allocation/exit/retry/success checks with address/undefined-behavior sanitizers.
+- Preserve fragmented NFS traffic while the debug console shares the NIC. The old
+  parser mistakes fragment payload for a UDP port; corrected code passes native
+  checks and an actual 8192-byte fragmented NFS transfer that stalls on the old EFI.
+  The rebuilt EFI also passes adversarial sessions, TFTP/queue pressure and remote
+  kernel boot followed by independent SSH. Physical firmware remains unqualified.
+
 - Add native tests of the actual EFI networking driver with scripted firmware
   callbacks. Timeouts, late/error completions, shutdown quarantine, RX ownership,
   allocator failure and polling bounds pass address/undefined-behavior checks.

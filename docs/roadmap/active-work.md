@@ -296,8 +296,20 @@ transmit; handoff is refused while it remains active or quarantined. Native
 callback assertions cover this guard's rejection/success states. Actual failed
 firmware handoff and alternate chain/hypervisor paths still need qualification.
 
-Follow-up failure audit: `bi_load()` still ignores the return from
-`bi_load_efi_data()`. Add direct memory-map/allocation/ExitBootServices failure
-coverage and propagate that status before broader handoff acceptance. The new
-NIC-quiescence guard returns directly from `bi_load()` before that call, so its
-refusal is independent of the remaining EFI metadata error-propagation defect.
+The failure audit reproduced ignored EFI metadata errors reaching final module
+copying. `bi_load()` now propagates `bi_load_efi_data()` errors. A native fixture
+includes the actual bootinfo implementation and passes scripted map, allocation,
+exit/retry and success paths with address/undefined-behavior sanitizers. This
+qualifies those logic paths, not arbitrary firmware failures or alternate exec paths.
+
+A larger NFS regression also reproduced fragment loss: the debug demultiplexer
+read a noninitial IPv4 fragment's payload as a UDP header. Fragmented packets now
+remain with libsa for reassembly. The production-parser fixture first fails on
+the old implementation and passes after correction, including under sanitizers.
+In a two-FreeBSD-VM private-wire lab, the old EFI stalls on an 8192-byte patterned
+NFS file; the corrected EFI loads and lists that exact file with `nfs.read_size=8192`
+while the console remains active. The latest EFI also passes adversarial sessions,
+shared-NIC TFTP/queue-pressure checks and independent SSH after remote kernel boot.
+The NFS-loaded kernel independently reaches a FreeBSD login after local UFS root mounting. Physical
+firmware/NICs, alternate handoffs, kernel debug continuity and release admission
+remain required.

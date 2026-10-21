@@ -7,17 +7,21 @@
     "stand/efi/loader/Makefile": "645ee9e011aee1a55129df4c7eceaa1a957b1b6f46f9ab622f7892effe6fc666",
     "stand/efi/loader/netconsole_proto.c": "faf2ca127674ef7e8642f01e8ed29f037812b9a04826c1ff470cad05bc1d007b",
     "stand/efi/loader/netconsole_proto.h": "6d43d91cce78a22c4c0ec9f7cad4ba7c12f5ab01a61126e03f0a3686591c6c38",
-    "stand/efi/loader/netconsole.c": "65ff6c15561ccd0ce7bccb3b624e25615466a5599912db48866715bfbddef568",
+    "stand/efi/loader/netconsole.c": "6409e4844a01320a1c8dee328a5d1293a35ad2df1569fa7b26990f93bb397d57",
     "stand/efi/libefi/efinet.c": "acea1d62e7f21648326a07e7e43a2482a9607beaa4f312190c1c7a29e5d84fd5",
     "stand/efi/include/efilib.h": "6cbf33352dd1ce189ff7ce1be48060f5ef4cf96ac6419137275dd7b017b57249",
     "stand/efi/loader/conf.c": "4f7d70032bebc610e59597dde53b42e68d62a94f3635a6cbe3a44f42a7a41a7c",
-    "stand/efi/loader/bootinfo.c": "2fb211f6e7f31855bd386e29d0a1fa2df941539b97e73c7cdde8b6a1085a06ad",
+    "stand/efi/loader/bootinfo.c": "3fa005235812d91f5f45c7a6fc3c2ab372c12928f278becc9209e16ca965e89d",
     "stand/lua/loader.lua": "7e454ce2220c2fbd4b87e2d5b2c60135ecfc4282906b15ae2ec4a9edc808ef83",
     "tools/daemonarchy/loader-console.py": "7e073ed513df06ade1d2fef3a11b7964499222ef25e974b26c87c8f1006dc3d2",
     "tools/daemonarchy/tests/netconsole-protocol.c": "5fb210a6ce6a250bdc0be0803ce9e13d690f2efc077937a6fd1880ece61ef3b6",
     "tools/daemonarchy/tests/loader-console-live.py": "219df89ae6b17c2378cd9b1ce9add5d35256bffa923f12a0a3cd4110c8d18dbc",
     "tools/daemonarchy/tests/efinet-console.c": "9784de94de395c922b6395bb3fdc36ec3e1c48ce5ae6fd30d9c51058af468e37",
-    "tools/daemonarchy/tests/run-efinet-console.sh": "e66bd055071f1fe3ea7435b0835f43655db68aad64ec1721faf0e94dbf3649cb"
+    "tools/daemonarchy/tests/run-efinet-console.sh": "e66bd055071f1fe3ea7435b0835f43655db68aad64ec1721faf0e94dbf3649cb",
+    "tools/daemonarchy/tests/efi-bootinfo.c": "b14bb5bfa11591d7c2dcf0df1ddd42e67289d21ff7dcd95ebb2575633e2a31da",
+    "tools/daemonarchy/tests/run-efi-bootinfo.sh": "10be2f8f9bd5cc5b8203d0951f029bf54ed83aac97308465d4a6eb48518b9a35",
+    "tools/daemonarchy/tests/netconsole-receive.c": "6a90e1cebdd770b168e6012d72ec3417d9f5d90b527df4c1292316c4a82847aa",
+    "tools/daemonarchy/tests/run-netconsole-receive.sh": "e320cbc530565eb6dbff38741f76b8622887ffc574a5a7943deb1fcf14f82d28"
   },
   "native_protocol_check": {
     "platform": "FreeBSD 16.0-CURRENT amd64",
@@ -277,5 +281,101 @@
     "bootstrap_provenance": "Installed compiler and libc allocator; diagnostic, not a canonical SDK or lifecycle receipt",
     "guard_symbol_observation_sha256": "6534b7a265006b283625453b7bb2d9ee2316d7b0f0c874dc891bccddacac8268",
     "unsupported_leak_sanitizer_observation_sha256": "8050308f84b4d7190e8c9d54e54fb15f68df036d724d7a5f62ed442a555e3731"
+  },
+  "efi_error_and_fragment_followup": {
+    "scope": "Native production-code fixtures plus exact EFI UEFI VM regressions; physical firmware and release admission remain open. Earlier sections preserve their original artifact bindings.",
+    "platform": "FreeBSD 16.0-CURRENT amd64",
+    "native_efi_build": {
+      "terminal": {
+        "exit_code": 0,
+        "schema": "daemonarchy/native-command-terminal@1",
+        "seconds": 86.244
+      },
+      "observation_sha256": "6a18d7646b12c00c10f8cefba59ed047e321726c6fe493c6e748f42ff0911d20",
+      "stderr_empty": false
+    },
+    "compiled_source_sha256": {
+      "stand/efi/loader/Makefile": "645ee9e011aee1a55129df4c7eceaa1a957b1b6f46f9ab622f7892effe6fc666",
+      "stand/efi/loader/netconsole_proto.c": "faf2ca127674ef7e8642f01e8ed29f037812b9a04826c1ff470cad05bc1d007b",
+      "stand/efi/loader/netconsole_proto.h": "6d43d91cce78a22c4c0ec9f7cad4ba7c12f5ab01a61126e03f0a3686591c6c38",
+      "stand/efi/loader/netconsole.c": "6409e4844a01320a1c8dee328a5d1293a35ad2df1569fa7b26990f93bb397d57",
+      "stand/efi/libefi/efinet.c": "acea1d62e7f21648326a07e7e43a2482a9607beaa4f312190c1c7a29e5d84fd5",
+      "stand/efi/include/efilib.h": "6cbf33352dd1ce189ff7ce1be48060f5ef4cf96ac6419137275dd7b017b57249",
+      "stand/efi/loader/conf.c": "4f7d70032bebc610e59597dde53b42e68d62a94f3635a6cbe3a44f42a7a41a7c",
+      "stand/efi/loader/bootinfo.c": "3fa005235812d91f5f45c7a6fc3c2ab372c12928f278becc9209e16ca965e89d",
+      "stand/lua/loader.lua": "7e454ce2220c2fbd4b87e2d5b2c60135ecfc4282906b15ae2ec4a9edc808ef83"
+    },
+    "efi": {
+      "path": "loader-efi-obj-v8/usr/daemonarchy/retained-pkg-kvm-v1/loader-efi-src-v8/amd64.amd64/stand/efi/loader_lua/loader_lua.efi",
+      "sha256": "691ef8da22ae332f76cdb5a4f05af3e40d80fdad4031f65bdf6c0a05063c057a",
+      "bytes": 732672
+    },
+    "efi_failure_reproduction": {
+      "terminal": {
+        "exit_code": -6,
+        "schema": "daemonarchy/native-command-terminal@1",
+        "seconds": 0.217
+      },
+      "observation_sha256": "5648b681c1b8afda1950f9412c47dbb9fde5fdf906613f27b5847b47228d3b0b",
+      "stderr_empty": false
+    },
+    "efi_bootinfo_checks": {
+      "terminal": {
+        "exit_code": 0,
+        "schema": "daemonarchy/native-command-terminal@1",
+        "seconds": 0.178
+      },
+      "observation_sha256": "525ea2d4f6fe79a81ff2e6e0b1f980914ea40db6aec06b44576c14575459766d",
+      "stderr_empty": true
+    },
+    "fragment_failure_reproduction": {
+      "terminal": {
+        "exit_code": 134,
+        "schema": "daemonarchy/native-command-terminal@1",
+        "seconds": 0.37
+      },
+      "observation_sha256": "2687769a136ebd75915e343384e0899e9d806917f1cbd6b6d82c8e83c169cd62",
+      "stderr_empty": false
+    },
+    "fragment_checks": {
+      "terminal": {
+        "exit_code": 0,
+        "schema": "daemonarchy/native-command-terminal@1",
+        "seconds": 0.319
+      },
+      "observation_sha256": "8a78249b2db2613f19fa5d707837616d302b13ef67d5b60ba4b399817068a5f8",
+      "stderr_empty": true
+    },
+    "fixtures_include_actual_production_c": true,
+    "address_and_undefined_sanitizers": true,
+    "leak_sanitizer": "Unsupported on FreeBSD; disabled. Fragment parser fixture allocates no heap; bootinfo fixture asserts page ownership.",
+    "checks": [
+      "EFI map query/allocation/final-map/ExitBootServices failure returns before final module copying",
+      "Fresh map-key exit retry and successful exit/runtime mapping; no allocator or console calls inside exit critical window",
+      "Native NIC quiescence refusal before EFI metadata work",
+      "Noninitial/MF IPv4 fragments pass to libsa even when payload resembles debug UDP port; ordinary UDP passes, malformed unfragmented debug input is consumed"
+    ],
+    "actual_uefi": {
+      "adversarial_protocol": true,
+      "shared_nic_tftp_read": true,
+      "ordinary_udp_pressure_sent": 128,
+      "normal_rx_drops_observed": 112,
+      "remote_tftp_kernel_boot_independent_ssh": true,
+      "nfs_read_size": 8192,
+      "nfs_pattern_file_bytes": 8192,
+      "old_efi_pattern_read_completion_observed": false,
+      "old_efi_failure_interpretation": "Local kernel loaded; patterned network file read stalled at the known demultiplexer bug. Controller completion timeout is not classified as reboot.",
+      "fixed_efi_pattern_file_loaded_and_listed": true,
+      "nfs_kernel_boot_independent_console": "FreeBSD login observed after kernel startup and local UFS root mount; private wire has no DHCP, so no post-boot IPv4 continuity claimed.",
+      "private_capture_sha256": {
+        "loader-nfs-v1/controller-captures.tar.gz": "ba355b8d131d685ac8bc4453ca946b9086c6bfda1c53d6126d016f5e75bf3eb5",
+        "loader-nfs-v1/kernel-observation.png": "7fb0c431d730994b646217dbba51dc96f149c849b0d3b7b0828b3fd6feb10f23",
+        "loader-v18/captures.tar.gz": "50950e18dbcfe55ac0268df76129422104967ebf6e20526bc0cb8dd6d6bd268e",
+        "loader-v18/kernel-observation.log": "bb785b10c866e5371c5ba534ff4a827ac5c084c5110a6b2cd4b6a1da78454a73",
+        "loader-nfs-v1/login-observation.png": "62085d3be34eb3a29680813a6c8741ee106a43c7caac180178557ef4be5c2f29"
+      }
+    },
+    "physical_firmware_qualified": false,
+    "canonical_sdk_or_release_receipt": false
   }
 }

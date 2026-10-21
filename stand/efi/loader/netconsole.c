@@ -254,12 +254,15 @@ nc_receive(const void *raw, size_t size, void *arg __unused)
 	if (ip[0] != 0x45 || ip[9] != 17 ||
 	    memcmp(ip + 16, &nc.local.s_addr, 4) != 0)
 		return (0);
+	/* Fragment payload is not a UDP header. Leave reassembly to libsa. */
+	if ((be16dec(ip + 6) & 0x3fff) != 0)
+		return (0);
 	udp = ip + 20;
 	if (be16dec(udp + 2) != NC_PORT)
 		return (0);
 	ip_size = be16dec(ip + 2); udp_size = be16dec(udp + 4);
 	if (ip_size < 28 || ip_size > size - 14 || udp_size != ip_size - 20 ||
-	    udp_size < 8 || (be16dec(ip + 6) & 0x3fff) != 0 ||
+	    udp_size < 8 ||
 	    nc_checksum(ip, 20, 0) != 0 ||
 	    memcmp(ip + 12, &nc.peer.s_addr, 4) != 0)
 		return (1);
