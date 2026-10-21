@@ -261,7 +261,7 @@ aggregate package groups and copied bootstrap tools cannot satisfy this step.
   - [ ] Physical laptop captures, shared-NIC netboot regressions and injected firmware faults qualify the release candidate.
 
 SRC-DEBUG-001 now has an integrated EFI console and standalone controller. The
-actual FreeBSD amd64 stand build passes (103.660 seconds, two jobs); expanded
+actual FreeBSD amd64 stand build passes (107.388 seconds, two jobs); expanded
 native packet checks pass independent HMAC/session vectors, mutation, bounds,
 roles and replay refusal. A real OVMF UEFI VM passes authenticated show/set,
 interface/status, reconnect, invalid input and lost-ack/reflection tests. Remote
@@ -280,3 +280,24 @@ consoles remain active. Networking closes before the final memory-map capture.
 Physical firmware/NIC qualification, shared-NIC netboot regressions, queue pressure
 and injected firmware faults remain open. Kernel networking after handoff and
 release admission are not earned by this initial VM result.
+
+SRC-DEBUG-001 native fault fixture now includes the actual EFI driver, with
+scripted callbacks for timeout/late/error completion, shared transmit, shutdown
+quarantine, RX ownership/overflow, receive/allocation failure and bounded polling.
+The native address/undefined-behavior checks pass. A preceding failure reproduced
+frame-size integer overflow; corrected mode/bounds guards refuse it. FreeBSD
+LeakSanitizer is unsupported, so owned RX allocation balance is asserted directly.
+Physical firmware behavior, broader shared-NIC/NFS regressions and release
+admission remain open; these tests do not replace their acceptance evidence.
+
+The native FreeBSD boot entry now checks that the selected NIC was quiesced by
+device cleanup. Failed shutdown quarantines the channel even without a pending
+transmit; handoff is refused while it remains active or quarantined. Native
+callback assertions cover this guard's rejection/success states. Actual failed
+firmware handoff and alternate chain/hypervisor paths still need qualification.
+
+Follow-up failure audit: `bi_load()` still ignores the return from
+`bi_load_efi_data()`. Add direct memory-map/allocation/ExitBootServices failure
+coverage and propagate that status before broader handoff acceptance. The new
+NIC-quiescence guard returns directly from `bi_load()` before that call, so its
+refusal is independent of the remaining EFI metadata error-propagation defect.

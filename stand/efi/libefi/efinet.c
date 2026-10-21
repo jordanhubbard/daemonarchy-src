@@ -152,9 +152,11 @@ efinet_console_bind(struct iodesc *desc,
 	    desc->io_netif->nif_devdata == NULL)
 		return (EINVAL);
 	net = desc->io_netif->nif_devdata;
-	if (console_io.filter != NULL || console_io.quarantined ||
-	    net->Mode->MaxPacketSize + ETHER_HDR_LEN + ETHER_CRC_LEN >
-	    CONSOLE_FRAME_MAX)
+	if (net->Mode == NULL || net->Mode->MaxPacketSize == 0 ||
+	    net->Mode->MaxPacketSize >
+	    CONSOLE_FRAME_MAX - ETHER_HDR_LEN - ETHER_CRC_LEN)
+		return (EINVAL);
+	if (console_io.filter != NULL || console_io.quarantined)
 		return (EBUSY);
 	(void)console_reap();
 	if (console_io.pending || (console_io.count != 0 &&
@@ -195,6 +197,14 @@ uint64_t
 efinet_console_drops(void)
 {
 	return (console_io.dropped);
+}
+
+int
+efinet_console_handoff_check(void)
+{
+	/* Keep loader memory reserved until the selected NIC is quiescent. */
+	return (console_io.nif != NULL || console_io.pending ||
+	    console_io.quarantined ? EIO : 0);
 }
 
 void
@@ -377,10 +387,16 @@ efinet_receive(struct iodesc *desc, void **pkt, time_t timeout)
 	ssize_t ret = -1;
 
 	net = nif->nif_devdata;
-	if (net == NULL || timeout < 0)
+	if (net == NULL || net->Mode == NULL || timeout < 0)
 		return (ret);
 
-	bufsz = net->Mode->MaxPacketSize + ETHER_HDR_LEN + ETHER_CRC_LEN;
+	bufsz = net->Mode->MaxPacketSize;
+	if (bufsz == 0 || bufsz > (UINTN)-1 - ETHER_HDR_LEN -
+	    ETHER_CRC_LEN - ETHER_ALIGN ||
+	    (console_io.nif == nif && bufsz >
+	    CONSOLE_FRAME_MAX - ETHER_HDR_LEN - ETHER_CRC_LEN))
+		return (ret);
+	bufsz += ETHER_HDR_LEN + ETHER_CRC_LEN;
 	buf = malloc(bufsz + ETHER_ALIGN);
 	if (buf == NULL)
 		return (ret);
@@ -773,7 +789,7 @@ efinet_end(struct netif *nif)
 	}
 	status = net->Shutdown(net);
 	if (console_io.nif == nif) {
-		if (status != EFI_SUCCESS && console_io.pending)
+		if (status != EFI_SUCCESS)
 			console_io.quarantined = true;
 		if (status == EFI_SUCCESS)
 			console_io.pending = false;

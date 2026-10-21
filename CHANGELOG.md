@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Add native tests of the actual EFI networking driver with scripted firmware
+  callbacks. Timeouts, late/error completions, shutdown quarantine, RX ownership,
+  allocator failure and polling bounds pass address/undefined-behavior checks.
+  Fix the reproduced frame-size overflow and reject missing/invalid SNP modes.
+  Refuse native FreeBSD kernel handoff while the debug NIC remains active or
+  firmware shutdown failed, preserving loader memory with uncertain DMA ownership.
+  FreeBSD lacks LeakSanitizer; explicit RX allocation balance remains checked.
+
 - Implement an opt-in authenticated wired UEFI loader console and standalone
   controller, retaining local recovery, bounded output and fresh-session replay
   protection. The native FreeBSD EFI build and initial real UEFI VM checks pass,

@@ -8,14 +8,16 @@
     "stand/efi/loader/netconsole_proto.c": "faf2ca127674ef7e8642f01e8ed29f037812b9a04826c1ff470cad05bc1d007b",
     "stand/efi/loader/netconsole_proto.h": "6d43d91cce78a22c4c0ec9f7cad4ba7c12f5ab01a61126e03f0a3686591c6c38",
     "stand/efi/loader/netconsole.c": "65ff6c15561ccd0ce7bccb3b624e25615466a5599912db48866715bfbddef568",
-    "stand/efi/libefi/efinet.c": "fd9a9173277a859db0cdd94e104a6f286ce0fbdb8c0dee2d9d541c867c739916",
-    "stand/efi/include/efilib.h": "5addc0ca13e3fe8ccbf9bb12989b57ec200320b895187b1f5c0d89dd28ccc531",
+    "stand/efi/libefi/efinet.c": "acea1d62e7f21648326a07e7e43a2482a9607beaa4f312190c1c7a29e5d84fd5",
+    "stand/efi/include/efilib.h": "6cbf33352dd1ce189ff7ce1be48060f5ef4cf96ac6419137275dd7b017b57249",
     "stand/efi/loader/conf.c": "4f7d70032bebc610e59597dde53b42e68d62a94f3635a6cbe3a44f42a7a41a7c",
-    "stand/efi/loader/bootinfo.c": "7351b43fd60b2e2897a1bccc65ba6e98b1b1c8631fb22c98b91706ab95742ef0",
+    "stand/efi/loader/bootinfo.c": "2fb211f6e7f31855bd386e29d0a1fa2df941539b97e73c7cdde8b6a1085a06ad",
     "stand/lua/loader.lua": "7e454ce2220c2fbd4b87e2d5b2c60135ecfc4282906b15ae2ec4a9edc808ef83",
     "tools/daemonarchy/loader-console.py": "7e073ed513df06ade1d2fef3a11b7964499222ef25e974b26c87c8f1006dc3d2",
     "tools/daemonarchy/tests/netconsole-protocol.c": "5fb210a6ce6a250bdc0be0803ce9e13d690f2efc077937a6fd1880ece61ef3b6",
-    "tools/daemonarchy/tests/loader-console-live.py": "219df89ae6b17c2378cd9b1ce9add5d35256bffa923f12a0a3cd4110c8d18dbc"
+    "tools/daemonarchy/tests/loader-console-live.py": "219df89ae6b17c2378cd9b1ce9add5d35256bffa923f12a0a3cd4110c8d18dbc",
+    "tools/daemonarchy/tests/efinet-console.c": "9784de94de395c922b6395bb3fdc36ec3e1c48ce5ae6fd30d9c51058af468e37",
+    "tools/daemonarchy/tests/run-efinet-console.sh": "e66bd055071f1fe3ea7435b0835f43655db68aad64ec1721faf0e94dbf3649cb"
   },
   "native_protocol_check": {
     "platform": "FreeBSD 16.0-CURRENT amd64",
@@ -30,35 +32,35 @@
   "native_efi_build": {
     "platform": "FreeBSD 16.0-CURRENT amd64",
     "exit_code": 0,
-    "seconds": 103.66,
+    "seconds": 107.388,
     "jobs": 2,
-    "patch_sha256": "8c714d532f0471d25c799814ec0177afea04c891d6bbbb012ed8930ed492b9c0",
+    "patch_sha256": "752c162f0b1c60a0a36ceb944091412100cc1d8cf3c81fa51aa5abce625aa299",
     "compiled_source_sha256": {
       "stand/efi/loader/Makefile": "645ee9e011aee1a55129df4c7eceaa1a957b1b6f46f9ab622f7892effe6fc666",
       "stand/efi/loader/netconsole_proto.c": "faf2ca127674ef7e8642f01e8ed29f037812b9a04826c1ff470cad05bc1d007b",
       "stand/efi/loader/netconsole_proto.h": "6d43d91cce78a22c4c0ec9f7cad4ba7c12f5ab01a61126e03f0a3686591c6c38",
       "stand/efi/loader/netconsole.c": "65ff6c15561ccd0ce7bccb3b624e25615466a5599912db48866715bfbddef568",
-      "stand/efi/libefi/efinet.c": "fd9a9173277a859db0cdd94e104a6f286ce0fbdb8c0dee2d9d541c867c739916",
-      "stand/efi/include/efilib.h": "5addc0ca13e3fe8ccbf9bb12989b57ec200320b895187b1f5c0d89dd28ccc531",
+      "stand/efi/libefi/efinet.c": "acea1d62e7f21648326a07e7e43a2482a9607beaa4f312190c1c7a29e5d84fd5",
+      "stand/efi/include/efilib.h": "6cbf33352dd1ce189ff7ce1be48060f5ef4cf96ac6419137275dd7b017b57249",
       "stand/efi/loader/conf.c": "4f7d70032bebc610e59597dde53b42e68d62a94f3635a6cbe3a44f42a7a41a7c",
-      "stand/efi/loader/bootinfo.c": "7351b43fd60b2e2897a1bccc65ba6e98b1b1c8631fb22c98b91706ab95742ef0",
+      "stand/efi/loader/bootinfo.c": "2fb211f6e7f31855bd386e29d0a1fa2df941539b97e73c7cdde8b6a1085a06ad",
       "stand/lua/loader.lua": "7e454ce2220c2fbd4b87e2d5b2c60135ecfc4282906b15ae2ec4a9edc808ef83"
     },
-    "observation_sha256": "71020521fa3c0c524e00e35d0d51b1e57e18e504a47c13afd4ad408b081387d2",
-    "loader_lua_sha256": "f507e4823aeca1a29a5b202fd9a13b1605065745522a64081c7f4dd2010f3f50",
+    "observation_sha256": "99eda0e652bc7c044a9ce0a97c2d7ae5848cd7163d7dae40a7a8e6587f201841",
+    "loader_lua_sha256": "48e88ea35edf490d3e347d9a878b05f632696a1f8fbc01e232e891ad84dff5e6",
     "loader_lua_bytes": 732672,
     "external_runtime_lua_sha256": "7e454ce2220c2fbd4b87e2d5b2c60135ecfc4282906b15ae2ec4a9edc808ef83",
     "source_and_objects_isolated": true,
     "bootstrap_compiler_source_provenance": "unknown; native development evidence, not canonical SDK admission",
-    "loader_lua_symbols_sha256": "6f03f50f47cd5ff1af67bbd8b1771b39d4ce7583d74ee9a0495a11140e8df3e9",
-    "loader_lua_symbols_bytes": 877528
+    "loader_lua_symbols_sha256": "ea60d0fe0be4345e6114d5105ee9e5ef1f4a9cd3fb0cb49b1bd430bfb9797a0c",
+    "loader_lua_symbols_bytes": 881672
   },
   "initial_uefi_vm_check": {
     "firmware": "OVMF UEFI x86_64",
     "hypervisor": "QEMU 10.2.1 KVM",
     "firmware_nic": "e1000 SNP",
     "target": "FreeBSD 16.0-CURRENT amd64",
-    "efi_sha256": "f507e4823aeca1a29a5b202fd9a13b1605065745522a64081c7f4dd2010f3f50",
+    "efi_sha256": "48e88ea35edf490d3e347d9a878b05f632696a1f8fbc01e232e891ad84dff5e6",
     "controller_sha256": "7e073ed513df06ade1d2fef3a11b7964499222ef25e974b26c87c8f1006dc3d2",
     "live_check_sha256": "219df89ae6b17c2378cd9b1ce9add5d35256bffa923f12a0a3cd4110c8d18dbc",
     "authenticated_show_set_devices_status": true,
@@ -72,12 +74,13 @@
     "nic_absent_normal_boot_to_login": true,
     "kernel_witness_warning": "Stock CURRENT kernel emitted IPv6 event sleep-inhibitor WITNESS warning; VM continued to login and SSH. Not classified as a loader panic.",
     "private_capture_sha256": {
-      "v6-captures.tar.gz": "07c88580c22421c78657c9c6ee45e747927d59e0743f5984772e10ddc4a77e54",
-      "v7-captures.tar.gz": "c81a95d201a35f31e89b8b99472dc3ec4be4402fc638fdd0a4996b92ffd349cf",
-      "v6-kernel-observation.log": "21f9be3f25a1717894acec9881f4ce9d5573d6b419bda1fa4f87fc734fb1c87a",
-      "v7-observation.png": "989aac88ca94076be7cf8945eb39beb7cfc8e451768aad7337eb2550204533ee",
-      "v8-observation.png": "8b292c62e6771da6df90bfc55b136a9aec8bbefadbc680eac9c73cafcbba0956",
-      "v8-captures.tar.gz": "24010c4bdd6859c59b2c572c15d760e704d8792916ef51742c3baa07097eb4f3"
+      "loader-v12/captures.tar.gz": "84c723d17dd11c483431a9d85cf22e4ad6b03da7e20940e7066c39b713f4c766",
+      "loader-v13/captures.tar.gz": "4ebf3d8c0c65685eafd95ddc194bdfdae4433cdae662f52c8f713e6f1698a4b8",
+      "loader-v14/captures.tar.gz": "7d3514cc7e0fb5af4505c21ad6d871a92e8de1393e47633df9bbbacbf977e5df",
+      "loader-v12/kernel-observation.log": "edd04c4685cb497f479110353562887d488d2381827a20c50e830731895d6036",
+      "loader-v12/handoff-identity.log": "82a32c3d8aaf594e045f4d353db4b660ee985be6c5cebbf4f7643db669662388",
+      "loader-v13/observation.png": "c0322493c5836ea796e9687b36ec5f91f0da84df48dbbae31e70d22882dcb08f",
+      "loader-v14/observation.png": "f50a25c30d15c014d8b869e42101716f411962758f4ba9fea60851660b47fcd0"
     },
     "kernel_loaded_over_same_nic_tftp": true,
     "shared_nic_tftp_probe_read": true,
@@ -88,10 +91,12 @@
       "private_probe_sha256": "adcdcf22e89f97cefe1ab14328d8b3e33b81e0d87e154831a2403389d754c17a"
     },
     "case_bindings": {
-      "authenticated_adversarial_tftp_pressure_remote_boot": "v6",
-      "missing_nic_normal_boot": "v7",
-      "missing_peer_local_keyboard_boot": "v8"
-    }
+      "authenticated_adversarial_tftp_pressure_remote_boot": "v12",
+      "missing_nic_normal_boot": "v13",
+      "missing_peer_local_keyboard_boot": "v14"
+    },
+    "kernel_boot_identity_matches_controller": true,
+    "loader_mac_matches_native_interface": true
   },
   "efi_binary_built": true,
   "udp_console_integrated": true,
@@ -102,10 +107,11 @@
   "release_acceptance": false,
   "remaining": [
     "Physical firmware/SNP NIC discovery and target laptop tests",
+    "EFI memory-map/allocation/ExitBootServices failure propagation audit; bi_load still ignores bi_load_efi_data return",
     "Broader shared-NIC regression matrix including NFS",
-    "Extended RX pressure and injected transmit/completion/shutdown faults",
+    "Actual failed-firmware handoff and alternate chain/hypervisor qualification",
     "Independent early-kernel network debugging",
-    "Package/ISO admission and release matrix"
+    "Canonical package/ISO admission and release matrix"
   ],
   "preserved_preceding_evidence": {
     "foundation_protocol": {
@@ -168,6 +174,108 @@
       "bootstrap_compiler_source_provenance": "unknown; native development evidence, not canonical SDK admission",
       "loader_lua_symbols_sha256": "bedc942a8473709a9318dd6420a90ec0400568d8e95d4713e2314d5bcf70c323",
       "loader_lua_symbols_bytes": 877480
+    },
+    "integrated_v4_efi_build": {
+      "platform": "FreeBSD 16.0-CURRENT amd64",
+      "exit_code": 0,
+      "seconds": 103.66,
+      "jobs": 2,
+      "patch_sha256": "8c714d532f0471d25c799814ec0177afea04c891d6bbbb012ed8930ed492b9c0",
+      "compiled_source_sha256": {
+        "stand/efi/loader/Makefile": "645ee9e011aee1a55129df4c7eceaa1a957b1b6f46f9ab622f7892effe6fc666",
+        "stand/efi/loader/netconsole_proto.c": "faf2ca127674ef7e8642f01e8ed29f037812b9a04826c1ff470cad05bc1d007b",
+        "stand/efi/loader/netconsole_proto.h": "6d43d91cce78a22c4c0ec9f7cad4ba7c12f5ab01a61126e03f0a3686591c6c38",
+        "stand/efi/loader/netconsole.c": "65ff6c15561ccd0ce7bccb3b624e25615466a5599912db48866715bfbddef568",
+        "stand/efi/libefi/efinet.c": "fd9a9173277a859db0cdd94e104a6f286ce0fbdb8c0dee2d9d541c867c739916",
+        "stand/efi/include/efilib.h": "5addc0ca13e3fe8ccbf9bb12989b57ec200320b895187b1f5c0d89dd28ccc531",
+        "stand/efi/loader/conf.c": "4f7d70032bebc610e59597dde53b42e68d62a94f3635a6cbe3a44f42a7a41a7c",
+        "stand/efi/loader/bootinfo.c": "7351b43fd60b2e2897a1bccc65ba6e98b1b1c8631fb22c98b91706ab95742ef0",
+        "stand/lua/loader.lua": "7e454ce2220c2fbd4b87e2d5b2c60135ecfc4282906b15ae2ec4a9edc808ef83"
+      },
+      "observation_sha256": "71020521fa3c0c524e00e35d0d51b1e57e18e504a47c13afd4ad408b081387d2",
+      "loader_lua_sha256": "f507e4823aeca1a29a5b202fd9a13b1605065745522a64081c7f4dd2010f3f50",
+      "loader_lua_bytes": 732672,
+      "external_runtime_lua_sha256": "7e454ce2220c2fbd4b87e2d5b2c60135ecfc4282906b15ae2ec4a9edc808ef83",
+      "source_and_objects_isolated": true,
+      "bootstrap_compiler_source_provenance": "unknown; native development evidence, not canonical SDK admission",
+      "loader_lua_symbols_sha256": "6f03f50f47cd5ff1af67bbd8b1771b39d4ce7583d74ee9a0495a11140e8df3e9",
+      "loader_lua_symbols_bytes": 877528
+    },
+    "integrated_v4_vm_check": {
+      "firmware": "OVMF UEFI x86_64",
+      "hypervisor": "QEMU 10.2.1 KVM",
+      "firmware_nic": "e1000 SNP",
+      "target": "FreeBSD 16.0-CURRENT amd64",
+      "efi_sha256": "f507e4823aeca1a29a5b202fd9a13b1605065745522a64081c7f4dd2010f3f50",
+      "controller_sha256": "7e073ed513df06ade1d2fef3a11b7964499222ef25e974b26c87c8f1006dc3d2",
+      "live_check_sha256": "219df89ae6b17c2378cd9b1ce9add5d35256bffa923f12a0a3cd4110c8d18dbc",
+      "authenticated_show_set_devices_status": true,
+      "retransmission_and_ack_reflection": true,
+      "forged_wrong_key_truncated_trailing_oversized_gap_duplicate_changed_input": true,
+      "fresh_pairing_stable_boot_identifier_old_session_refused": true,
+      "remote_boot_firmware_finish_observed": true,
+      "finish_output_gap": false,
+      "independent_kernel_login_and_ssh_observed": true,
+      "peer_absent_local_keyboard_boot_to_login": true,
+      "nic_absent_normal_boot_to_login": true,
+      "kernel_witness_warning": "Stock CURRENT kernel emitted IPv6 event sleep-inhibitor WITNESS warning; VM continued to login and SSH. Not classified as a loader panic.",
+      "private_capture_sha256": {
+        "v6-captures.tar.gz": "07c88580c22421c78657c9c6ee45e747927d59e0743f5984772e10ddc4a77e54",
+        "v7-captures.tar.gz": "c81a95d201a35f31e89b8b99472dc3ec4be4402fc638fdd0a4996b92ffd349cf",
+        "v6-kernel-observation.log": "21f9be3f25a1717894acec9881f4ce9d5573d6b419bda1fa4f87fc734fb1c87a",
+        "v7-observation.png": "989aac88ca94076be7cf8945eb39beb7cfc8e451768aad7337eb2550204533ee",
+        "v8-observation.png": "8b292c62e6771da6df90bfc55b136a9aec8bbefadbc680eac9c73cafcbba0956",
+        "v8-captures.tar.gz": "24010c4bdd6859c59b2c572c15d760e704d8792916ef51742c3baa07097eb4f3"
+      },
+      "kernel_loaded_over_same_nic_tftp": true,
+      "shared_nic_tftp_probe_read": true,
+      "unrelated_udp_queue_pressure": {
+        "packets_sent": 128,
+        "ordinary_rx_drops": 112,
+        "debug_commands_remain_available": true,
+        "private_probe_sha256": "adcdcf22e89f97cefe1ab14328d8b3e33b81e0d87e154831a2403389d754c17a"
+      },
+      "case_bindings": {
+        "authenticated_adversarial_tftp_pressure_remote_boot": "v6",
+        "missing_nic_normal_boot": "v7",
+        "missing_peer_local_keyboard_boot": "v8"
+      }
+    },
+    "reproduced_frame_size_overflow": {
+      "observation_sha256": "48e881f0fb3b02f67743d7df5dcc94401c96550e584b5373afeff8f6d5e17cfc",
+      "exit_code": -6,
+      "reason": "UINT32_MAX firmware MaxPacketSize wrapped the previous addition; assertion reproduced acceptance, then corrected guards pass."
     }
+  },
+  "native_firmware_callback_fault_check": {
+    "platform": "FreeBSD 16.0-CURRENT amd64",
+    "exit_code": 0,
+    "seconds": 0.47,
+    "observation_sha256": "4a2c7d97658df34f7bfd781a501fb9fb28540c56caa56186aa3eefe9aa5cf6c7",
+    "inputs_sha256": {
+      "efinet-console.c": "9784de94de395c922b6395bb3fdc36ec3e1c48ce5ae6fd30d9c51058af468e37",
+      "run-efinet-console.sh": "e66bd055071f1fe3ea7435b0835f43655db68aad64ec1721faf0e94dbf3649cb",
+      "stand/efi/libefi/efinet.c": "acea1d62e7f21648326a07e7e43a2482a9607beaa4f312190c1c7a29e5d84fd5"
+    },
+    "actual_driver_included": true,
+    "warnings_as_errors": true,
+    "address_sanitizer": true,
+    "undefined_behavior_sanitizer": true,
+    "sanitizer_errors_halt": true,
+    "stderr_empty": true,
+    "leak_sanitizer": "Unsupported by this FreeBSD runtime; disabled explicitly. Owned RX allocation balance is asserted, including failure/queue drain/shutdown.",
+    "checks": [
+      "Private copied TX ownership and no reuse while firmware completion is pending",
+      "Transmit refusal and error completion retain ownership",
+      "Bounded synchronous shared transmit and late completion recovery",
+      "Shutdown failure quarantines even without pending TX; handoff-check API refuses active/pending/quarantined state",
+      "FIFO normal RX preservation, debug consumption, overflow, allocator/receive failures and bounded polling",
+      "Null/zero/oversized/changing firmware mode and frame-size overflow refusal"
+    ],
+    "native_freebsd_elf_handoff_guard_compiled": true,
+    "actual_uefi_failed_shutdown_handoff_qualified": false,
+    "bootstrap_provenance": "Installed compiler and libc allocator; diagnostic, not a canonical SDK or lifecycle receipt",
+    "guard_symbol_observation_sha256": "6534b7a265006b283625453b7bb2d9ee2316d7b0f0c874dc891bccddacac8268",
+    "unsupported_leak_sanitizer_observation_sha256": "8050308f84b4d7190e8c9d54e54fb15f68df036d724d7a5f62ed442a555e3731"
   }
 }

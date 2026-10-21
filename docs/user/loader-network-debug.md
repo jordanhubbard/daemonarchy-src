@@ -93,6 +93,13 @@ observe return to the ordinary interpreter. A timeout does not imply a crash,
 power cycle or reboot. Reconnect with the same key to create a new session;
 `netdebug.boot_id` remains stable within that loader boot.
 
+Use `show boot.netif.hwaddr` to retain the firmware NIC's MAC address. The kernel
+receives that value and `netdebug.boot_id` in its environment: `kenv
+boot.netif.hwaddr` and `kenv netdebug.boot_id` can relate the native interface and
+kernel boot to the controller's retained session. Match the MAC to `ifconfig`;
+loader unit names do not promise native interface names. This identifies the
+interface and boot, but does not activate kernel networking or a debugger.
+
 `boot` ends firmware networking. The controller records
 `firmware_handoff_started` with `kernel_observed: false` and exits **3**; normal
 command completion exits **0** and errors/timeouts exit **1**. Confirm the kernel
@@ -135,6 +142,11 @@ drops and continues bounded debug polling; queued frames remain available to
 netboot readers. `netdebug status` reports normal RX drops as well as lost output. The default unattached path
 retains ordinary networking behavior. Cleanup drains output for a bounded time,
 sends FINISH and shuts down networking before the final memory-map/handoff path.
+The native FreeBSD ELF boot path refuses handoff if the selected NIC is still
+active or its shutdown failed, even without a pending transmit. A local error
+requires a reboot to recover; pending DMA memory stays reserved in the loader.
+Use the normal medium/profile after reboot if the firmware repeats the failure.
+Alternate chain/hypervisor handoff paths require separate qualification.
 Neither packet loss nor a stalled peer can disable local keyboard recovery.
 
 ## Verification and limits
@@ -167,7 +179,41 @@ an owned disposable UEFI loader. It changes `ldnc_count`; never run it against
 production hardware. Native packet checks include independent HMAC and session
 vectors, every-byte mutation, bounds, pairing schemas and replay refusal.
 
-Physical firmware/NIC support, broader shared-NIC regressions,
-extended queue-pressure/NFS cases and injected firmware transmit/shutdown failures remain
-release work. A passing VM or aggregate build does not qualify those cases,
+Physical firmware/NIC support, broader shared-NIC/NFS regressions, extended
+pressure and actual firmware behavior under failure remain release work. The
+native callback fixture below separately verifies scripted failure handling. A passing VM or aggregate build does not qualify those cases,
 a source-built SDK, canonical per-unit packages or a release ISO.
+
+## Native firmware-fault checks
+
+The fixture in `tools/daemonarchy/tests/efinet-console.c` includes the actual
+`stand/efi/libefi/efinet.c` implementation. Scripted SNP and boot-service callbacks
+control transmit refusal, completion timing, receive errors and shutdown failure;
+unexpected initialization paths abort. This is a native FreeBSD amd64 logic
+check, complementary to UEFI VM and physical firmware tests.
+
+Run it with a new, existing object directory outside source:
+
+```sh
+sh "$SRC/tools/daemonarchy/tests/run-efinet-console.sh" "$SRC" "$OBJ" sanitize
+```
+
+The script compiles with warnings as errors and address/undefined-behavior
+sanitizers. It refuses other OS/architecture targets, source-local objects and
+an occupied binary path. Omit `sanitize` for a plain native run. The compiler
+is `/usr/bin/cc` unless an explicit `CC` executable is selected. Its bootstrap
+source provenance remains separate from the diagnostic result.
+
+Checks cover copied transmit ownership, pending-buffer retention after timeout
+or completion error, late completion, explicit reactivation, synchronous shared
+transmit, failed-shutdown quarantine and handoff refusal, ordered normal RX retention, debug RX
+consumption, queue overflow, allocator/receive failures, bounded polling and the
+unattached networking path. Null/zero/oversized firmware modes and frame-size
+integer overflow refuse; the overflow check first reproduced a failure in the
+preceding implementation and then passed after correction.
+
+FreeBSD's sanitizer runtime does not support LeakSanitizer. The fixture instead
+asserts balanced owned RX allocations, including allocation failure, queue drain
+and shutdown cleanup. Address and undefined-behavior errors still halt the test.
+Passing these callback tests does not certify arbitrary physical DMA/firmware
+behavior or establish a release lifecycle receipt.

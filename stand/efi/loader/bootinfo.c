@@ -391,6 +391,14 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 #endif
 	};
 #endif
+#if defined(EFI) && defined(LOADER_NET_SUPPORT)
+	/* Architecture exec paths clean devices before entering bi_load(). */
+	if (exit_bs && efinet_console_handoff_check() != 0) {
+		printf("Firmware network did not quiesce; refusing kernel handoff. "
+		    "Reboot to recover.\n");
+		return (EIO);
+	}
+#endif
 	howto = bi_getboothowto(args);
 
 	/*

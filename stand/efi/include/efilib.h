@@ -54,6 +54,7 @@ void efinet_console_unbind(void);
 void efinet_console_poll(void);
 int efinet_console_send(const void *, size_t);
 uint64_t efinet_console_drops(void);
+int efinet_console_handoff_check(void);
 void netconsole_handoff(void);
 
 /* EFI block device data, included here to help efi_zfs_probe() */
