@@ -44,6 +44,7 @@ sys/*/compile
 
 # Literate AI metadata diagnostics; native objects/staging remain outside src.
 /_build/
+/.worktrees/
 /.literate/conversion-authority.lock
 **/.component*.write.lock
 
