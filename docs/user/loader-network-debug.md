@@ -115,7 +115,7 @@ context before configuring another interface. The
 [context checkpoint](../../verification/loader-network-context-development.json)
 binds the rebuilt EFI and renewed TFTP/NFS/revocation checks. Physical NIC and
 firmware acceptance remain open under
-[issue #11](https://github.com/jordanhubbard/daemonarchy-src/issues/11); the earlier
+[issue #6](https://github.com/jordanhubbard/daemonarchy-src/issues/6); the earlier
 failed transfer remains retained in the
 [identity checkpoint](../../verification/loader-network-identity-development.json).
 
@@ -125,6 +125,16 @@ command completion exits **0** and errors/timeouts exit **1**. Confirm the kerne
 through a separate console or native SSH. This does not establish a continuous
 loader-to-kernel debugger. Kernel debugnet/NetGDB and native NIC initialization
 need separate work and qualification.
+
+The existing kernel NetGDB path remains panic-only and has no authenticated
+session protocol. A private-wire development baseline confirms non-panic refusal
+and a panic-time connection, but its first client could not decode the FreeBSD
+register ABI. Peer closure also exposes a missing debugnet finish callback;
+[issue #12](https://github.com/jordanhubbard/daemonarchy-src/issues/12) owns that
+repair and its native recovery qualification. This does not extend loader
+pairing or authorization into the kernel. Use a FreeBSD-capable debugger and
+symbols matching the actual kernel; continuous early-kernel debugging and
+physical NIC acceptance remain unqualified.
 
 ## Packet and I/O contract
 

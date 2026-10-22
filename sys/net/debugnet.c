@@ -685,6 +685,7 @@ debugnet_connect(const struct debugnet_conn_params *dcp,
 		.dp_seqno = 1,
 		.dp_ifp = dcp->dc_ifp,
 		.dp_rx_handler = dcp->dc_rx_handler,
+		.dp_finish_handler = dcp->dc_finish_handler,
 		.dp_drv_input = NULL,
 	};
 

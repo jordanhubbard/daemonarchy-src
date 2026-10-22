@@ -377,3 +377,17 @@ four owned guests shut down normally. The NFS debug IP remains metadata only.
 Controller renewal selects 66 cases: 62 pass and four native-only cases skip.
 Compiler/SDK admission, physical firmware and early-kernel transport remain
 open; the preceding ownership checkpoint retains its original artifact scope.
+
+The [panic-only NetGDB baseline](../../verification/netgdb-panic-baseline-development.json)
+establishes a real e1000 connection after an
+operator-triggered panic and independently verifies the loader handoff identity
+against the exact retained kernel. Non-panic entry refuses and local continue
+resumes the same guest. The first Linux GDB client lacks the FreeBSD ABI and is
+retained as a failed client attempt. On peer close the kernel logs the finish
+packet but keeps polling. [Issue #12](https://github.com/jordanhubbard/daemonarchy-src/issues/12)
+owns the missing `dc_finish_handler` copy in `debugnet_connect()` and the latent
+double termination between `netgdb_dbg_getc()` and generic `gdb_getc()`. The repair
+is now in progress; a changed native kernel, a FreeBSD-capable client, exact
+symbols, successful inspection/detach and peer-close/local recovery must pass
+before qualification. Preserve the panic-only guard and trusted-private-segment
+limitation; no early-kernel transport or native debugger session is qualified.

@@ -1,0 +1,76 @@
+{
+  "schema": "daemonarchy/netgdb-panic-baseline-development@1",
+  "observed_utc": "2026-10-22T16:24:35.486116+00:00",
+  "scope": "Actual panic-only private-wire connection and peer-close failure; no passing native debugger inspection or early-kernel transport claim",
+  "issue": "https://github.com/jordanhubbard/daemonarchy-src/issues/12",
+  "efi_sha256": "9472af7435e8376e0982edaa78f6a6cc1dfdfabcd544a3c6f73ebcecbf8f0f38",
+  "kernel_sha256": "94e4ace9d6b6083f682d1a0d325162d10d0db852aa82400f7b59655e4df507b2",
+  "kernel_full_sha256": "12a82cdfe8d046b7eea36dd8b6157abda3ffca5666a6f0cf7facbcd68e4735a9",
+  "kernel_debug_sha256": "0d8e0db6c55b76cd5e1d05458a6fd49f07058bacb8f51f784d35a314460571cc",
+  "kernel_build_id": "8139e27d002dc81d7f3a342d74ecc346e2787bb3",
+  "kernel_reported_revision": "bdcfeac3e1cb",
+  "matching_full_and_debug_build_ids": true,
+  "loader_handoff": {
+    "boot_id": "aa903058e9370d5b9d71a03133cf6f13",
+    "firmware_handoff_seen": true,
+    "kernel_observed": false
+  },
+  "independent_kernel_uuid_boot_id_nic_and_revision_match": true,
+  "kernel_serial_console": "Explicitly added uart to the guest; the initial kernel selected only ttyv0",
+  "non_panic_entry": {
+    "netgdb_refused": true,
+    "local_continue_resumed_same_guest": true,
+    "ssh_exit_code": 0
+  },
+  "panic": {
+    "controlled_sysctl_in_owned_guest_only": true,
+    "panic_observed_on_independent_serial": true,
+    "netgdb_private_e1000_connection": true,
+    "native_debugger_inspection_qualified": false,
+    "linux_gdb_failure": "Client lacks FreeBSD OS ABI; rejected register packet length (308 expected, 420 received)",
+    "peer_close_observed": true,
+    "kernel_return_to_ddb_observed": false,
+    "qemu_assisted_diagnosis": "Active CPU remains in netgdb_dbg_getc -> gdb_getc -> gdb_rx_begin after peer close; diagnostic only",
+    "panic_ssh_observation_timed_out_seconds": 180,
+    "observation_timeout_did_not_stop_or_restart_guest": true
+  },
+  "upstream_proxy": {
+    "repository": "https://github.com/dell/netgdb-proxy",
+    "revision": "9d7f2ca5608ab346f81143e7815e11e1e20c921e",
+    "license": "BSD-2-Clause",
+    "source_bytes_preserved": true
+  },
+  "native_client_preparation": {
+    "gdb_package": "15.1_7",
+    "repository": "FreeBSD-ports",
+    "package_install_exit_code": 0,
+    "seconds": 16.505,
+    "gdb_sha256": "ac9d1357f4fe13204599a3965629a0bcea58262d0a74b9d7108a6c550b4023cc",
+    "kgdb_sha256": "9cb838081115246b4be57f005e91db98c4761da1a6c0779cbb16d0a21d87fd45",
+    "full_symbols_transferred_and_sha256_verified": true,
+    "native_client_replay": "pending",
+    "earlier_all_repository_plan": "Refused an unrelated FreeBSD-base OS version mismatch; restricted the ports-only tool request to its compatible repository; no OS-version override"
+  },
+  "candidate_repair": {
+    "finish_callback_copied_to_connection": true,
+    "generic_gdb_layer_owns_ctrl_c_termination": true,
+    "native_kernel_build": "pending",
+    "native_peer_close_and_detach_recovery": "pending",
+    "panic_only_guard_preserved": true
+  },
+  "cleanup": {
+    "target": "Owned QMP quit after the retained incompatible-client and peer-close failure; not a graceful kernel shutdown",
+    "peer": "normal shutdown after package installation",
+    "both_qemu_exit_codes": 0,
+    "both_before_deadline": true,
+    "both_processes_absent": true,
+    "owned_tunnels_absent": true,
+    "original_disks_preserved": true
+  },
+  "native_source_sdk_admitted": false,
+  "compiler_source_admitted": false,
+  "physical_nic_qualified": false,
+  "authenticated_kernel_protocol": false,
+  "continuous_early_kernel_transport": false,
+  "release_acceptance": false
+}
