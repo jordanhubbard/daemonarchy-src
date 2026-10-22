@@ -107,12 +107,16 @@ fields, avoiding a mixture of old and new identity. No key material is exported.
 This identifies the interface and boot, but does not activate kernel networking
 or a debugger.
 
-An actual two-NIC OVMF run now verifies this identity through the booted kernel.
-It also exposed a distinct open defect: a `net0` file request can reuse the
-connection opened for debug on `net1`, because the common network-device cache
-does not distinguish device units. Cross-interface netboot is not qualified.
-[Issue #11](https://github.com/jordanhubbard/daemonarchy-src/issues/11) owns its
-selection/lifetime repair; the failed transfer is retained in the
+Actual two-NIC OVMF checks verify this identity through the booted kernel while
+ordinary TFTP access switches `net0 → net1 → net0`. Each transfer matches the
+requested NIC's payload and MAC while debug identity stays unchanged. Ordinary
+access refuses switching while a file is open and clears its old protocol
+context before configuring another interface. The
+[context checkpoint](../../verification/loader-network-context-development.json)
+binds the rebuilt EFI and renewed TFTP/NFS/revocation checks. Physical NIC and
+firmware acceptance remain open under
+[issue #11](https://github.com/jordanhubbard/daemonarchy-src/issues/11); the earlier
+failed transfer remains retained in the
 [identity checkpoint](../../verification/loader-network-identity-development.json).
 
 `boot` ends firmware networking. The controller records
