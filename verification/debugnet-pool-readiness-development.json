@@ -1,0 +1,194 @@
+{
+  "schema": "daemonarchy/debugnet-pool-readiness-development@1",
+  "observed_utc": "2026-10-22T21:26:41.751180+00:00",
+  "issue": "https://github.com/jordanhubbard/daemonarchy-src/issues/14",
+  "base_revision": "b40c75c264dfddfb43906a31054db132f8695849",
+  "scope": "Verbatim production mbuf activation and restoration functions in sanitized user-space fixtures; fake zone objects; no linked kernel or real driver execution",
+  "production_source_sha256": {
+    "sys/kern/kern_mbuf.c": "6495d4bb491c6e56a1fcfc6112cfe36224dc93faf3a9a487d27fe2c52748e7b8",
+    "sys/net/debugnet.c": "b50e3740b4af1461edda59ab4759576cdd220a4f061a10c667c11a0cf8d4a820",
+    "sys/sys/mbuf.h": "c5256b7d52832e8a83d00fd1f1e2ece3cbe9e016e0f19e8eb76d7f09ff416297"
+  },
+  "controller_baseline": {
+    "source_sha256": "42a36b5682373cca64dbb7be6d2aba51cd3e034a62b20d33c7c926303aede7d7",
+    "function_sha256": [
+      "9ae1da0334b310d990d375369f6f5f3c76bff863eda2284a7865ddff46e4f5f2",
+      "7db80eaa0554e707d0aea1afe2ecd68f07ad7ebc6b73a7428d2ef47b8c2df90b"
+    ],
+    "scope": "Verbatim activation/restoration functions with fake zone objects; not a linked kernel or driver qualification",
+    "build_exit_code": 0,
+    "cases": [
+      {
+        "name": "ready",
+        "exit_code": 0
+      },
+      {
+        "name": "unready-and-retry",
+        "exit_code": -6
+      }
+    ]
+  },
+  "controller_candidate": {
+    "source_sha256": "6495d4bb491c6e56a1fcfc6112cfe36224dc93faf3a9a487d27fe2c52748e7b8",
+    "function_sha256": [
+      "48956556463b8fed9dfa77eb1761aa0debaa3bc0ea948665cdc07cca97c8055f",
+      "7db80eaa0554e707d0aea1afe2ecd68f07ad7ebc6b73a7428d2ef47b8c2df90b"
+    ],
+    "scope": "Verbatim activation/restoration functions with fake zone objects; not a linked kernel or driver qualification",
+    "build_exit_code": 0,
+    "cases": [
+      {
+        "name": "ready",
+        "exit_code": 0
+      },
+      {
+        "name": "unready-and-retry",
+        "exit_code": 0
+      }
+    ]
+  },
+  "native": {
+    "native_os": "FreeBSD",
+    "compiler_version": "FreeBSD clang version 21.1.8 (https://github.com/llvm/llvm-project.git llvmorg-21.1.8-0-g2078da43e25a)",
+    "fixtures_sha256": {
+      "baseline": "da2d33208428feda53b5bd8888fe8eab4456d64f50ad2892ed5eb472b3d609ba",
+      "candidate": "3f158ddf96e0e005189f09d2e774274c1435448abd3f1ac95f8afeb604741312"
+    },
+    "cases": [
+      {
+        "phase": "baseline",
+        "case": "ready",
+        "exit_code": 0
+      },
+      {
+        "phase": "baseline",
+        "case": "unready-and-retry",
+        "exit_code": -6
+      },
+      {
+        "phase": "candidate",
+        "case": "ready",
+        "exit_code": 0
+      },
+      {
+        "phase": "candidate",
+        "case": "unready-and-retry",
+        "exit_code": 0
+      }
+    ],
+    "baseline_allocator_corruption_reproduced": true,
+    "candidate_cases_passed": true,
+    "linked_kernel_qualified": false
+  },
+  "native_terminal": {
+    "exit_code": 0,
+    "schema": "daemonarchy/native-command-terminal@1",
+    "seconds": 1.273
+  },
+  "coverage": [
+    "All seven absent/partially initialized reserved-pool combinations preserve every original allocator pointer and reject activation",
+    "Preparation followed by retry succeeds after each refusal",
+    "Two complete ready activation/restoration cycles preserve allocator ownership"
+  ],
+  "sanitizers": [
+    "address",
+    "undefined"
+  ],
+  "leak_sanitizer_enabled": false,
+  "allocation_performed_by_fixture": false,
+  "raw_native_evidence": {
+    "result.json": {
+      "sha256": "1636052462d4ef18031ec72cba85a045d68ea0cb42b0b4b125baef79affea121",
+      "bytes": 854
+    },
+    "qualification-command/terminal.json": {
+      "sha256": "e71095e4edc1e6469d7cd05d9dbacd183ecf8e987ff19566fe6252f45aaa7292",
+      "bytes": 86
+    },
+    "qualification-command/started.json": {
+      "sha256": "0da7dba126b41e3cf2fde5386ca78d86aeb08164c5a1ea5dda26f5dd76524041",
+      "bytes": 280
+    },
+    "qualification-command/stdout.log": {
+      "sha256": "402eac52f761b5b86b2ce3a8375fcc77bcaf042d2b654c587311240fb1f0ec58",
+      "bytes": 711
+    },
+    "qualification-command/stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "baseline-build.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "baseline-build.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "baseline-ready.stdout": {
+      "sha256": "7c676bcc86509eb83bff54289f93e6b83031545aa87ba253380c9c723f429817",
+      "bytes": 217
+    },
+    "baseline-ready.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "baseline-unready-and-retry.stdout": {
+      "sha256": "150ec4c055b5184801532369041c9f5f3a47fea30c30689f5000bd07e05f5042",
+      "bytes": 41
+    },
+    "baseline-unready-and-retry.stderr": {
+      "sha256": "7b73da20e0d65dcfea24508f22d2b354fc04f55a46aae503d1566db383c208c8",
+      "bytes": 137
+    },
+    "candidate-build.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "candidate-build.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "candidate-ready.stdout": {
+      "sha256": "7c676bcc86509eb83bff54289f93e6b83031545aa87ba253380c9c723f429817",
+      "bytes": 217
+    },
+    "candidate-ready.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "candidate-unready-and-retry.stdout": {
+      "sha256": "6b7d3f0ffdec3865eda91de2e7545299738d8c1f5d279b1eb9fbb614b4416a7a",
+      "bytes": 618
+    },
+    "candidate-unready-and-retry.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "qualify.py": {
+      "sha256": "793731983e4a1a20a6005af7cc0368b7f766695e02c735ba98369bd75910c86b",
+      "bytes": 1744
+    }
+  },
+  "linked_kernel_built": false,
+  "native_boot_and_netgdb_netdump_renewed": false,
+  "early_kernel_transport_qualified": false,
+  "source_sdk_admitted": false,
+  "release_acceptance": false,
+  "remaining": [
+    "Build an exact clean changed kernel with the production caller and header",
+    "Native unavailable-pool refusal and known-good NetGDB/Netdump VM renewal",
+    "Driver-ready boot activation, authentication, physical NIC and final release acceptance"
+  ],
+  "style9": {
+    "errors": 0,
+    "warnings": 0,
+    "checked_patch_lines": 47
+  },
+  "authority": "pass",
+  "aggregate_verify": {
+    "authority": "pass",
+    "locks": "fails; explicit FreeBSD checks remain the target-specific evidence",
+    "receipt": "missing"
+  }
+}

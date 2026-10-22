@@ -1854,7 +1854,7 @@ mbuf_tstmp2timeval(struct mbuf *m, struct timeval *tv)
 #ifdef DEBUGNET
 /* Invoked from the debugnet client code. */
 void	debugnet_mbuf_drain(void);
-void	debugnet_mbuf_start(void);
+int	debugnet_mbuf_start(void);
 void	debugnet_mbuf_finish(void);
 void	debugnet_mbuf_reinit(int nmbuf, int nclust, int clsize);
 #endif

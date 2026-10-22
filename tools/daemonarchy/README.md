@@ -409,3 +409,18 @@ authority validation and all five committed FreeBSD-target locks pass. This does
 not supply a current lifecycle receipt, original-suite qualification or package
 admission. The existing SQLite test fixtures emit ResourceWarnings on the
 controller Python 3.14 runtime; no checks fail.
+
+## Debugnet pool readiness fixture
+
+Run the sanitized allocator ownership check in a fresh output directory:
+
+```sh
+python3 tools/daemonarchy/tests/run-debugnet-mbuf-pools.py \
+  --output-directory /var/tmp/debugnet-pool-check
+```
+
+The fixture extracts the current production activation/restoration functions and
+uses fake zone objects to check absent/partial pools, refused-start retry and full
+restoration. It does not compile the complete kernel or establish real driver
+readiness. The native [development evidence](../../verification/debugnet-pool-readiness-development.json)
+retains the baseline failure separately from changed-kernel build/runtime gates.

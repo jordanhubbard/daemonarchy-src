@@ -416,3 +416,24 @@ guests stop before deadline with all backing disks read-only. Initial CLI-option
 and driver-text harness failures remain retained. This is a private-wire VM
 baseline: physical NICs, authenticated kernel sessions, continuous early-kernel
 activation, compiler/SDK admission and final release acceptance remain open.
+
+### [ ] SRC-DEBUG-002 — Refuse unready debugnet allocator activation
+
+- **GitHub issue:** [#14](https://github.com/jordanhubbard/daemonarchy-src/issues/14)
+
+- **Priority:** P0
+- **Owner:** Kernel debugnet and mbuf pool ownership
+- **Direction:** Make earlier panic diagnostics refuse missing reserved pools without corrupting global allocator ownership.
+- **Conclusion:** Issue #14 identifies an unconditional allocator swap before readiness. Check every reserved zone before switching, propagate refusal without a finish call, and retain the panic-only restriction.
+- **Depends on:** SRC-DEBUG-001
+- **Implementation:**
+  - [x] Add production-function absence/partial/ready/retry regressions; change mbuf activation and its sole caller; preserve exact previous-kernel evidence.
+- **Evidence:**
+  - [x] Reproduce the original allocator swap and pass controller/native sanitized function checks.
+  - [ ] Build and qualify the exact changed kernel and renew VM recovery.
+- **Current evidence:** [Pool readiness](../../verification/debugnet-pool-readiness-development.json)
+  reproduces allocator-pointer corruption before repair and passes seven absent/partial
+  pool cases, retry and complete restoration on macOS and FreeBSD. Fixtures compile
+  verbatim production activation/restoration functions around fake zone objects;
+  they do not link the kernel or qualify the driver/caller. The next action is an
+  exact clean GENERIC build and native refusal plus NetGDB/Netdump renewal.

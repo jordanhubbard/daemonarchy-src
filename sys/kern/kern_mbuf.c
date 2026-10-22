@@ -539,11 +539,16 @@ debugnet_mbuf_drain(void)
 /*
  * Callback invoked immediately prior to starting a debugnet connection.
  */
-void
+int
 debugnet_mbuf_start(void)
 {
 
 	MPASS(!dn_saved_zones.dsz_debugnet_zones_enabled);
+
+	/* Refuse early panic use before a driver prepares the pools. */
+	if (dn_zone_mbuf == NULL || dn_zone_clust == NULL ||
+	    dn_zone_pack == NULL)
+		return (ENXIO);
 
 	/* Save the old zone pointers to restore when debugnet is closed. */
 	dn_saved_zones = (struct debugnet_saved_zones) {
@@ -568,6 +573,7 @@ debugnet_mbuf_start(void)
 	zone_jumbop = dn_zone_clust;
 	zone_jumbo9 = dn_zone_clust;
 	zone_jumbo16 = dn_zone_clust;
+	return (0);
 }
 
 /*
