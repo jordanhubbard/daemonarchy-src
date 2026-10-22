@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Restore the root coding-agent entry point to the existing source-development
+  `SKILL.md` and require repository-owned, ignored worktree placement.
+
 - Run all 24 original parser/utility cases successfully in a disposable FreeBSD
   guest against the unchanged retained native products, including privileged
   deallocation and both unprivileged cases. Verify the closed Kyua database
