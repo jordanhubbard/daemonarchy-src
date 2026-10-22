@@ -331,3 +331,11 @@ that cache/lifetime boundary, then renew cross-interface, same-NIC TFTP/NFS and
 local recovery tests. Comparing the unit and closing the old socket alone would
 retire the live debug NIC. Physical firmware, early-kernel transport and release
 admission remain open.
+
+The device-unit repair must also address the underlying `netif_open()` lifetime:
+`netif_select()` returns one static selection object, while every new open resets
+all interface-use bits. Distinct live sockets need stable interface ownership,
+correct unit-specific network context and safe final release. Add production-code
+two-unit/lifetime controls before changing that owner, then repeat the actual
+UEFI regression. The current nine-file native loader overlay does not admit the
+complete source seed or compiler closure.

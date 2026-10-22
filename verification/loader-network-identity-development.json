@@ -23,7 +23,10 @@
     "passed": true,
     "seconds": 84.147,
     "platform": "FreeBSD amd64",
-    "bootstrap_toolchain_admitted": false
+    "bootstrap_toolchain_admitted": false,
+    "input_scope": "Retained native source seed with nine byte-pinned loader overrides; no complete source/compiler admission is claimed",
+    "native_seed_revision_attested": false,
+    "complete_source_tree_admitted": false
   },
   "artifacts": [
     {
