@@ -241,5 +241,26 @@
     "Ring buffer provenance and safe resumable debugger entry",
     "Continuous early-kernel network activation, authentication and physical NIC acceptance",
     "Final source/compiler/product admission and exact release gates"
-  ]
+  ],
+  "candidate_revision": "4f46a741fb2f71141dbfb09b723ce443e0450f48",
+  "candidate_tree": "4aacb3bafaedc70ddb4b198c9e499a8142919679",
+  "review": "https://github.com/jordanhubbard/daemonarchy-src/pull/17",
+  "native_kernel_build": {
+    "state": "running; same supervisor observed live and compiler output present",
+    "source_revision": "4f46a741fb2f71141dbfb09b723ce443e0450f48",
+    "setup_seconds": 3.947,
+    "maximum_seconds": 2400,
+    "jobs": 4,
+    "fresh_object_directory": true,
+    "install_performed": false,
+    "cold_checkout_reused_after_process_cwd_argv_mount_and_export_audits": true,
+    "primary_refs_and_head_unchanged": true,
+    "old_revision_and_index_preserved": true,
+    "planned_write_budget_bytes": 3221225472,
+    "host_reserve_bytes": 42949672960
+  },
+  "hosted_controller_ci": {
+    "run": "https://github.com/jordanhubbard/daemonarchy-src/actions/runs/39864712222",
+    "state": "in_progress"
+  }
 }
