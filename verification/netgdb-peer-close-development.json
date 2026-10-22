@@ -1,0 +1,142 @@
+{
+  "schema": "daemonarchy/netgdb-peer-close-development@1",
+  "observed_utc": "2026-10-22T17:13:34.600708+00:00",
+  "scope": "Native GENERIC kernel inspection, orderly detach and peer FINISHED/local DDB recovery on a private OVMF/e1000 VM; no early-kernel, physical NIC or release acceptance",
+  "issue": "https://github.com/jordanhubbard/daemonarchy-src/issues/12",
+  "kernel_source_revision": "791ac20a21ad112ace96fb3bb030ed33a5297278",
+  "kernel_source_tree": "5972f1b5f615071d6fc5c316823b274a5f5cee3f",
+  "source_sha256": {
+    "sys/net/debugnet.c": "5c2ca5267755503aabd841a0d8d8d66a7e0f17880d932a1a8d36d7fc3986b84a",
+    "sys/gdb/netgdb.c": "338d3cd2c7129c0c372ab468889ef864a5381f3561d9feb9d99584aeaf22135c",
+    "stand/common/dev_net.c": "7e37df6ad3550ee5a9ff0b2f7210113ce7ba8a8cfdb784cf59716a0d53f4851b"
+  },
+  "native_build": {
+    "passed": true,
+    "seconds": 609.905,
+    "supervised_seconds": 610.475,
+    "jobs": 4,
+    "configuration": "GENERIC",
+    "optional_modules_built": false,
+    "source_clean_before_and_after": true,
+    "products": [
+      {
+        "bytes": 31535200,
+        "sha256": "f69960b4283660e4defc92080f151e68acd636ea3c65d73f80de441a38c9c7db",
+        "build_id": "a870655bea213988afe93408595930537d181c27",
+        "name": "kernel"
+      },
+      {
+        "bytes": 137523432,
+        "sha256": "50e6ae62200e1a8964af7a0e343045a9e0aedf2492d61089239ac00a6e10ee32",
+        "build_id": "a870655bea213988afe93408595930537d181c27",
+        "name": "kernel.full"
+      },
+      {
+        "bytes": 118500544,
+        "sha256": "1aa7cc8a90a153ba39d7bce903d1f9684ba1ccb04891179ebb197cd716c2fbba",
+        "build_id": "a870655bea213988afe93408595930537d181c27",
+        "name": "kernel.debug"
+      }
+    ]
+  },
+  "efi_sha256": "9472af7435e8376e0982edaa78f6a6cc1dfdfabcd544a3c6f73ebcecbf8f0f38",
+  "loader_boot_id": "b1d55424c6fc94af42224d66475b00cd",
+  "firmware_handoff_seen": true,
+  "independent_kernel_uuid_boot_id_nic_and_revision_match": true,
+  "matching_symbols_transferred_and_hash_verified": true,
+  "native_client": {
+    "gdb_sha256": "ac9d1357f4fe13204599a3965629a0bcea58262d0a74b9d7108a6c550b4023cc",
+    "gdb_version": "GNU gdb (GDB) 15.1 [GDB v15.1 for FreeBSD]",
+    "proxy_revision": "9d7f2ca5608ab346f81143e7815e11e1e20c921e",
+    "proxy_sources_hash_verified": true
+  },
+  "nonpanic_entry": {
+    "refused": true,
+    "local_continue_resumed_same_guest": true,
+    "ssh_exit_code": 0,
+    "seconds": 25.037
+  },
+  "panic": {
+    "controlled_sysctl_in_owned_guest_only": true,
+    "independent_serial_observed": true,
+    "intentional_panic_count": 1
+  },
+  "initial_inspection": {
+    "gdb_exit_code": 0,
+    "seconds": 1.354,
+    "registers_seen": true,
+    "actual_panic_memory": "kdb_sysctl_panic",
+    "panic_backtrace_frames_seen": [
+      "kdb_enter",
+      "vpanic",
+      "kdb_sysctl_panic"
+    ],
+    "kernel_threads": 104,
+    "detach_seen": true,
+    "local_ddb_returned": true,
+    "extra_version_assertion": "Harness assertion failed because print elements 16 truncated version; raw result preserved; repeated with print elements 512"
+  },
+  "renewed_detach": {
+    "gdb_exit_code": 0,
+    "seconds": 1.311,
+    "full_running_kernel_version_seen": true,
+    "registers_and_thread_backtrace_seen": true,
+    "detach_seen": true,
+    "local_ddb_register_command_succeeded": true
+  },
+  "peer_close": {
+    "gdb_exit_code": 23,
+    "seconds": 1.532,
+    "intentional_immediate_client_exit": true,
+    "detach_command_issued": false,
+    "live_register_and_panic_memory_before_close": true,
+    "full_running_kernel_version_seen": true,
+    "peer_finished_on_wire": true,
+    "kernel_finished_message_seen": true,
+    "generic_gdb_ctrl_c_termination_seen": true,
+    "mbuf_zone_restoration_seen": true,
+    "local_ddb_returned": true,
+    "local_ddb_register_command_succeeded": true,
+    "local_reset_succeeded": true
+  },
+  "wire": {
+    "herald_count": 3,
+    "peer_finished_count": 3,
+    "pcap_sha256": "ff1fba50ac7f7828d2d6dc56139dee85e4267184a3a06685d617d7b37e57b1ac"
+  },
+  "kernel_reentry_messages": 3,
+  "cleanup": {
+    "target": "Local DDB reset with QEMU no-reboot; not a graceful kernel shutdown",
+    "peer": "Normal shutdown after all three proxies exited zero",
+    "target_qemu_exit_code": 0,
+    "peer_qemu_exit_code": 0,
+    "both_before_deadline": true,
+    "both_processes_absent": true,
+    "serial_bridge_stopped": true,
+    "original_disks_preserved": true
+  },
+  "raw_evidence_sha256": {
+    "detach-controller.stdout": "a6e5712728569c572af868cd6bc6ec481ad50b2e1a3b40ea770d8a56480bc0db",
+    "detach-controller.stderr": "64e15587027a3165dcb3da85df76d2521b3bf56c791a9a707f08dd7cf554b664",
+    "detach-renewal-gdb-result.json": "5f5817385039a1b5c8f2b444e023e353851f075d6d102ace64a56f8004ae510c",
+    "close-gdb-result.json": "cbd8193cafd4b3ac626efe9187618c22993e1911e8213dbb0472a65387e1332b",
+    "host-evidence/target/console.log": "187879a486e5631c8e6f32e25d94c3750ddf50f99cb2cddf764d001122773dd3",
+    "host-evidence/target/wire.pcap": "ff1fba50ac7f7828d2d6dc56139dee85e4267184a3a06685d617d7b37e57b1ac",
+    "host-evidence/target/serial-bridge-output.log": "c983a9a873955bc3415bb768b9e4b1f09eb2cfead1d97853a1e78a93707accfa",
+    "peer-evidence/proxy-repeat-3-command/stdout.log": "735f16c22f75d8eed549a9dbb4c590a866909cf4f048149db26c9267638ff094",
+    "peer-evidence/proxy-repeat-3-command/stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "source_native_sdk_admitted": false,
+  "compiler_source_admitted": false,
+  "netdump_qualified": false,
+  "physical_nic_qualified": false,
+  "authenticated_kernel_protocol": false,
+  "continuous_early_kernel_transport": false,
+  "release_acceptance": false,
+  "limitations": [
+    "Source paths are absent on the debugger peer; ELF symbols are present and match the loaded kernel",
+    "Optimized arguments and the userland tail of the backtrace are not qualified",
+    "The baseline and candidate VM boot logs retain the separate IPv6 WITNESS observation",
+    "Initial SSH observation expired while DHCP boot continued; no guest restart"
+  ]
+}

@@ -387,7 +387,18 @@ retained as a failed client attempt. On peer close the kernel logs the finish
 packet but keeps polling. [Issue #12](https://github.com/jordanhubbard/daemonarchy-src/issues/12)
 owns the missing `dc_finish_handler` copy in `debugnet_connect()` and the latent
 double termination between `netgdb_dbg_getc()` and generic `gdb_getc()`. The repair
-is now in progress; a changed native kernel, a FreeBSD-capable client, exact
-symbols, successful inspection/detach and peer-close/local recovery must pass
-before qualification. Preserve the panic-only guard and trusted-private-segment
-limitation; no early-kernel transport or native debugger session is qualified.
+now passes the [changed-kernel native recovery checks](../../verification/netgdb-peer-close-development.json).
+A clean exact `791ac20a21ad` GENERIC build completes in 609.905 seconds
+(610.475 supervised), with matching kernel/full/debug build IDs. Native FreeBSD
+GDB 15.1 reads registers, actual panic memory, a panic backtrace and 104 threads.
+Orderly detach returns to DDB. A repeated session verifies the full running
+version and detaches successfully. A third client exits immediately without a
+detach command: captured FINISHED, generic GDB termination and mbuf restoration
+lead back to DDB, where local registers and reset work. Non-panic entry still
+refuses and local continue resumes the same guest. The first version-output
+assertion truncated at 16 elements; its raw failure remains, and the renewed
+512-element check passes. Both owned VMs exit zero before deadline; original
+disks are retained. Issue #12 is implemented and natively qualified on this draft,
+pending integration. Preserve the panic-only and trusted-private-segment limits;
+physical NICs, Netdump, authenticated kernel sessions, continuous early-kernel
+transport and release acceptance remain open.

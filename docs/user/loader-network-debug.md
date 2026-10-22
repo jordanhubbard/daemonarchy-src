@@ -127,14 +127,18 @@ loader-to-kernel debugger. Kernel debugnet/NetGDB and native NIC initialization
 need separate work and qualification.
 
 The existing kernel NetGDB path remains panic-only and has no authenticated
-session protocol. A private-wire development baseline confirms non-panic refusal
-and a panic-time connection, but its first client could not decode the FreeBSD
-register ABI. Peer closure also exposes a missing debugnet finish callback;
-[issue #12](https://github.com/jordanhubbard/daemonarchy-src/issues/12) owns that
-repair and its native recovery qualification. This does not extend loader
-pairing or authorization into the kernel. Use a FreeBSD-capable debugger and
-symbols matching the actual kernel; continuous early-kernel debugging and
-physical NIC acceptance remain unqualified.
+session protocol. The [native recovery checkpoint](../../verification/netgdb-peer-close-development.json)
+qualifies the repaired finish callback and single termination owner in exact
+kernel `791ac20a21ad` on a private e1000 VM. FreeBSD GDB 15.1 and matching full
+symbols provide registers, panic memory, backtrace and threads. Orderly detach
+and an abrupt client exit without detach both return control to DDB; local
+register commands and reset work after peer closure. Non-panic entry continues
+to refuse. [Issue #12](https://github.com/jordanhubbard/daemonarchy-src/issues/12)
+remains pending integration of this draft review. The earlier incompatible Linux
+client and version-output harness failure remain retained. Use a FreeBSD-capable
+debugger and symbols matching the actual kernel on a trusted private segment.
+Loader pairing does not authorize kernel traffic; continuous early-kernel
+debugging, Netdump and physical NIC acceptance remain unqualified.
 
 ## Packet and I/O contract
 
