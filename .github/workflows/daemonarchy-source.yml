@@ -5,11 +5,17 @@ on:
     paths:
       - 'tools/daemonarchy/**'
       - 'sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC'
+      - 'sys/kern/kern_mbuf.c'
+      - 'sys/net/debugnet.c'
+      - 'sys/sys/mbuf.h'
       - '.github/workflows/daemonarchy-source.yml'
   pull_request:
     paths:
       - 'tools/daemonarchy/**'
       - 'sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC'
+      - 'sys/kern/kern_mbuf.c'
+      - 'sys/net/debugnet.c'
+      - 'sys/sys/mbuf.h'
       - '.github/workflows/daemonarchy-source.yml'
   workflow_dispatch:
 
@@ -25,3 +31,9 @@ jobs:
         env:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 -m unittest discover -s tools/daemonarchy -p 'test_*.py' -v
+      - name: Sanitized production mbuf ownership functions (not kernel acceptance)
+        env:
+          CC: clang
+        run: >-
+          python3 tools/daemonarchy/tests/run-debugnet-mbuf-pools.py
+          --output-directory "${{ runner.temp }}/debugnet-pools-${{ github.run_id }}-${{ github.run_attempt }}"
