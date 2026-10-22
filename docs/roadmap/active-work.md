@@ -430,10 +430,26 @@ activation, compiler/SDK admission and final release acceptance remain open.
   - [x] Add production-function absence/partial/ready/retry regressions; change mbuf activation and its sole caller; preserve exact previous-kernel evidence.
 - **Evidence:**
   - [x] Reproduce the original allocator swap and pass controller/native sanitized function checks.
-  - [ ] Build and qualify the exact changed kernel and renew VM recovery.
+  - [x] Build the exact changed kernel and qualify direct pre-driver guard refusal plus continued boot.
+  - [ ] Renew panic NetGDB and Netdump VM recovery on those exact products.
 - **Current evidence:** [Pool readiness](../../verification/debugnet-pool-readiness-development.json)
   reproduces allocator-pointer corruption before repair and passes seven absent/partial
   pool cases, retry and complete restoration on macOS and FreeBSD. Fixtures compile
   verbatim production activation/restoration functions around fake zone objects;
   they do not link the kernel or qualify the driver/caller. The next action is an
   exact clean GENERIC build and native refusal plus NetGDB/Netdump renewal.
+
+The [early kernel checkpoint](../../verification/debugnet-early-kernel-development.json)
+now records a clean exact `7a4b58c717bc` GENERIC build in 521.803 supervised
+seconds. Kernel/full/debug products share ELF build ID `38821cf580ffed76cdffc9109ee84bd6f5f4d71a`;
+all transfer hashes reverify. Boot-time DDB before driver initialization sees
+absent reserved pools. A direct call to the real guard returns `ENXIO` and
+preserves ten inspected allocator/saved-state words. Registers work, and the same
+guest reaches ordinary boot with independent UUID, kernel revision and NIC
+verification. Normal shutdown exits zero before deadline; the original image
+remains read-only. The first serial disconnect truncated `continue` after its
+first character; the same guest resumes after completing that existing command.
+The raw observation remains retained. This is direct allocator refusal, not an
+early network session. A fresh private-wire NetGDB renewal pair is now starting;
+Netdump, authenticated/continuous kernel transport and physical acceptance remain
+open.

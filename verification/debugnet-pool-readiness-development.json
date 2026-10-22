@@ -170,15 +170,14 @@
       "bytes": 1744
     }
   },
-  "linked_kernel_built": false,
+  "linked_kernel_built": true,
   "native_boot_and_netgdb_netdump_renewed": false,
   "early_kernel_transport_qualified": false,
   "source_sdk_admitted": false,
   "release_acceptance": false,
   "remaining": [
-    "Build an exact clean changed kernel with the production caller and header",
-    "Native unavailable-pool refusal and known-good NetGDB/Netdump VM renewal",
-    "Driver-ready boot activation, authentication, physical NIC and final release acceptance"
+    "Renew ordinary panic NetGDB and Netdump recovery on the exact built products",
+    "Driver-ready activation, authentication, physical NIC and final release acceptance"
   ],
   "style9": {
     "errors": 0,
@@ -190,5 +189,7 @@
     "authority": "pass",
     "locks": "fails; explicit FreeBSD checks remain the target-specific evidence",
     "receipt": "missing"
-  }
+  },
+  "native_build_record": "verification/debugnet-early-kernel-development.json",
+  "early_native_direct_guard_verified": true
 }

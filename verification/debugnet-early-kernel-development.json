@@ -1,0 +1,270 @@
+{
+  "schema": "daemonarchy/debugnet-early-kernel-development@1",
+  "observed_utc": "2026-10-22T21:55:11.039217+00:00",
+  "issue": "https://github.com/jordanhubbard/daemonarchy-src/issues/14",
+  "review": "https://github.com/jordanhubbard/daemonarchy-src/pull/15",
+  "scope": "Exact native kernel build, direct pre-driver DDB allocator-readiness refusal and subsequent ordinary boot",
+  "source_revision": "7a4b58c717bc423e6a8575e27e5b60d409e10725",
+  "source_tree": "db475e9dc7df8371476ed7ff85326040438e91b0",
+  "native_build": {
+    "configuration": "GENERIC",
+    "target": "FreeBSD amd64",
+    "jobs": 4,
+    "exit_code": 0,
+    "seconds": 521.434,
+    "supervised_seconds": 521.803,
+    "fresh_objects": true,
+    "source_clean_before_and_after": true,
+    "optional_modules_built": false,
+    "installed_on_build_worker": false,
+    "products": [
+      {
+        "bytes": 31535200,
+        "sha256": "56f416dc07d7ec358b68d6ce1770e05cd25f5a57ede43bb27fcba70925e43688",
+        "build_id": "38821cf580ffed76cdffc9109ee84bd6f5f4d71a",
+        "name": "kernel"
+      },
+      {
+        "bytes": 137523520,
+        "sha256": "70759d49b20ac12128b3db29a9ec03f71b570f57cd811a9ddeebf986609d22d3",
+        "build_id": "38821cf580ffed76cdffc9109ee84bd6f5f4d71a",
+        "name": "kernel.full"
+      },
+      {
+        "bytes": 118500632,
+        "sha256": "536a253c7f0e6786e8e0db8c85a6b9163a7edc7790026e17edcaa17133c6989f",
+        "build_id": "38821cf580ffed76cdffc9109ee84bd6f5f4d71a",
+        "name": "kernel.debug"
+      }
+    ]
+  },
+  "transfer": {
+    "all_three_native_product_hashes_reverified_on_vm_host": true,
+    "loaded_esp_kernel_hash_verified": true
+  },
+  "early_direct_guard": {
+    "kernel_version_read_from_ddb": true,
+    "qemu_uuid_independently_verified": true,
+    "before_network_driver_initialization": true,
+    "reserved_pools_absent": true,
+    "direct_ddb_call_return": "ENXIO (6)",
+    "before_after_words_compared": 10,
+    "before_after_values_unchanged": true,
+    "saved_zone_state_word_offset_bytes": 48,
+    "register_inspection_succeeded": true,
+    "guard_supervised_seconds": 1.728,
+    "panic_only_connection_guard_bypassed": false,
+    "network_connection_attempted_in_early_case": false
+  },
+  "continued_boot": {
+    "uuid_matches": true,
+    "source_revision_matches": true,
+    "source_revision": "7a4b58c717bc423e6a8575e27e5b60d409e10725",
+    "selected_nic_matches": true,
+    "nic_active": true,
+    "features": {
+      "debugnet": "1",
+      "netgdb": "1",
+      "netdump": "1"
+    },
+    "normal_boot_reached_after_early_guard": true
+  },
+  "cleanup": {
+    "normal_shutdown_exit_code": 0,
+    "expired": false,
+    "storage_pressure": false,
+    "guest_runtime_seconds": 162.3270514807664,
+    "maximum_guest_seconds": 1800,
+    "process_absent": true,
+    "backing_images_read_only": true,
+    "original_disk_preserved": true,
+    "host_free_bytes": 49160323072
+  },
+  "retained_harness_observation": {
+    "initial_continue_request_truncated_at_socket_disconnect": true,
+    "same_guest_recovered_by_completing_existing_continue_alias": true,
+    "boot_acknowledged_before_second_disconnect": true,
+    "no_guest_restart": true
+  },
+  "boot_observations": {
+    "ipv6_witness_lock_order_messages_retained": false
+  },
+  "raw_evidence": {
+    "kernel/prepared-cold.json": {
+      "bytes": 744,
+      "sha256": "7cb988e7e7e394d050bbf7be307e0e4598427e49a179414aa9e38a6ea3b70f46"
+    },
+    "kernel/cold-source-before.json": {
+      "bytes": 176,
+      "sha256": "f245a633f3ebc460ee56118fab0717f0373b182f5af567dee2e74ba68dad1ead"
+    },
+    "kernel/checkout-descendant-cleanup.json": {
+      "bytes": 309,
+      "sha256": "e7d847e2e176687529f0ca46feb9924b3104f2af126f529675012f1d40e48df1"
+    },
+    "kernel/build-inputs.json": {
+      "bytes": 862,
+      "sha256": "bd76cd54a2e82cf8724fe7a0b8f261d39cc5f6d6944ca1feeb308a8834921da3"
+    },
+    "kernel/products.json": {
+      "bytes": 1208,
+      "sha256": "b5a2b8625a28c5e756bd505f5dc558c042a427cf684d6245a5e0540d868c5ac7"
+    },
+    "kernel/build-cold.py": {
+      "bytes": 2805,
+      "sha256": "a452756f1feb26ef321ae4325412469637f8d453080eb65958dfca23f94f8732"
+    },
+    "kernel/prepare-cold.py": {
+      "bytes": 2992,
+      "sha256": "d99925f8cd8e3f70a35dc845fd46842dabc037e2be318542485659658a928de8"
+    },
+    "kernel/run-command.py": {
+      "bytes": 2076,
+      "sha256": "95a55c752c0d0f19edc54d61990668fa1477237a9b29b60954f9e851123136aa"
+    },
+    "kernel/setup-command/started.json": {
+      "bytes": 288,
+      "sha256": "811480ee916c7340fb620ccf2ae876819d679646113de44e3a6ccd4404c5fa89"
+    },
+    "kernel/setup-command/terminal.json": {
+      "bytes": 86,
+      "sha256": "72f1c1ad11d1d0b0930ccba6d45b31daaaaa00b40c238e22b620c764c91daa45"
+    },
+    "kernel/setup-command/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "kernel/setup-command/stderr.log": {
+      "bytes": 1300,
+      "sha256": "f5790610e4189ef6fbbfe04ab873376e2d517d82822fc51594e0cfed7331191d"
+    },
+    "kernel/setup-v2-command/started.json": {
+      "bytes": 291,
+      "sha256": "b7a663d02a0f262978d5edf434ac407e6c1754c0d86feee709acfdd61cd87b24"
+    },
+    "kernel/setup-v2-command/terminal.json": {
+      "bytes": 88,
+      "sha256": "1c687546e40277082c10b91af5c00900a155709b3dc40c530d2b147b97373aba"
+    },
+    "kernel/setup-v2-command/stdout.log": {
+      "bytes": 190,
+      "sha256": "1c7a380509e72d8e8d1c2ed947a5c1cbec870d22321a6dfeb356ff8ec4a4954d"
+    },
+    "kernel/setup-v2-command/stderr.log": {
+      "bytes": 15234,
+      "sha256": "fcc7662e2170679cd64191ecbbfe2bc2b39d0f2be8711519e4c45ca878e9666b"
+    },
+    "kernel/setup-cold-command/started.json": {
+      "bytes": 293,
+      "sha256": "e0267841a2b1c0becb628fc3e2f8ec8bc4a2263a6968410836363ee5adfa9a93"
+    },
+    "kernel/setup-cold-command/terminal.json": {
+      "bytes": 85,
+      "sha256": "68cc37f60caff4d0fe08c88d5b444b1e9c34393027941e363ca2eceaff9090d2"
+    },
+    "kernel/setup-cold-command/stdout.log": {
+      "bytes": 707,
+      "sha256": "0eb3ddbaf3f3b514b1a0ab292454de8ca252b85b9cee070dab450a6ac7c34854"
+    },
+    "kernel/setup-cold-command/stderr.log": {
+      "bytes": 181,
+      "sha256": "46bec2fe155511252b8e0109c6c48e948755ad149a869dbddd80686b86da3c66"
+    },
+    "kernel/build-command/started.json": {
+      "bytes": 291,
+      "sha256": "f723f980a707399654f30c9de48afef15323619956cb8cee7160c69314652483"
+    },
+    "kernel/build-command/terminal.json": {
+      "bytes": 88,
+      "sha256": "7acf32bf21002d23f197d7e3af9874218406f8773320615fe0340a46a9579b0a"
+    },
+    "kernel/build-command/stdout.log": {
+      "bytes": 3936816,
+      "sha256": "04b333f8741f6296e3c5277e466f0ed9937d2ba0cabf333354f813b999bbf20e"
+    },
+    "kernel/build-command/stderr.log": {
+      "bytes": 319,
+      "sha256": "65fae90777cce36cd7cfc393e88587dcb4b2a65fce4cab942c0916b98c2dc501"
+    },
+    "early/started.json": {
+      "sha256": "dd739c7710a15f4574b56d983567b367af8fee8ff05e5ad76aac9b40c3193f45",
+      "bytes": 1477
+    },
+    "early/terminal.json": {
+      "sha256": "97358c7608c1d215a2477e50f0091165bb15a2d2096e5b9cda5092bc2b2c8961",
+      "bytes": 92
+    },
+    "early/console.log": {
+      "sha256": "68eeebbf6a2322731049a94775bebeb712ad3cad8748bae01286812ea65b2ef7",
+      "bytes": 16679
+    },
+    "early/qemu.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "early/supervisor.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "early/early-probe.py": {
+      "sha256": "4492807607a8d90eb3b5f95cbd195373788c7763d8dd423eb26fa25f27ce2e51",
+      "bytes": 3779
+    },
+    "early/early-guard-result.json": {
+      "sha256": "60dd8a7d247c7e30265e2d69e6d4910674618fa9b991f62262baf6885605a463",
+      "bytes": 1135
+    },
+    "early/continue-recovery.json": {
+      "sha256": "ab1729bde8c6ab6d9b0aa9d809d1b94ccdfe6ec066c130066e995103c9138439",
+      "bytes": 243
+    },
+    "early/guard-command/started.json": {
+      "sha256": "2ea765ec01605b16deee476cc886dc6af34a9787144964feb5ebdd3c436303aa",
+      "bytes": 324
+    },
+    "early/guard-command/terminal.json": {
+      "sha256": "fa32703c5a1ed385d4299dc6c368d3f4f82348fc4c24a0c51ea1216a75ee9f30",
+      "bytes": 86
+    },
+    "early/guard-command/stdout.log": {
+      "sha256": "202d1f34f247d33b66ed4be1d75200be1629cc5978337c521cc2a04a85e727ad",
+      "bytes": 1002
+    },
+    "early/guard-command/stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "early/kernel-products.json": {
+      "sha256": "c11f9f9ae61f869e3416369ad3dae5cd7b1a12a369821860be711e2090145c5d",
+      "bytes": 1207
+    },
+    "controller/independent-kernel-observation.json": {
+      "sha256": "25a4bfb2cc80ba03c38e6baf75d722b4118498478201c89d30432782e09952f5",
+      "bytes": 520
+    },
+    "controller/continue-recovery.json": {
+      "sha256": "60ac950bcd01936116dea30e8c98d9bb841aff79baa9273c573ebc391704e262",
+      "bytes": 232
+    },
+    "controller/kernel-transfer.json": {
+      "sha256": "2709b2ba4cc381e9e099f0b36f0ea737093a8fa0df6c56fb5a7527976c6f064d",
+      "bytes": 601
+    },
+    "controller/shutdown-result.json": {
+      "sha256": "d71b04b283d4276a177c4db370b0c925e508c630ff75dc749f093cbb0f3d7609",
+      "bytes": 227
+    }
+  },
+  "normal_netgdb_and_netdump_renewal_on_this_kernel": false,
+  "continuous_early_kernel_transport": false,
+  "physical_nic_qualified": false,
+  "authenticated_kernel_protocol": false,
+  "source_sdk_admitted": false,
+  "canonical_source_receipt_earned": false,
+  "release_acceptance": false,
+  "remaining": [
+    "Renew ordinary panic NetGDB inspection/detach/peer-close and Netdump with these exact products",
+    "Implement driver-ready network activation, authentication and honest pre-driver coverage",
+    "Qualify physical NICs, admitted SDK/source lifecycle and final release artifacts"
+  ]
+}
