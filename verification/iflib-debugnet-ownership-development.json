@@ -229,7 +229,7 @@
     "locks": "fail; implicit target",
     "receipt": "missing; fail"
   },
-  "linked_kernel_built": false,
+  "linked_kernel_built": true,
   "native_recovery_renewed": false,
   "nonpanic_resume_qualified": false,
   "continuous_early_kernel_transport": false,
@@ -237,7 +237,7 @@
   "source_sdk_admitted": false,
   "release_acceptance": false,
   "remaining": [
-    "Exact clean native kernel and NetGDB/Netdump recovery renewal",
+    "Netdump renewal on the exact iflib-repaired kernel",
     "Ring buffer provenance and safe resumable debugger entry",
     "Continuous early-kernel network activation, authentication and physical NIC acceptance",
     "Final source/compiler/product admission and exact release gates"
@@ -246,7 +246,7 @@
   "candidate_tree": "4aacb3bafaedc70ddb4b198c9e499a8142919679",
   "review": "https://github.com/jordanhubbard/daemonarchy-src/pull/17",
   "native_kernel_build": {
-    "state": "running; same supervisor observed live and compiler output present",
+    "state": "passed; exact clean GENERIC build, no installation",
     "source_revision": "4f46a741fb2f71141dbfb09b723ce443e0450f48",
     "setup_seconds": 3.947,
     "maximum_seconds": 2400,
@@ -257,10 +257,105 @@
     "primary_refs_and_head_unchanged": true,
     "old_revision_and_index_preserved": true,
     "planned_write_budget_bytes": 3221225472,
-    "host_reserve_bytes": 42949672960
+    "host_reserve_bytes": 42949672960,
+    "exit_code": 0,
+    "supervised_seconds": 526.747,
+    "native_build_seconds": 526.282,
+    "build_id": "0a71d6f0677d45edf987fbd288d58febd07a949a",
+    "products": [
+      {
+        "name": "kernel",
+        "bytes": 31535296,
+        "sha256": "d61cbae2ab1035437e3c6a6dead84966879d76804ff96d5ee60d1fb0bfa4e5fe",
+        "build_id": "0a71d6f0677d45edf987fbd288d58febd07a949a"
+      },
+      {
+        "name": "kernel.full",
+        "bytes": 137524184,
+        "sha256": "8038b86021e98a1d5a0831e6547f02b9a26cd0dd1f5e5fafa24aaa8fafd60466",
+        "build_id": "0a71d6f0677d45edf987fbd288d58febd07a949a"
+      },
+      {
+        "name": "kernel.debug",
+        "bytes": 118501296,
+        "sha256": "4425e345b606d03b0d1f7f5a6bc6b83962b18993a4d4639911423321e2412154",
+        "build_id": "0a71d6f0677d45edf987fbd288d58febd07a949a"
+      }
+    ],
+    "raw_evidence": {
+      "prepared.json": {
+        "bytes": 430,
+        "sha256": "b6a29855e3cf809151b88c8e87dcc54cb85d6c0240650a832ef8233717440d3b"
+      },
+      "source-before.json": {
+        "bytes": 209,
+        "sha256": "1ee469dc03ddcc63b0dae2500f75c56733079da6ce2ff29785213c2e6c397c65"
+      },
+      "primary-before.json": {
+        "bytes": 162,
+        "sha256": "9b1816f59d8c62607bc60d263d95ccebe8896c5ae1612546c9fc7e83a9a88abd"
+      },
+      "build-inputs.json": {
+        "bytes": 865,
+        "sha256": "ecb499bb93cc0fe704b8939eccbc0d4cc8a1b18684e9233bf4b94840b149ee18"
+      },
+      "products.json": {
+        "bytes": 1208,
+        "sha256": "037fa8f3fdc2f82e92ba1ac5867425b8caf6ed904703e5d656db2afccd4f09bb"
+      },
+      "build.py": {
+        "bytes": 2805,
+        "sha256": "8489a4f88f59447900dfc22b20e2ccb36caa174fbcfab001d2f768cb7bb88c2d"
+      },
+      "prepare.py": {
+        "bytes": 3598,
+        "sha256": "d563142cf96fb2cf7a0ac2a053ef815ad85cb450711328e91aac3fd0a3552423"
+      },
+      "run-command.py": {
+        "bytes": 2076,
+        "sha256": "95a55c752c0d0f19edc54d61990668fa1477237a9b29b60954f9e851123136aa"
+      },
+      "setup-command/started.json": {
+        "bytes": 294,
+        "sha256": "24d2eb0a6cb9766bcafa1ed10603269deccdf74d26ffdd13dcf9ce25b01506fd"
+      },
+      "setup-command/terminal.json": {
+        "bytes": 86,
+        "sha256": "8a72183947e549be10cef232802a0456ab3a9e9349617a1746429c820bb38282"
+      },
+      "setup-command/stdout.log": {
+        "bytes": 658,
+        "sha256": "3e6fd6c16cf4f4ca1ed8b4c942f28944a32463026cc656ed1cb91fdf0b998c73"
+      },
+      "setup-command/stderr.log": {
+        "bytes": 368,
+        "sha256": "1d77c1c1fde60765b10784a1f6829e4b48bbe91a09c1e3110192bafb7c2ffd69"
+      },
+      "build-command/started.json": {
+        "bytes": 292,
+        "sha256": "53e18ee5aa92bf27eb2dc8355377b14c1831d3d15ddfc17c236a698e7617f1b8"
+      },
+      "build-command/terminal.json": {
+        "bytes": 88,
+        "sha256": "4f2f6eb3c898b3babc28f47e3804c4de8b9b7d4481f0b4ad358cd2b5d3b55acb"
+      },
+      "build-command/stdout.log": {
+        "bytes": 3949661,
+        "sha256": "afbe69b37716be52fcdc4cd45ac949165a165078153ad3f6c3d6e645e142c163"
+      },
+      "build-command/stderr.log": {
+        "bytes": 325,
+        "sha256": "c0f449cc74ecc27d226b24140da98e4082939778fecf23941cd2b3fae286d40e"
+      }
+    }
   },
   "hosted_controller_ci": {
-    "run": "https://github.com/jordanhubbard/daemonarchy-src/actions/runs/39864712222",
-    "state": "in_progress"
-  }
+    "run": "https://github.com/jordanhubbard/daemonarchy-src/actions/runs/39864909917",
+    "source_revision": "3291676019349a7ee8f159ccab33528fca8471b1",
+    "state": "completed",
+    "conclusion": "success"
+  },
+  "native_recovery_state": "Three exact-kernel NetGDB sessions pass direct before/during/after memory checks; both owned VMs stopped",
+  "native_netgdb_renewed": true,
+  "native_netgdb_record": "verification/iflib-debugnet-live-recovery-development.json"
 }

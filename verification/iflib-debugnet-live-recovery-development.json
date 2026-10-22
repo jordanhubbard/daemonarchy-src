@@ -1,0 +1,439 @@
+{
+  "schema": "daemonarchy/iflib-debugnet-live-recovery-development@1",
+  "observed_utc": "2026-10-22T22:42:06.641553+00:00",
+  "issue": "https://github.com/jordanhubbard/daemonarchy-src/issues/16",
+  "review": "https://github.com/jordanhubbard/daemonarchy-src/pull/17",
+  "scope": "Actual em/e1000 iflib allocator and batching state before/during/after panic NetGDB; native GDB and local DDB recovery on a private VM wire",
+  "source_revision": "4f46a741fb2f71141dbfb09b723ce443e0450f48",
+  "source_tree": "4aacb3bafaedc70ddb4b198c9e499a8142919679",
+  "kernel_build_record": "verification/iflib-debugnet-ownership-development.json",
+  "kernel_elf_build_id": "0a71d6f0677d45edf987fbd288d58febd07a949a",
+  "kernel_full_sha256": "8038b86021e98a1d5a0831e6547f02b9a26cd0dd1f5e5fafa24aaa8fafd60466",
+  "loader_boot_id": "29d11d2044660b87b9466fe22f42ce5b",
+  "independent_uuid_boot_id_mac_and_revision_verified": true,
+  "client": {
+    "gdb_sha256": "ac9d1357f4fe13204599a3965629a0bcea58262d0a74b9d7108a6c550b4023cc",
+    "gdb_version": "GNU gdb (GDB) 15.1 [GDB v15.1 for FreeBSD]",
+    "proxy_revision": "9d7f2ca5608ab346f81143e7815e11e1e20c921e",
+    "proxy_sources_hash_verified": true
+  },
+  "nonpanic_refused_and_local_continue_passed": true,
+  "controlled_panic_count": 1,
+  "same_iflib_context_verified_across_sessions": true,
+  "before_during_after_memory_checks_passed": true,
+  "receive_lists_qualified_on_real_nic": 1,
+  "real_nic_buffer_size": 2048,
+  "real_prior_batching_value": 0,
+  "sessions": {
+    "detach": {
+      "mode": "detach",
+      "exit_code": 0,
+      "seconds": 1.677,
+      "registers_panic_version_backtrace_seen": true,
+      "receive_lists_inspected": 1,
+      "reserved_allocator_during_session": true,
+      "original_allocator_restored": true,
+      "saved_allocator_cleared": true,
+      "saved_batch_cleared": true,
+      "active_flag_cleared": true,
+      "prior_batch_restored": true,
+      "returned_to_ddb": true
+    },
+    "detach-renewal": {
+      "mode": "detach",
+      "exit_code": 0,
+      "seconds": 1.584,
+      "registers_panic_version_backtrace_seen": true,
+      "receive_lists_inspected": 1,
+      "reserved_allocator_during_session": true,
+      "original_allocator_restored": true,
+      "saved_allocator_cleared": true,
+      "saved_batch_cleared": true,
+      "active_flag_cleared": true,
+      "prior_batch_restored": true,
+      "returned_to_ddb": true
+    },
+    "close": {
+      "mode": "close",
+      "exit_code": 23,
+      "seconds": 1.423,
+      "registers_panic_version_backtrace_seen": true,
+      "receive_lists_inspected": 1,
+      "reserved_allocator_during_session": true,
+      "original_allocator_restored": true,
+      "saved_allocator_cleared": true,
+      "saved_batch_cleared": true,
+      "active_flag_cleared": true,
+      "prior_batch_restored": true,
+      "returned_to_ddb": true
+    }
+  },
+  "kernel_threads": 104,
+  "local_registers_after_peer_close": true,
+  "local_reset_after_peer_close": true,
+  "wire": {
+    "packets": 9978,
+    "heralds": [
+      {
+        "source": "172.16.33.10",
+        "destination": "172.16.33.20",
+        "source_port": 20026,
+        "destination_port": 20025,
+        "seconds": 1792737485.335264
+      },
+      {
+        "source": "172.16.33.10",
+        "destination": "172.16.33.20",
+        "source_port": 20026,
+        "destination_port": 20025,
+        "seconds": 1792737526.704414
+      },
+      {
+        "source": "172.16.33.10",
+        "destination": "172.16.33.20",
+        "source_port": 20026,
+        "destination_port": 20025,
+        "seconds": 1792737594.222873
+      }
+    ],
+    "finished": [
+      {
+        "source": "172.16.33.20",
+        "destination": "172.16.33.10",
+        "source_port": 40140,
+        "destination_port": 20026,
+        "sequence": 0,
+        "offset": 0,
+        "length": 0,
+        "seconds": 1792737495.12064
+      },
+      {
+        "source": "172.16.33.20",
+        "destination": "172.16.33.10",
+        "source_port": 28119,
+        "destination_port": 20026,
+        "sequence": 0,
+        "offset": 0,
+        "length": 0,
+        "seconds": 1792737538.360649
+      },
+      {
+        "source": "172.16.33.20",
+        "destination": "172.16.33.10",
+        "source_port": 42594,
+        "destination_port": 20026,
+        "sequence": 0,
+        "offset": 0,
+        "length": 0,
+        "seconds": 1792737606.515549
+      }
+    ],
+    "pcap_sha256": "c551fa2f9b482f0f1651a1f11f90c94e7a891891392f4741b7c31904e4b6cd81"
+  },
+  "cleanup": {
+    "roles": {
+      "peer": {
+        "terminal": {
+          "exit_code": 0,
+          "expired": false,
+          "storage_pressure": false,
+          "seconds": 399.4394324491732
+        },
+        "process_absent": true
+      },
+      "target": {
+        "terminal": {
+          "exit_code": 0,
+          "expired": false,
+          "storage_pressure": false,
+          "seconds": 329.64486592868343
+        },
+        "process_absent": true
+      }
+    },
+    "backing_images": [
+      {
+        "role": "peer",
+        "backing_nodes": 4,
+        "all_backing_nodes_read_only": true
+      },
+      {
+        "role": "target",
+        "backing_nodes": 2,
+        "all_backing_nodes_read_only": true
+      }
+    ],
+    "all_guests_stopped": true,
+    "maximum_each_vm_seconds": 1800,
+    "target": "Local DDB reset with QEMU no-reboot",
+    "peer": "Normal shutdown after three proxy commands exit zero"
+  },
+  "raw_evidence": {
+    "host/peer/started.json": {
+      "sha256": "a061a94f31deebe890ebfdd4516e83d874a12c1a73caaed9adc84730edc281e9",
+      "bytes": 1509
+    },
+    "host/peer/terminal.json": {
+      "sha256": "eaec0ab550a2b3dbd2d4b72dbde312f39d21864f172dc79d9c119095779b96ca",
+      "bytes": 92
+    },
+    "host/peer/console.log": {
+      "sha256": "1d5868e71c6307ab468453d9b55f060a92684a9c88ed8d54566b487b38a7ded0",
+      "bytes": 13932
+    },
+    "host/peer/qemu.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "host/peer/wire.pcap": {
+      "sha256": "f42e068210dacb3fdd7b2b2fb9dbd75e7bd3f44cd2bf091292a6776f8dacf726",
+      "bytes": 1370723
+    },
+    "host/peer/supervisor.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "host/target/started.json": {
+      "sha256": "a19592dd6d05d668dd890ea5725ad62a4c925898cedcbb4bbdcf4c572eb5d941",
+      "bytes": 1882
+    },
+    "host/target/terminal.json": {
+      "sha256": "6cafe20a8e430a8818f321e836aca08bdaa626dd6b825d2af01236133fc33a88",
+      "bytes": 93
+    },
+    "host/target/console.log": {
+      "sha256": "3ef9b9eb3be0bb3c64bd32c4b8bcd5642f4788cf66c3de7a4fefe64a93e95a51",
+      "bytes": 33154
+    },
+    "host/target/qemu.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "host/target/wire.pcap": {
+      "sha256": "c551fa2f9b482f0f1651a1f11f90c94e7a891891392f4741b7c31904e4b6cd81",
+      "bytes": 1369417
+    },
+    "host/target/supervisor.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/abrupt-close-marker.json": {
+      "sha256": "e428a0fb19456de1cee3f1c353e02e0c082637b8a5e322d4eca0b10af6556ae0",
+      "bytes": 383
+    },
+    "peer/close-gdb-result.json": {
+      "sha256": "0a14015c015333920cfa4060bf1bf98fc6a4eb77d6dc3c5d02e9730fa76c2bfb",
+      "bytes": 23870
+    },
+    "peer/close-gdb.stderr": {
+      "sha256": "18d60a46a8419ddb6aef7295e50d2eab91be75b15cbd4e72e405787f05fba590",
+      "bytes": 103
+    },
+    "peer/close-gdb.stdout": {
+      "sha256": "c0afa0169f912272c8080e05c39219e460b3d0b187bda2a2e11a9e57e8f10dd4",
+      "bytes": 22131
+    },
+    "peer/close-ownership.json": {
+      "sha256": "0f0d9230a46b96eb29beb66bf1da5b6564fca0fe2755aa8578961266506df912",
+      "bytes": 486
+    },
+    "peer/detach-gdb-result.json": {
+      "sha256": "b78a0bc99d0baee6bc4bfd01a7d22f3a81f479b00e8ee6cdaaa30b45a2688c93",
+      "bytes": 23519
+    },
+    "peer/detach-gdb.stderr": {
+      "sha256": "18d60a46a8419ddb6aef7295e50d2eab91be75b15cbd4e72e405787f05fba590",
+      "bytes": 103
+    },
+    "peer/detach-gdb.stdout": {
+      "sha256": "41b88089445a6f3ed0e8cb88815a0b9a8b9dc21b64f6cafe4e4f86f1d44cf9ef",
+      "bytes": 22202
+    },
+    "peer/detach-ownership.json": {
+      "sha256": "0f0d9230a46b96eb29beb66bf1da5b6564fca0fe2755aa8578961266506df912",
+      "bytes": 486
+    },
+    "peer/detach-renewal-gdb-result.json": {
+      "sha256": "e8703e87881ba8a68b600168bc6b74f99689e13a2aa5687d77e8ed577fc1ae49",
+      "bytes": 23519
+    },
+    "peer/detach-renewal-gdb.stderr": {
+      "sha256": "18d60a46a8419ddb6aef7295e50d2eab91be75b15cbd4e72e405787f05fba590",
+      "bytes": 103
+    },
+    "peer/detach-renewal-gdb.stdout": {
+      "sha256": "41b88089445a6f3ed0e8cb88815a0b9a8b9dc21b64f6cafe4e4f86f1d44cf9ef",
+      "bytes": 22202
+    },
+    "peer/detach-renewal-ownership.json": {
+      "sha256": "0f0d9230a46b96eb29beb66bf1da5b6564fca0fe2755aa8578961266506df912",
+      "bytes": 486
+    },
+    "peer/loader-capture.bin": {
+      "sha256": "23f931b2f464be589dc0873447448bd3ae98a8ef0ece9fc0322c64001ed2833a",
+      "bytes": 2790
+    },
+    "peer/loader-command/started.json": {
+      "sha256": "581713ad99b18069463370c909a78b53b9618dd051d3573b91caa45c624dae2a",
+      "bytes": 275
+    },
+    "peer/loader-command/stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/loader-command/stdout.log": {
+      "sha256": "137836a498e5b7ff927d0ec5af08215979b3c829e5319b1bff78d5567488e593",
+      "bytes": 2895
+    },
+    "peer/loader-command/terminal.json": {
+      "sha256": "fdcf4748068ea6b125b2e9a2b3de94ae2c2a15d1af32c2cf1d62688584fde71d",
+      "bytes": 86
+    },
+    "peer/loader-result.json": {
+      "sha256": "1d7596d616b16a82279cf505f97660e46615652f175b07615aee8f14efb51891",
+      "bytes": 113
+    },
+    "peer/loader-spec.json": {
+      "sha256": "36a1f3ef8a1cde4952baa46b73d71459d0f5da97966bb8d01dffb11346805f7e",
+      "bytes": 225
+    },
+    "peer/loader-supervisor.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/proxy-command/started.json": {
+      "sha256": "553305002cc30a678b76180a12d53768194db79d6b7c688c0b0a6b39d90c9c1e",
+      "bytes": 391
+    },
+    "peer/proxy-command/stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/proxy-command/stdout.log": {
+      "sha256": "735f16c22f75d8eed549a9dbb4c590a866909cf4f048149db26c9267638ff094",
+      "bytes": 361
+    },
+    "peer/proxy-command/terminal.json": {
+      "sha256": "9463d91f597d404cef357770200d42a142c50ab1a890501f90b7773c092c51ed",
+      "bytes": 86
+    },
+    "peer/proxy-repeat-2-command/started.json": {
+      "sha256": "ce1854b55490e9dde525c207d7ca9fb55b009a8474b80dc7a4322a279ca5c1c7",
+      "bytes": 391
+    },
+    "peer/proxy-repeat-2-command/stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/proxy-repeat-2-command/stdout.log": {
+      "sha256": "735f16c22f75d8eed549a9dbb4c590a866909cf4f048149db26c9267638ff094",
+      "bytes": 361
+    },
+    "peer/proxy-repeat-2-command/terminal.json": {
+      "sha256": "5ff1469e8cbd547f303d02537affd8de833106818e21356c04641faf06c9532f",
+      "bytes": 87
+    },
+    "peer/proxy-repeat-2-spec.json": {
+      "sha256": "ae15b88903c4cfeef2513b48a209b27e811bea201b058b9d863da35fd7e1f212",
+      "bytes": 349
+    },
+    "peer/proxy-repeat-2-supervisor.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/proxy-repeat-3-command/started.json": {
+      "sha256": "61b5c2f7b599f096d1542730b3940677dd8513c8858ccc7283d74531b990c981",
+      "bytes": 391
+    },
+    "peer/proxy-repeat-3-command/stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/proxy-repeat-3-command/stdout.log": {
+      "sha256": "735f16c22f75d8eed549a9dbb4c590a866909cf4f048149db26c9267638ff094",
+      "bytes": 361
+    },
+    "peer/proxy-repeat-3-command/terminal.json": {
+      "sha256": "74f3197441eeab78b64c28f5769ee4635a2a20521f221854d23737f6d4afa3ff",
+      "bytes": 87
+    },
+    "peer/proxy-repeat-3-spec.json": {
+      "sha256": "d303b48580d7a39f22dcae9b54ecd0cb88b6a8c1772a4dc80a1b37aef054f597",
+      "bytes": 349
+    },
+    "peer/proxy-repeat-3-supervisor.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/proxy-spec.json": {
+      "sha256": "4a120cd1f20fa7e60edf27302c8cdc2952a86047195fab727e8e27eaa773e533",
+      "bytes": 341
+    },
+    "peer/proxy-supervisor.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "controller/nonpanic-pre-ddb.json": {
+      "bytes": 1057,
+      "sha256": "11f07afcab431dac8226082246dc34090283845885492eea087a23a6554b2d70"
+    },
+    "controller/nonpanic-refusal-ddb.json": {
+      "bytes": 333,
+      "sha256": "e7ea9fe80e4310923e34dfcda4194fc53893dfc14d4737587c03e05b26f31c55"
+    },
+    "controller/nonpanic-continue-ddb.json": {
+      "bytes": 178,
+      "sha256": "5e9fd6999593af102adf9799985d68befbfb30cd7cc4e819f1a112b7d6c469bd"
+    },
+    "controller/panic-pre-ddb.json": {
+      "bytes": 1057,
+      "sha256": "49671e169fe2a614698482071d7088ab46b0c56fdc99a26770194f8484593454"
+    },
+    "controller/detach-enter-ddb.json": {
+      "bytes": 461,
+      "sha256": "34268036c0ee21b2b49736d1567a08e3b876d774e9387505d82f6bcff60683d7"
+    },
+    "controller/detach-ddb.json": {
+      "bytes": 764,
+      "sha256": "26786603a1aa14320d821f9cb4d7b7bdee7aa71f4d4d71c994a4dca411571a34"
+    },
+    "controller/detach-renewal-enter-ddb.json": {
+      "bytes": 461,
+      "sha256": "f72fee2c6ce499c79cb1bcae840d6cc0bcf5b89c9ce023841568e99692b50a96"
+    },
+    "controller/detach-renewal-ddb.json": {
+      "bytes": 763,
+      "sha256": "d936a9b0723d7c3cdd5b5ca7ff4c84754a8e04ff078ed2983522c6eb11e21365"
+    },
+    "controller/close-enter-ddb.json": {
+      "bytes": 461,
+      "sha256": "aa83dd8fac6ca32b13b8529decf13986d4ffeff9e4b1177d14864bbd57c1daf1"
+    },
+    "controller/close-ddb.json": {
+      "bytes": 764,
+      "sha256": "31ec090839954fb9c721183e66cd5fe4e218a70eb92dd34693a49b834dc795dc"
+    },
+    "controller/close-registers-ddb.json": {
+      "bytes": 1035,
+      "sha256": "973154d824a9d87cd895327260cd76ee77620bf5bba534f93b9794fd58b26610"
+    },
+    "controller/final-reset-ddb.json": {
+      "bytes": 179,
+      "sha256": "9adabe029d29cac2eb342937b3883896a92af4734bb1c24ff4831889d0141a72"
+    }
+  },
+  "native_netgdb_recovery_passed": true,
+  "native_netdump_on_this_kernel_qualified": false,
+  "nonpanic_resume_qualified": false,
+  "physical_nic_qualified": false,
+  "continuous_early_kernel_transport": false,
+  "authenticated_kernel_protocol": false,
+  "source_sdk_admitted": false,
+  "release_acceptance": false,
+  "limitations": [
+    "Real driver has one receive queue/list; multi-list and other batching values are covered only by the separate production-function fixture",
+    "Receive-buffer provenance and safe non-panic resume remain unqualified",
+    "Debugger source text paths and optimized arguments remain unqualified",
+    "Initial SSH banner observation expired during DHCP; the same VM continued without restart"
+  ]
+}

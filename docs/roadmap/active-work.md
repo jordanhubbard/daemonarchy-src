@@ -475,10 +475,16 @@ admission remain open.
 - **Evidence:** [Callback ownership record](../../verification/iflib-debugnet-ownership-development.json). Native fixture supervision exits zero in 1.276 seconds; two complete sessions preserve all queue/list pointers and prior batching values 0, 1 and 2. Controller regression selects 66 tests: 62 pass and four native-only checks skip. Kernel patch style checks and Python lint/format pass.
 - **Boundary:** Fake zone identities do not qualify ring-buffer provenance or non-panic resume. The existing panic-only restriction remains enforced.
 
-The exact `4f46a741fb2` GENERIC kernel now builds with four jobs in fresh objects,
-under unchanged 2400-second supervision. The dedicated cold checkout was reused
+The exact `4f46a741fb2` GENERIC kernel passes with four jobs in fresh objects in
+526.747 supervised seconds, under unchanged 2400-second supervision. The dedicated cold checkout was reused
 only after process/cwd/argv, mount/export and clean-status checks; its old revision
 and index remain retained, and primary refs/HEAD are unchanged. No installation
-is performed. The next native check must inspect actual saved/current free-list
-pointers and batching before, during and after detach, in addition to ordinary
-NetGDB/Netdump recovery; callback fixtures alone do not prove live restoration.
+is performed. [Live iflib recovery](../../verification/iflib-debugnet-live-recovery-development.json)
+now passes two detach sessions and an abrupt client exit. Native GDB sees the
+reserved allocator during each session; DDB independently verifies the original
+receive-list pointer afterward, cleared saved pointer/active state and restored
+batching. Initial values are read before activation. Registers after peer closure
+and local reset pass; 104 threads are observed. Both VMs stop before deadline.
+The real e1000 uses one 2048-byte receive list and prior batching zero; multiple
+lists/other batching values remain fixture-only. Netdump renewal, buffer
+provenance and safe non-panic resume remain open.
