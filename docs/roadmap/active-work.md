@@ -402,3 +402,17 @@ disks are retained. Issue #12 is implemented and natively qualified on this draf
 pending integration. Preserve the panic-only and trusted-private-segment limits;
 physical NICs, Netdump, authenticated kernel sessions, continuous early-kernel
 transport and release acceptance remain open.
+
+
+The [native Netdump baseline](../../verification/netdump-native-baseline-development.json)
+now passes on the same exact `791ac20a21ad` kernel with matching full symbols.
+A pinned upstream `netdumpd` receiver builds natively in 0.93 seconds; the owned
+VM's controlled panic sends a 165,371,904-byte minidump with valid header parity.
+Native `kgdb` reads the full kernel version, panic pointer/string and backtrace,
+and enumerates 100 threads. Independent reconstruction of all 116,076 data
+messages from the packet capture reproduces the received core's SHA-256 exactly,
+with no gaps or overlapping unique data. The receiver exits zero and both bounded
+guests stop before deadline with all backing disks read-only. Initial CLI-option
+and driver-text harness failures remain retained. This is a private-wire VM
+baseline: physical NICs, authenticated kernel sessions, continuous early-kernel
+activation, compiler/SDK admission and final release acceptance remain open.

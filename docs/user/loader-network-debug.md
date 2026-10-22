@@ -137,8 +137,14 @@ to refuse. [Issue #12](https://github.com/jordanhubbard/daemonarchy-src/issues/1
 remains pending integration of this draft review. The earlier incompatible Linux
 client and version-output harness failure remain retained. Use a FreeBSD-capable
 debugger and symbols matching the actual kernel on a trusted private segment.
-Loader pairing does not authorize kernel traffic; continuous early-kernel
-debugging, Netdump and physical NIC acceptance remain unqualified.
+Loader pairing does not authorize kernel traffic. The
+[native Netdump baseline](../../verification/netdump-native-baseline-development.json)
+now verifies a 165,371,904-byte panic minidump on that same kernel and private
+e1000 VM. Header parity, matching-symbol `kgdb` panic/version/backtrace reads
+and 100 threads pass; independently reconstructed packet data matches the
+received core hash. The receiver and both bounded guests stop cleanly. This
+baseline does not qualify physical NICs, authenticated kernel sessions, continuous
+early-kernel activation or final release artifacts.
 
 ## Packet and I/O contract
 

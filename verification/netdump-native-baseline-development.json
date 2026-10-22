@@ -1,0 +1,446 @@
+{
+  "schema": "daemonarchy/netdump-native-baseline-development@1",
+  "observed_utc": "2026-10-22T21:16:56.147262+00:00",
+  "work_item": "DEBUG-001 / SRC-DEBUG-001",
+  "scope": "Panic Netdump over an em/e1000 private virtual wire, native postmortem inspection and packet-to-core byte reconstruction",
+  "kernel_source_revision": "791ac20a21ad112ace96fb3bb030ed33a5297278",
+  "kernel_elf_build_id": "a870655bea213988afe93408595930537d181c27",
+  "kernel_products": [
+    {
+      "name": "kernel",
+      "bytes": 31535200,
+      "sha256": "f69960b4283660e4defc92080f151e68acd636ea3c65d73f80de441a38c9c7db",
+      "build_id": "a870655bea213988afe93408595930537d181c27"
+    },
+    {
+      "name": "kernel.full",
+      "bytes": 137523432,
+      "sha256": "50e6ae62200e1a8964af7a0e343045a9e0aedf2492d61089239ac00a6e10ee32",
+      "build_id": "a870655bea213988afe93408595930537d181c27"
+    },
+    {
+      "name": "kernel.debug",
+      "bytes": 118500544,
+      "sha256": "1aa7cc8a90a153ba39d7bce903d1f9684ba1ccb04891179ebb197cd716c2fbba",
+      "build_id": "a870655bea213988afe93408595930537d181c27"
+    }
+  ],
+  "loader_efi_sha256": "9472af7435e8376e0982edaa78f6a6cc1dfdfabcd544a3c6f73ebcecbf8f0f38",
+  "loader_boot_id": "5bb992f80c708b0eb92b35485674aa21",
+  "independent_target_uuid_boot_id_mac_and_revision_verified": true,
+  "receiver": {
+    "repository": "https://github.com/markjdb/netdumpd",
+    "revision": "99dd0da99be7612b1feb52e4f71db308415e0259",
+    "source_archive_sha256": "8b55d0cb54d92e3a513256db755064966719e8a6b3d59759c1686631a031e134",
+    "source_files_verified": 16,
+    "native_build_exit_code": 0,
+    "native_build_seconds": 0.93,
+    "executable_sha256": "11a38de0966d061d179bb57dc55a347a856bff34ff80214df7155093b272a87e",
+    "live_private_listener_verified_before_panic": true,
+    "terminal": {
+      "exit_code": 0,
+      "schema": "daemonarchy/native-command-terminal@1",
+      "seconds": 309.019
+    }
+  },
+  "controlled_panic": {
+    "owned_disposable_guest_only": true,
+    "serial_panic_count": 1,
+    "automatic_dump_and_reboot": true,
+    "elapsed_ssh_seconds": 6.533653417020105,
+    "ssh_exit_code": 255,
+    "ssh_closed_after_guest_reboot": true,
+    "mbuf_zones_restored": true,
+    "serial_dump_complete": true
+  },
+  "received_dump": {
+    "bytes": 165371904,
+    "sha256": "0e6b48a37b640d0a015b5e8b6616a78945d1f0e745fdbf9e44fcd805d4ad3c7b",
+    "architecture": "amd64",
+    "format": "FreeBSD kernel minidump version 3",
+    "compression": "none",
+    "header_parity": "pass",
+    "expected_kernel_revision_and_panic_in_header": true,
+    "native_and_controller_hashes_match": true
+  },
+  "native_postmortem": {
+    "kgdb_package": "gdb-15.1_7",
+    "kgdb_sha256": "9cb838081115246b4be57f005e91db98c4761da1a6c0779cbb16d0a21d87fd45",
+    "exit_code": 0,
+    "seconds": 0.578,
+    "full_kernel_version_read_from_core": true,
+    "panic_pointer_and_actual_string_read_from_core": true,
+    "panic_string": "kdb_sysctl_panic",
+    "backtrace_frames": [
+      "doadump",
+      "kern_reboot",
+      "vpanic",
+      "panic",
+      "kdb_sysctl_panic",
+      "sys___sysctl"
+    ],
+    "threads": 100,
+    "matching_full_symbols": true,
+    "source_text_paths_available": false,
+    "optimized_arguments_and_userland_tail_qualified": false
+  },
+  "wire_reconstruction": {
+    "schema": "daemonarchy/netdump-wire-reconstruction@1",
+    "packets": 237219,
+    "client_message_counts": {
+      "herald": 1,
+      "finished": 1,
+      "data": 116076,
+      "kernel_dump_header": 1
+    },
+    "unique_data_messages": 116076,
+    "identical_retransmitted_data_messages": 0,
+    "contiguous_bytes": 165371904,
+    "received_core_sha256": "0e6b48a37b640d0a015b5e8b6616a78945d1f0e745fdbf9e44fcd805d4ad3c7b",
+    "wire_reconstructed_core_sha256": "0e6b48a37b640d0a015b5e8b6616a78945d1f0e745fdbf9e44fcd805d4ad3c7b",
+    "wire_and_received_core_match": true,
+    "no_gaps_or_overlaps_in_unique_data": true
+  },
+  "cleanup": {
+    "roles": {
+      "peer": {
+        "terminal": {
+          "exit_code": 0,
+          "expired": false,
+          "storage_pressure": false,
+          "seconds": 429.9481428260915
+        },
+        "process_absent": true
+      },
+      "target": {
+        "terminal": {
+          "exit_code": 0,
+          "expired": false,
+          "storage_pressure": false,
+          "seconds": 163.57969555677846
+        },
+        "process_absent": true
+      }
+    },
+    "target": "Automatic reboot after controlled panic; QEMU no-reboot exits zero",
+    "peer": "Normal shutdown after receiver and successful core inspection exit zero",
+    "maximum_each_guest_seconds": 1800,
+    "backing_custody": [
+      {
+        "role": "peer",
+        "backing_nodes": 4,
+        "all_backing_nodes_read_only": true
+      },
+      {
+        "role": "target",
+        "backing_nodes": 2,
+        "all_backing_nodes_read_only": true
+      }
+    ],
+    "original_disks_preserved": true,
+    "host_free_bytes_at_completion": 49659150336,
+    "host_reserve_bytes": 42949672960
+  },
+  "retained_harness_failures": [
+    {
+      "attempt": "initial postmortem",
+      "exit_code": 1,
+      "reason": "GNU GDB flags were passed to the distinct kgdb command interface"
+    },
+    {
+      "attempt": "second postmortem",
+      "exit_code": 1,
+      "reason": "Nested driver text contained an unescaped newline; preserved before validated source transfer"
+    }
+  ],
+  "raw_evidence": {
+    "peer/core-acceptance.json": {
+      "sha256": "ac36b3f421af94170e0f14c2283fb9bea3b3162ac684f2c80f1374a7d0e4bd1c",
+      "bytes": 534
+    },
+    "peer/core-inspection-command/started.json": {
+      "sha256": "de0f791a5428e889b8b4a71c33a72274264e5231beb11ad2a5e07f155798a717",
+      "bytes": 522
+    },
+    "peer/core-inspection-command/stderr.log": {
+      "sha256": "1e5a72e19b8a9142d4b341f62b1a6c6ee995ce5af5c8c3fd61e2497b0cf93d66",
+      "bytes": 188
+    },
+    "peer/core-inspection-command/stdout.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/core-inspection-command/terminal.json": {
+      "sha256": "15f3c7475872534f29b9fc8898c1d764026dd8a6b5509a3c680ad89658b7c20d",
+      "bytes": 86
+    },
+    "peer/core-inspection-spec.json": {
+      "sha256": "4e26392e8ee80992e56afbf0e4e151f3dbab7b81da2eaade6505dd9f29873b9a",
+      "bytes": 483
+    },
+    "peer/core-inspection-supervisor.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/core-inspection-v2-command/started.json": {
+      "sha256": "27a507fa23eb208e5fb7aecbf5c5c2f25a6a9624c3c98f1311f89fb52ea8b7e1",
+      "bytes": 304
+    },
+    "peer/core-inspection-v2-command/stderr.log": {
+      "sha256": "bc8cd8983e3bdfc21bdf336fb87623091514af93098426a7e803385a55686f75",
+      "bytes": 180
+    },
+    "peer/core-inspection-v2-command/stdout.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/core-inspection-v2-command/terminal.json": {
+      "sha256": "520af8c2f5f5d6d822409fd7ad1d8f6d6de726fc6d4d09591fddae33d9d0ebad",
+      "bytes": 86
+    },
+    "peer/core-inspection-v2-spec.json": {
+      "sha256": "12ed8d0746a5daa393d1f23e69f015fc811e64baa0433aa8e569a7d2e7e2e66b",
+      "bytes": 268
+    },
+    "peer/core-inspection-v2-supervisor.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/core-inspection-v3-command/started.json": {
+      "sha256": "5864a5ac8190c6ca19c3429bf874dfb10408f36678963ca50a79978f2584cac2",
+      "bytes": 307
+    },
+    "peer/core-inspection-v3-command/stderr.log": {
+      "sha256": "cce083cb667cede4361f0afa3531b7cb0ac57d04ed94f8310aeb3941949407ca",
+      "bytes": 111
+    },
+    "peer/core-inspection-v3-command/stdout.log": {
+      "sha256": "29e5d51be19fb296ad877d5c502aeb5e2a103a7ec3ccda49449493eed2c5c261",
+      "bytes": 22580
+    },
+    "peer/core-inspection-v3-command/terminal.json": {
+      "sha256": "72c4574cf220c10fa0a1a394b7780b48843548d83f60c9d110cf118b7faf8279",
+      "bytes": 86
+    },
+    "peer/core-inspection-v3-spec.json": {
+      "sha256": "b177f3db1321b2544871bb7a4cb47e6eb6916eacace15dd7edfa94d2543e0e6b",
+      "bytes": 271
+    },
+    "peer/core-inspection-v3-supervisor.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/inspect_core.py": {
+      "sha256": "8f625304640fbbbff00b8089e1ea4585b4398d5b8782a774a035d2374f1f25f5",
+      "bytes": 343
+    },
+    "peer/inspect_core_v3.py": {
+      "sha256": "328b45463772fc206e87e66030e2438612170e0962f5aad297e6ab030610e32d",
+      "bytes": 382
+    },
+    "peer/loader-capture.bin": {
+      "sha256": "1c12769a67c7fcdb3f9293e2617b26d363ded659f80496dbfd62adcd328453e0",
+      "bytes": 2790
+    },
+    "peer/loader-command/started.json": {
+      "sha256": "eef449f235eeb9d2564e760f2de158aef2492cbe313afe4469c91c4d507815d5",
+      "bytes": 279
+    },
+    "peer/loader-command/stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/loader-command/stdout.log": {
+      "sha256": "6b661e12447eac4784d1214669333d721d732585248ce9e61df1d2970758df42",
+      "bytes": 2895
+    },
+    "peer/loader-command/terminal.json": {
+      "sha256": "eef2084fccb5b945e712cac3202d9b3a3b79321e52f1e29739b769c4bfa502dd",
+      "bytes": 86
+    },
+    "peer/loader-console.py": {
+      "sha256": "7e073ed513df06ade1d2fef3a11b7964499222ef25e974b26c87c8f1006dc3d2",
+      "bytes": 10549
+    },
+    "peer/loader-probe.py": {
+      "sha256": "365cb57cc7677138380b70a9f1039095d83c7864f521d4aa47926321dfa139a0",
+      "bytes": 941
+    },
+    "peer/loader-result.json": {
+      "sha256": "4c6398d2cf89d76a6b15a7e2c0e7ab80fd4262ad52924ab776b1ea267cfcb7a6",
+      "bytes": 113
+    },
+    "peer/loader-spec.json": {
+      "sha256": "8f75f334422e87191cb15cd6bd1cd03aec9761016cf0c54e53da4acf89f9e1bc",
+      "bytes": 231
+    },
+    "peer/loader-supervisor.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/received-core.json": {
+      "sha256": "9020c1a0548ecbc319757dd1b1e9f68fe8133d2812b11c5246e53cf17e96653c",
+      "bytes": 1070
+    },
+    "peer/receiver-build-command/started.json": {
+      "sha256": "30aa8a7ced81106a93d1e061be1bb388b7896f988b450b5d166905bc901689b0",
+      "bytes": 237
+    },
+    "peer/receiver-build-command/stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/receiver-build-command/stdout.log": {
+      "sha256": "8932fb7789bedac8e6268750df09c2f428ff937bd160b256cf8d4266c715a711",
+      "bytes": 4304
+    },
+    "peer/receiver-build-command/terminal.json": {
+      "sha256": "0447c6cb69f01f531f93e4718d51478594478cf6bec7d973d57f79acb15f363f",
+      "bytes": 85
+    },
+    "peer/receiver-build-result.json": {
+      "sha256": "50ff97f925f43f461b5b63f8b53dad853b7d3f3e47fd6458dabfd0ecb6599459",
+      "bytes": 408
+    },
+    "peer/receiver-build-spec.json": {
+      "sha256": "13042b663cc2b6e253fb2897c5fa5cfebfc50f1d2c1c853b8a259635da1d6400",
+      "bytes": 197
+    },
+    "peer/receiver-build-supervisor.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/receiver-command/started.json": {
+      "sha256": "4d080907c00945532be46dca52da1794b84e6a64f07ee391898b0c0d55f37b1a",
+      "bytes": 398
+    },
+    "peer/receiver-command/stderr.log": {
+      "sha256": "bd32263a44bc82dd6d650bd62f3f7413427fb5ebfe108a65307a645c8d45ec3f",
+      "bytes": 39
+    },
+    "peer/receiver-command/stdout.log": {
+      "sha256": "e0c85a68e5efab26bc1218a9ecb59d7f0155e142e4a2568c1fabd189362f36c1",
+      "bytes": 276
+    },
+    "peer/receiver-command/terminal.json": {
+      "sha256": "77d52956e678d8a1d9c4ebedbf16f9bd2a52da16ce037f5aea3eb7c81305f9d8",
+      "bytes": 88
+    },
+    "peer/receiver-spec.json": {
+      "sha256": "9cdcc64502611a50a8f1254eee75ce40edad0b5ddd593ba2b6c0fa634862ddb4",
+      "bytes": 353
+    },
+    "peer/receiver-supervisor.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/run-command.py": {
+      "sha256": "95a55c752c0d0f19edc54d61990668fa1477237a9b29b60954f9e851123136aa",
+      "bytes": 2076
+    },
+    "host/peer/started.json": {
+      "bytes": 1521,
+      "sha256": "b2b2da626680c7130a6b318c9d8cb35adc835cec7304def362c94420453e461d"
+    },
+    "host/peer/terminal.json": {
+      "bytes": 92,
+      "sha256": "a1e8bb128f7d6029e4c7e3e20e1d9839fb2508a4b12def41fafb21d4802907f3"
+    },
+    "host/peer/console.log": {
+      "bytes": 13930,
+      "sha256": "7ff5e5039e02ab35b8c416aefe49682c7d99c01e76ce4f8d0975a128ef4b5380"
+    },
+    "host/peer/qemu.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "host/peer/wire.pcap": {
+      "bytes": 182710651,
+      "sha256": "009e148ed142d4a03ba217dc23e0c0dc1b8770d8a36e803d29e814b84ac35928"
+    },
+    "host/peer/supervisor.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "host/target/started.json": {
+      "bytes": 1898,
+      "sha256": "7bb8bc564e2f268915c35ad25acb7677344f27be0536ae5e3ef7c92575ba0998"
+    },
+    "host/target/terminal.json": {
+      "bytes": 93,
+      "sha256": "21d130398e9a1e8fd781e296c4239b638abe45920faa98270047b78b32b5fcb6"
+    },
+    "host/target/console.log": {
+      "bytes": 23366,
+      "sha256": "412e6f53eaa74b249161846377348b3984ca59f2678a4f35c21dfd9f60e850a4"
+    },
+    "host/target/qemu.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "host/target/wire.pcap": {
+      "bytes": 182709517,
+      "sha256": "533701e3f773968c449d13daef41143a7a011dd8c240be733960cfbcb82e5fd3"
+    },
+    "host/target/supervisor.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "controller/core-transfer.json": {
+      "sha256": "d3da7cfc517a99c3c99d3e021582395821d60c5a9e1396df85e310505ae8b137",
+      "bytes": 182
+    },
+    "controller/wire-reconstruction.json": {
+      "sha256": "40969b77098d5e77097f250bb2937c72d8e8c211708d1c20528c4789d5b6b379",
+      "bytes": 596
+    },
+    "controller/backing-custody.json": {
+      "sha256": "416f0b0574b129d66b55753613bd5740a5bdb0ac99215e9b47ca9ddf22ca1ad6",
+      "bytes": 153
+    },
+    "controller/core-inspection-launch.json": {
+      "sha256": "45a0292029e25108f75a83d378e643a38eca47bc030ff7b5253730f2121dbb9d",
+      "bytes": 856
+    },
+    "controller/core-inspection-v2-launch.json": {
+      "sha256": "f442df538622e08de336f4f1e9b43f56b33524faf4a0e265a39584bdc72241fc",
+      "bytes": 180
+    },
+    "controller/core-inspection-v3-launch.json": {
+      "sha256": "2ad1de107a845706fd1f7161b7b790f6a09c2e6450bd89e9e55595643581937b",
+      "bytes": 180
+    },
+    "controller/panic-ssh-result.json": {
+      "sha256": "c5541468eaeaf36829fafd3eac00caa6e28e48f7a304de1a3837ba289d01f860",
+      "bytes": 137
+    }
+  },
+  "native_vm_netdump_baseline_passed": true,
+  "physical_nic_qualified": false,
+  "authenticated_kernel_protocol": false,
+  "continuous_early_kernel_transport": false,
+  "compiler_sdk_admitted": false,
+  "canonical_source_receipt_earned": false,
+  "release_acceptance": false,
+  "remaining": [
+    "Final admitted source/compiler/product lifecycle and exact final artifact renewal",
+    "Physical NIC and firmware acceptance",
+    "Authenticated kernel sessions and continuous early-kernel transport",
+    "Early-driver activation and pre-driver coverage boundary"
+  ],
+  "authority_checks": {
+    "root": {
+      "authority": "pass",
+      "explicit_locks": 8,
+      "locks": "pass",
+      "receipt": "missing; full verify fails"
+    },
+    "source": {
+      "authority": "pass after current documentation review",
+      "explicit_freebsd_locks": 5,
+      "explicit_freebsd_lock_checks": "all current; no lock bytes changed",
+      "aggregate_verify_lock_gate": "fails; recorded separately from explicit target checks",
+      "receipt": "missing; full verify fails"
+    }
+  }
+}
