@@ -471,7 +471,8 @@ admission remain open.
   - [x] Add saved per-list allocator/context batching state and pair START/END for every free list; retain the panic-only guard.
 - **Evidence:**
   - [x] Baseline sanitizer fixture fails batching, zone restoration and multiple-list activation; candidate passes all three cases on macOS and FreeBSD.
-  - [ ] Build the exact changed kernel and renew NetGDB/Netdump recovery; qualify buffer provenance before any non-panic resume change.
+  - [x] Build the exact changed kernel and renew NetGDB/Netdump recovery.
+  - [ ] Qualify buffer provenance before any non-panic resume change.
 - **Evidence:** [Callback ownership record](../../verification/iflib-debugnet-ownership-development.json). Native fixture supervision exits zero in 1.276 seconds; two complete sessions preserve all queue/list pointers and prior batching values 0, 1 and 2. Controller regression selects 66 tests: 62 pass and four native-only checks skip. Kernel patch style checks and Python lint/format pass.
 - **Boundary:** Fake zone identities do not qualify ring-buffer provenance or non-panic resume. The existing panic-only restriction remains enforced.
 
@@ -486,5 +487,10 @@ receive-list pointer afterward, cleared saved pointer/active state and restored
 batching. Initial values are read before activation. Registers after peer closure
 and local reset pass; 104 threads are observed. Both VMs stop before deadline.
 The real e1000 uses one 2048-byte receive list and prior batching zero; multiple
-lists/other batching values remain fixture-only. Netdump renewal, buffer
-provenance and safe non-panic resume remain open.
+lists/other batching values remain fixture-only. The [Netdump renewal](../../verification/iflib-debugnet-netdump-development.json)
+now passes: native `kgdb` reads the actual panic, exact version, backtrace and 104
+threads. All 165,834,752 bytes reconstructed from 116,400 captured data messages
+match the received core hash without gaps or overlaps. Both finite guests stop
+cleanly. Read-only product sharing and the selected GENERIC-only ESP preserve
+retained evidence within the worker reserve. Buffer provenance, safe non-panic
+resume and final source/compiler/product admission remain open.

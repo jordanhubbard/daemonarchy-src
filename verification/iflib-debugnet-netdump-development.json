@@ -1,0 +1,389 @@
+{
+  "schema": "daemonarchy/iflib-debugnet-netdump-development@1",
+  "observed_utc": "2026-10-22T22:50:52.232297+00:00",
+  "work_item": "DEBUG-001 / SRC-DEBUG-001",
+  "scope": "Iflib-ownership-repaired kernel panic Netdump over an em/e1000 private virtual wire, native postmortem inspection and packet-to-core byte reconstruction",
+  "kernel_source_revision": "4f46a741fb2f71141dbfb09b723ce443e0450f48",
+  "kernel_elf_build_id": "0a71d6f0677d45edf987fbd288d58febd07a949a",
+  "kernel_products": [
+    {
+      "name": "kernel",
+      "bytes": 31535296,
+      "sha256": "d61cbae2ab1035437e3c6a6dead84966879d76804ff96d5ee60d1fb0bfa4e5fe",
+      "build_id": "0a71d6f0677d45edf987fbd288d58febd07a949a"
+    },
+    {
+      "name": "kernel.full",
+      "bytes": 137524184,
+      "sha256": "8038b86021e98a1d5a0831e6547f02b9a26cd0dd1f5e5fafa24aaa8fafd60466",
+      "build_id": "0a71d6f0677d45edf987fbd288d58febd07a949a"
+    },
+    {
+      "name": "kernel.debug",
+      "bytes": 118501296,
+      "sha256": "4425e345b606d03b0d1f7f5a6bc6b83962b18993a4d4639911423321e2412154",
+      "build_id": "0a71d6f0677d45edf987fbd288d58febd07a949a"
+    }
+  ],
+  "loader_efi_sha256": "9472af7435e8376e0982edaa78f6a6cc1dfdfabcd544a3c6f73ebcecbf8f0f38",
+  "loader_boot_id": "d892bbc028ba17510223de2515614d4c",
+  "independent_target_uuid_boot_id_mac_and_revision_verified": true,
+  "receiver": {
+    "repository": "https://github.com/markjdb/netdumpd",
+    "revision": "99dd0da99be7612b1feb52e4f71db308415e0259",
+    "source_archive_sha256": "8b55d0cb54d92e3a513256db755064966719e8a6b3d59759c1686631a031e134",
+    "source_files_verified": 16,
+    "native_build_exit_code": 0,
+    "native_build_seconds": 1.134,
+    "executable_sha256": "24873d750038c2993749d016021f1eb95cdeb6eff55e8ddf676f226162323dd2",
+    "live_private_listener_verified_before_panic": true,
+    "terminal": {
+      "exit_code": 0,
+      "schema": "daemonarchy/native-command-terminal@1",
+      "seconds": 201.639
+    }
+  },
+  "controlled_panic": {
+    "owned_disposable_guest_only": true,
+    "serial_panic_count": 1,
+    "automatic_dump_and_reboot": true,
+    "elapsed_ssh_seconds": 6.156022624927573,
+    "ssh_exit_code": 255,
+    "ssh_closed_after_guest_reboot": true,
+    "mbuf_zones_restored": true,
+    "serial_dump_complete": true
+  },
+  "received_dump": {
+    "bytes": 165834752,
+    "sha256": "6ad5c67c6883a94b85da7cba01d03ba5379038e7fa3d6b74f3cc22fc1cffb59a",
+    "architecture": "amd64",
+    "format": "FreeBSD kernel minidump version 3",
+    "compression": "none",
+    "header_parity": "pass",
+    "expected_kernel_revision_and_panic_in_header": true,
+    "native_and_controller_hashes_match": true
+  },
+  "native_postmortem": {
+    "kgdb_package": "gdb-15.1_7",
+    "kgdb_sha256": "9cb838081115246b4be57f005e91db98c4761da1a6c0779cbb16d0a21d87fd45",
+    "exit_code": 0,
+    "seconds": 0.566,
+    "full_kernel_version_read_from_core": true,
+    "panic_pointer_and_actual_string_read_from_core": true,
+    "panic_string": "kdb_sysctl_panic",
+    "backtrace_frames": [
+      "doadump",
+      "kern_reboot",
+      "vpanic",
+      "panic",
+      "kdb_sysctl_panic",
+      "sys___sysctl"
+    ],
+    "threads": 104,
+    "matching_full_symbols": true,
+    "source_text_paths_available": false,
+    "optimized_arguments_and_userland_tail_qualified": false
+  },
+  "wire_reconstruction": {
+    "schema": "daemonarchy/netdump-wire-reconstruction@1",
+    "packets": 237188,
+    "client_message_counts": {
+      "herald": 1,
+      "finished": 1,
+      "data": 116400,
+      "kernel_dump_header": 1
+    },
+    "unique_data_messages": 116400,
+    "identical_retransmitted_data_messages": 0,
+    "contiguous_bytes": 165834752,
+    "received_core_sha256": "6ad5c67c6883a94b85da7cba01d03ba5379038e7fa3d6b74f3cc22fc1cffb59a",
+    "wire_reconstructed_core_sha256": "6ad5c67c6883a94b85da7cba01d03ba5379038e7fa3d6b74f3cc22fc1cffb59a",
+    "wire_and_received_core_match": true,
+    "no_gaps_or_overlaps_in_unique_data": true
+  },
+  "cleanup": {
+    "roles": {
+      "peer": {
+        "terminal": {
+          "exit_code": 0,
+          "expired": false,
+          "storage_pressure": false,
+          "seconds": 317.89656964177266
+        },
+        "process_absent": true
+      },
+      "target": {
+        "terminal": {
+          "exit_code": 0,
+          "expired": false,
+          "storage_pressure": false,
+          "seconds": 132.0615908089094
+        },
+        "process_absent": true
+      }
+    },
+    "target": "Automatic reboot after controlled panic; QEMU no-reboot exits zero",
+    "peer": "Normal shutdown after receiver and successful core inspection exit zero",
+    "maximum_each_guest_seconds": 1800,
+    "backing_custody": [
+      {
+        "role": "peer",
+        "backing_nodes": 4,
+        "all_backing_nodes_read_only": true
+      },
+      {
+        "role": "target",
+        "backing_nodes": 2,
+        "all_backing_nodes_read_only": true
+      }
+    ],
+    "original_disks_preserved": true,
+    "host_free_bytes_at_completion": 45701832704,
+    "host_reserve_bytes": 42949672960
+  },
+  "retained_harness_failures": [],
+  "raw_evidence": {
+    "peer/core-acceptance.json": {
+      "sha256": "38e720d326f1e81afff3904e587d003ed1abeb9976cb8e276f5b6b61b560d458",
+      "bytes": 534
+    },
+    "peer/core-inspection-spec.json": {
+      "sha256": "7012509608601249940f38b97e784b7e6c505514fe6ea083709e48d030cd148f",
+      "bytes": 259
+    },
+    "peer/core-inspection-supervisor.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/core-inspection-v3-command/started.json": {
+      "sha256": "39e29c94d34720e1eb3d0db0748328d01c1b7ab7ecc745bef7c1b21d1cd02ec7",
+      "bytes": 298
+    },
+    "peer/core-inspection-v3-command/stderr.log": {
+      "sha256": "cce083cb667cede4361f0afa3531b7cb0ac57d04ed94f8310aeb3941949407ca",
+      "bytes": 111
+    },
+    "peer/core-inspection-v3-command/stdout.log": {
+      "sha256": "aa2b32e666e9450d77ae7595e0d7cfde04760dd889e4bb8a1250aff731dd2fd8",
+      "bytes": 23384
+    },
+    "peer/core-inspection-v3-command/terminal.json": {
+      "sha256": "d8cd030d28b71df12011ba32135490a73a14c3d94511e8d42359dd16241a0936",
+      "bytes": 86
+    },
+    "peer/inspect_core.py": {
+      "sha256": "328b45463772fc206e87e66030e2438612170e0962f5aad297e6ab030610e32d",
+      "bytes": 382
+    },
+    "peer/loader-capture.bin": {
+      "sha256": "c27fd907f8e1d967a2b458cb59a933eec5c3316498a4d0adfad519bd125fc596",
+      "bytes": 2790
+    },
+    "peer/loader-command/started.json": {
+      "sha256": "a5665214d090a689c7520932e346de20bc903bb637fe6bea38db973e789c466f",
+      "bytes": 273
+    },
+    "peer/loader-command/stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/loader-command/stdout.log": {
+      "sha256": "78c114750e8c5d7bc8ffa4941f2790ffdfa3406a1ca58859d5f975e1844fef0e",
+      "bytes": 2895
+    },
+    "peer/loader-command/terminal.json": {
+      "sha256": "731a571375c830505e3af38528b4d90208d580fba9f81ae9d10ba1689f09d251",
+      "bytes": 86
+    },
+    "peer/loader-console.py": {
+      "sha256": "7e073ed513df06ade1d2fef3a11b7964499222ef25e974b26c87c8f1006dc3d2",
+      "bytes": 10549
+    },
+    "peer/loader-probe.py": {
+      "sha256": "365cb57cc7677138380b70a9f1039095d83c7864f521d4aa47926321dfa139a0",
+      "bytes": 941
+    },
+    "peer/loader-result.json": {
+      "sha256": "e504bc8a96d1e5fde16a09fd66fdb5e9f105537297602de520b84ee4eadf04e3",
+      "bytes": 113
+    },
+    "peer/loader-spec.json": {
+      "sha256": "3c313e7e42e0398cb94c8c42915ad53e60029d1e0d5e25c62e01b3c654de8dc5",
+      "bytes": 222
+    },
+    "peer/loader-supervisor.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/received-core.json": {
+      "sha256": "9bedfcacb18545f2202c0b96a5fa44e2a4239017ec607fbeab95c3b1aefb11b9",
+      "bytes": 1067
+    },
+    "peer/receiver-build-command/started.json": {
+      "sha256": "85ea195785729607b6bce0deca865e59a6f889db50e952c6dea1e95df5588b8f",
+      "bytes": 234
+    },
+    "peer/receiver-build-command/stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/receiver-build-command/stdout.log": {
+      "sha256": "9d689b520011f727d987240b505e8dc01b0e67244a270821e83f0f5bfb8bfbb5",
+      "bytes": 4374
+    },
+    "peer/receiver-build-command/terminal.json": {
+      "sha256": "1e8706db495c3449efa9a8e2d5bc685222d400a7966d19ce6faf877f212df88f",
+      "bytes": 86
+    },
+    "peer/receiver-build-result.json": {
+      "sha256": "0b6c0e0b5e554aba898d40759119eeff700ed35ddbbd192d9ae12ee00c5ff2fe",
+      "bytes": 409
+    },
+    "peer/receiver-build-spec.json": {
+      "sha256": "b2fc92d37c6f99c35d83028ff999d113b43963a690ec395066b214cb9a9c8a22",
+      "bytes": 191
+    },
+    "peer/receiver-build-supervisor.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/receiver-command/started.json": {
+      "sha256": "63cdd3fc8da783329cae6f630134ba366a30a7d1b03f0ce1607e74c58c656539",
+      "bytes": 386
+    },
+    "peer/receiver-command/stderr.log": {
+      "sha256": "bd32263a44bc82dd6d650bd62f3f7413427fb5ebfe108a65307a645c8d45ec3f",
+      "bytes": 39
+    },
+    "peer/receiver-command/stdout.log": {
+      "sha256": "e0c85a68e5efab26bc1218a9ecb59d7f0155e142e4a2568c1fabd189362f36c1",
+      "bytes": 276
+    },
+    "peer/receiver-command/terminal.json": {
+      "sha256": "93ffc2ecbf6298a1d203e5ef3bde05c6205932680792c0d981e4c503c6baf415",
+      "bytes": 88
+    },
+    "peer/receiver-spec.json": {
+      "sha256": "5a3697f66623ba4c3421822d0948bd0f2d927bf41858d43af036e2c445264711",
+      "bytes": 338
+    },
+    "peer/receiver-supervisor.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/run-command.py": {
+      "sha256": "95a55c752c0d0f19edc54d61990668fa1477237a9b29b60954f9e851123136aa",
+      "bytes": 2076
+    },
+    "host/peer/started.json": {
+      "bytes": 1503,
+      "sha256": "9f82ad3ac4e4e8c5d7715d652c6cf764eed04cdb4c1e45462fde200fc94f0fa4"
+    },
+    "host/peer/terminal.json": {
+      "bytes": 93,
+      "sha256": "a50923b7d96bbf0dc041a3e207365f8f1442a8e629e15c9799b03a2c0c4b4c72"
+    },
+    "host/peer/console.log": {
+      "bytes": 13932,
+      "sha256": "53fb0b7ffc1b910e40a82281c546d7872a46bf9b09265cabb77a3ee979bc7336"
+    },
+    "host/peer/qemu.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "host/peer/wire.pcap": {
+      "bytes": 183136973,
+      "sha256": "6e9e7cb560a3c1a51de35439be15528939cccf81bae411e529f27980ebcc7457"
+    },
+    "host/peer/supervisor.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "host/target/started.json": {
+      "bytes": 1873,
+      "sha256": "c2ccbacd820d712977845e6c5c9fd583b5a4ede7de66262e57bffb7f2dde4b4e"
+    },
+    "host/target/terminal.json": {
+      "bytes": 92,
+      "sha256": "c01bf4c5311da783bc706167dc20d9220c4d06209446fbe46283cd41deca3bf6"
+    },
+    "host/target/console.log": {
+      "bytes": 23305,
+      "sha256": "0ba1f62ecbf3b2d129bda5f88a1f42989919417aa3f2933a58207146ccfce3fa"
+    },
+    "host/target/qemu.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "host/target/wire.pcap": {
+      "bytes": 183135839,
+      "sha256": "0e6e1cf33941dec4ba2a1151229f8287cb3797bc22be240b7fdd65c447b6ad19"
+    },
+    "host/target/supervisor.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "controller/core-transfer.json": {
+      "sha256": "93db4b9ca41d85a2eb4c5dfb3d1982e6bc94ea4d7da6bce39ed4b0fc31e78757",
+      "bytes": 184
+    },
+    "controller/wire-reconstruction.json": {
+      "sha256": "03402b29c77ba315ceefd5bd9ae9b55ff24350d20ff803f7c90da3880aef6f7a",
+      "bytes": 596
+    },
+    "controller/backing-custody.json": {
+      "sha256": "416f0b0574b129d66b55753613bd5740a5bdb0ac99215e9b47ca9ddf22ca1ad6",
+      "bytes": 153
+    },
+    "controller/core-inspection-launch.json": {
+      "sha256": "3c3d2bf9bac375d717697cdbfb0a26f88ac6f986c39f145b9c19f57e6faaca6a",
+      "bytes": 853
+    },
+    "controller/storage-custody.json": {
+      "sha256": "617e6ba35d74cec6909503d5401f30aa24d4bfc1389ca599e7c815ad0922252b",
+      "bytes": 553
+    },
+    "controller/panic-ssh-result.json": {
+      "sha256": "00f9c53bab634e0d95e688aec7beb6041a689a8ab5ee5170992cf924889d768c",
+      "bytes": 137
+    }
+  },
+  "native_vm_netdump_on_repaired_kernel_passed": true,
+  "physical_nic_qualified": false,
+  "authenticated_kernel_protocol": false,
+  "continuous_early_kernel_transport": false,
+  "compiler_sdk_admitted": false,
+  "canonical_source_receipt_earned": false,
+  "release_acceptance": false,
+  "remaining": [
+    "Final admitted source/compiler/product lifecycle and exact final artifact renewal",
+    "Physical NIC and firmware acceptance",
+    "Authenticated kernel sessions and continuous early-kernel transport",
+    "Pre-driver network activation remains unsupported; direct allocator refusal verified separately"
+  ],
+  "issue": "https://github.com/jordanhubbard/daemonarchy-src/issues/16",
+  "review": "https://github.com/jordanhubbard/daemonarchy-src/pull/17",
+  "storage_custody": {
+    "shared_read_only_products": [
+      {
+        "name": "kernel",
+        "shared_read_only_inode": true,
+        "sha256": "d61cbae2ab1035437e3c6a6dead84966879d76804ff96d5ee60d1fb0bfa4e5fe"
+      },
+      {
+        "name": "kernel.full",
+        "shared_read_only_inode": true,
+        "sha256": "8038b86021e98a1d5a0831e6547f02b9a26cd0dd1f5e5fafa24aaa8fafd60466"
+      },
+      {
+        "name": "kernel.debug",
+        "shared_read_only_inode": true,
+        "sha256": "4425e345b606d03b0d1f7f5a6bc6b83962b18993a4d4639911423321e2412154"
+      }
+    ],
+    "selected_esp_files": 101,
+    "selected_esp_bytes": 74312401,
+    "unselected_modules_and_firmware_not_staged": true,
+    "shared_product_content_unchanged": true
+  }
+}

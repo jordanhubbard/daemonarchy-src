@@ -230,14 +230,13 @@
     "receipt": "missing; fail"
   },
   "linked_kernel_built": true,
-  "native_recovery_renewed": false,
+  "native_recovery_renewed": true,
   "nonpanic_resume_qualified": false,
   "continuous_early_kernel_transport": false,
   "authenticated_kernel_protocol": false,
   "source_sdk_admitted": false,
   "release_acceptance": false,
   "remaining": [
-    "Netdump renewal on the exact iflib-repaired kernel",
     "Ring buffer provenance and safe resumable debugger entry",
     "Continuous early-kernel network activation, authentication and physical NIC acceptance",
     "Final source/compiler/product admission and exact release gates"
@@ -355,7 +354,9 @@
     "state": "completed",
     "conclusion": "success"
   },
-  "native_recovery_state": "Three exact-kernel NetGDB sessions pass direct before/during/after memory checks; both owned VMs stopped",
+  "native_recovery_state": "Exact-kernel NetGDB memory restoration and native Netdump byte reconstruction pass; all owned guests stopped",
   "native_netgdb_renewed": true,
-  "native_netgdb_record": "verification/iflib-debugnet-live-recovery-development.json"
+  "native_netgdb_record": "verification/iflib-debugnet-live-recovery-development.json",
+  "native_netdump_renewed": true,
+  "native_netdump_record": "verification/iflib-debugnet-netdump-development.json"
 }

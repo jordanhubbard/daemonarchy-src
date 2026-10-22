@@ -423,7 +423,7 @@
     }
   },
   "native_netgdb_recovery_passed": true,
-  "native_netdump_on_this_kernel_qualified": false,
+  "native_netdump_on_this_kernel_qualified": true,
   "nonpanic_resume_qualified": false,
   "physical_nic_qualified": false,
   "continuous_early_kernel_transport": false,
@@ -435,5 +435,6 @@
     "Receive-buffer provenance and safe non-panic resume remain unqualified",
     "Debugger source text paths and optimized arguments remain unqualified",
     "Initial SSH banner observation expired during DHCP; the same VM continued without restart"
-  ]
+  ],
+  "native_netdump_record": "verification/iflib-debugnet-netdump-development.json"
 }
