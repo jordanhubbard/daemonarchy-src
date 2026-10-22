@@ -280,6 +280,9 @@ Ordinary access explicitly restores the selected interface protocol settings,
 including static EFI environment settings, without restarting shared hardware.
 DHCP reuses a cached reply only when its Ethernet identity matches the requesting
 interface and the retained header is complete; another interface starts discovery.
+Switching interfaces must establish fresh ordinary network parameters. Failed
+DHCP/RARP setup must refuse access instead of reusing the previous interface's
+address, route, server, path, port or MTU.
 
 Run the production-code regressions on native FreeBSD, each with a fresh existing
 external object directory:

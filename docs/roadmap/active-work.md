@@ -361,3 +361,19 @@ owned guests exit successfully before their deadlines. Failed development and
 harness attempts remain retained. The native source seed/compiler are still
 unadmitted; physical firmware, early-kernel transport and release acceptance
 remain open. Issue #11 is implemented on the draft review, pending integration.
+
+A subsequent production-device fixture reproduces another unit-switch failure:
+if the new NIC receives no DHCP/RARP parameters, the old address was still
+accepted. The candidate now retires ordinary address/route/server/path/port/MTU
+context with the socket, uses that same cleanup on setup failure, and removes
+stale published MTU when a newly configured interface omits it. Native sanitizer
+controls first reproduce both refusal and MTU failures, then pass failure, clean
+retry and existing active-file/lifetime cases. The [context checkpoint](../../verification/loader-network-context-development.json)
+now records a successful stand build from a fully verified `983b4315ec01` tree
+plus the pinned production change. The new EFI passes actual cross-NIC TFTP,
+two same-NIC revoke/restart cycles and small/fragmented NFS plus kernel loading.
+Three independent kernel observations match boot and interface identities. All
+four owned guests shut down normally. The NFS debug IP remains metadata only.
+Controller renewal selects 66 cases: 62 pass and four native-only cases skip.
+Compiler/SDK admission, physical firmware and early-kernel transport remain
+open; the preceding ownership checkpoint retains its original artifact scope.

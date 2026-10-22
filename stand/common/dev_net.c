@@ -149,8 +149,7 @@ net_open(struct open_file *f, ...)
 			}
 			netdev_name = strdup(devname);
 			if (netdev_name == NULL) {
-				netif_close(netdev_sock);
-				netdev_sock = -1;
+				net_cleanup();
 				return (ENOMEM);
 			}
 			netdev_unit = dev->d_unit;
@@ -167,11 +166,7 @@ net_open(struct open_file *f, ...)
 			error = net_getparams(netdev_sock);
 			if (error) {
 				/* getparams makes its own noise */
-				free(netdev_name);
-				netdev_name = NULL;
-				netdev_unit = -1;
-				netif_close(netdev_sock);
-				netdev_sock = -1;
+				net_cleanup();
 				return (error);
 			}
 		}
@@ -212,15 +207,13 @@ net_configure(struct devdesc *dev)
 	if (error == 0)
 		net_setparams(netdev_sock);
 	if (error != 0) {
-		netif_close(netdev_sock);
-		netdev_sock = -1;
+		net_cleanup();
 		return (error);
 	}
 
 	netdev_name = strdup(dev->d_dev->dv_name);
 	if (netdev_name == NULL) {
-		netif_close(netdev_sock);
-		netdev_sock = -1;
+		net_cleanup();
 		return (ENOMEM);
 	}
 	netdev_unit = dev->d_unit;
@@ -255,7 +248,12 @@ net_cleanup(void)
 
 	if (netdev_sock >= 0) {
 		DEBUG_PRINTF(1,("%s: calling netif_close()\n", __func__));
-		rootip.s_addr = 0;
+		myip.s_addr = rootip.s_addr = gateip.s_addr = servip.s_addr = 0;
+		netmask = 0;
+		rootpath[0] = '\0';
+		rootport = 0;
+		intf_mtu = 0;
+		netproto = NET_NONE;
 		free(netdev_name);
 		netdev_name = NULL;
 		netdev_unit = -1;
@@ -394,7 +392,8 @@ net_setparams(int sock)
 
 		snprintf(mtu, sizeof(mtu), "%u", intf_mtu);
 		setenv("boot.netif.mtu", mtu, 1);
-	}
+	} else
+		unsetenv("boot.netif.mtu");
 
 	DEBUG_PRINTF(1,("%s: netproto=%d\n", __func__, netproto));
 }
