@@ -1,0 +1,245 @@
+{
+  "schema": "daemonarchy/iflib-debugnet-ownership-development@1",
+  "observed_utc": "2026-10-22T22:24:18.715264+00:00",
+  "issue": "https://github.com/jordanhubbard/daemonarchy-src/issues/16",
+  "baseline_revision": "4966d0d824ade7d83a746ec568b41d92dc5a6a6a",
+  "scope": "Verbatim iflib debugnet event callback around distinct fake receive queues and allocator identities; not linked driver or buffer-provenance qualification",
+  "production_source_sha256": "4da21c5745e91940fa248230fdf1575bf0694017e7540323c5202ba0b09bfb1d",
+  "implementation": [
+    "Save exact per-free-list allocator pointers before DEBUGNET_START",
+    "Index every receive free list rather than repeating list zero",
+    "Restore pointers and prior global batching value on DEBUGNET_END without consulting still-overridden global zones",
+    "Keep NetGDB panic-only guard unchanged"
+  ],
+  "controller": {
+    "baseline": {
+      "source_sha256": "e1cb4815d6d8538bbc6ca4943ac68219dbd702b996289bbf1c5a1bb16286bbb1",
+      "function_sha256": [
+        "af9d9fc6391ee56f54f3daa4d035782cc84876d23fb2d322cf93dc17ee2c422d"
+      ],
+      "scope": "Verbatim iflib event callback with fake queues and allocator identities; not a linked kernel or buffer-provenance qualification",
+      "build_exit_code": 0,
+      "cases": [
+        {
+          "name": "restore",
+          "exit_code": -6
+        },
+        {
+          "name": "zones",
+          "exit_code": -6
+        },
+        {
+          "name": "all-lists",
+          "exit_code": -6
+        }
+      ]
+    },
+    "candidate": {
+      "source_sha256": "4da21c5745e91940fa248230fdf1575bf0694017e7540323c5202ba0b09bfb1d",
+      "function_sha256": [
+        "52391f86bde1db4ba0d6bee08878d0ca3060f4af8ac8966559b920c6ace9dcc5"
+      ],
+      "scope": "Verbatim iflib event callback with fake queues and allocator identities; not a linked kernel or buffer-provenance qualification",
+      "build_exit_code": 0,
+      "cases": [
+        {
+          "name": "restore",
+          "exit_code": 0
+        },
+        {
+          "name": "zones",
+          "exit_code": 0
+        },
+        {
+          "name": "all-lists",
+          "exit_code": 0
+        }
+      ]
+    },
+    "regression_tests": {
+      "selected": 66,
+      "passed": 62,
+      "skipped": 4,
+      "failed": 0,
+      "seconds": 3.857
+    }
+  },
+  "native": {
+    "native_os": "FreeBSD",
+    "compiler": "FreeBSD clang version 21.1.8 (https://github.com/llvm/llvm-project.git llvmorg-21.1.8-0-g2078da43e25a)",
+    "cases": [
+      {
+        "phase": "baseline",
+        "case": "restore",
+        "exit_code": -6
+      },
+      {
+        "phase": "baseline",
+        "case": "zones",
+        "exit_code": -6
+      },
+      {
+        "phase": "baseline",
+        "case": "all-lists",
+        "exit_code": -6
+      },
+      {
+        "phase": "candidate",
+        "case": "restore",
+        "exit_code": 0
+      },
+      {
+        "phase": "candidate",
+        "case": "zones",
+        "exit_code": 0
+      },
+      {
+        "phase": "candidate",
+        "case": "all-lists",
+        "exit_code": 0
+      }
+    ],
+    "fixtures_sha256": {
+      "baseline": "2a1420b9bbb2759b9283388ba7c75e48b0b1b09739f61aab2f1eeea859706470",
+      "candidate": "ce9fc6908200970ed59c1753deb3103c14f8cde357d6d17c8cd33abe9a7c10f3"
+    }
+  },
+  "native_terminal": {
+    "exit_code": 0,
+    "schema": "daemonarchy/native-command-terminal@1",
+    "seconds": 1.276
+  },
+  "raw_native_evidence": {
+    "baseline-all-lists.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "baseline-restore.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "result.json": {
+      "sha256": "2b7bdd59ba540a6f8fc1b487ca6f85d55dd785462212894dbc300673c23018a1",
+      "bytes": 884
+    },
+    "supervisor.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "qualify.py": {
+      "sha256": "5fb45f5f5a929304d4908f53d657767feac67825480b3195477c22a6fee61ebe",
+      "bytes": 1322
+    },
+    "baseline-zones.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "candidate-all-lists.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "candidate-zones.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "baseline-build.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "candidate-restore.stdout": {
+      "sha256": "11e9e4007ed3912630524d37c118dbd4be572d9e92426340d8818f627a078e1d",
+      "bytes": 81
+    },
+    "candidate-build.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "baseline.c": {
+      "sha256": "2a1420b9bbb2759b9283388ba7c75e48b0b1b09739f61aab2f1eeea859706470",
+      "bytes": 3125
+    },
+    "run-command.py": {
+      "sha256": "95a55c752c0d0f19edc54d61990668fa1477237a9b29b60954f9e851123136aa",
+      "bytes": 2076
+    },
+    "baseline-zones.stderr": {
+      "sha256": "cdf3ed900a31aa11115b28cb33735ba1d7c77f3df428e5b0dd22ff9cabadfa20",
+      "bytes": 142
+    },
+    "candidate-all-lists.stdout": {
+      "sha256": "11e9e4007ed3912630524d37c118dbd4be572d9e92426340d8818f627a078e1d",
+      "bytes": 81
+    },
+    "candidate-zones.stdout": {
+      "sha256": "11e9e4007ed3912630524d37c118dbd4be572d9e92426340d8818f627a078e1d",
+      "bytes": 81
+    },
+    "baseline-restore.stderr": {
+      "sha256": "bd24decf579f979063d9475eac423f88d50ed8a5966ca56dd70ce049bbd5dae9",
+      "bytes": 129
+    },
+    "baseline-all-lists.stderr": {
+      "sha256": "3ff39e8ff760ca3d80161c83397b9826bb52887c217b64234c749db96cbe0b11",
+      "bytes": 139
+    },
+    "candidate.c": {
+      "sha256": "ce9fc6908200970ed59c1753deb3103c14f8cde357d6d17c8cd33abe9a7c10f3",
+      "bytes": 3808
+    },
+    "spec.json": {
+      "sha256": "596a5da3f77f06d097b3e45398be8f9138800bd6be91e47b267149445526ee73",
+      "bytes": 239
+    },
+    "baseline-build.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "candidate-restore.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "candidate-build.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "qualification-command/terminal.json": {
+      "sha256": "70341882bb19c62ea9a9649570803af5963eadeb9bfa604e85d08fc4ed03e26e",
+      "bytes": 86
+    },
+    "qualification-command/started.json": {
+      "sha256": "8d3f51c6c201af2aeaaf8423a6ddcea1233fd5f23aa857b9a29f63e88d422e52",
+      "bytes": 280
+    },
+    "qualification-command/stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "qualification-command/stdout.log": {
+      "sha256": "83e3b3a59083a1791ffc9ec47819402aa54c7fd0cce9786f1c033d9acdf6b891",
+      "bytes": 690
+    }
+  },
+  "style9": {
+    "errors": 0,
+    "warnings": 0,
+    "checked_patch_lines": 54
+  },
+  "source_authority": "pass",
+  "aggregate_source_verify": {
+    "locks": "fail; implicit target",
+    "receipt": "missing; fail"
+  },
+  "linked_kernel_built": false,
+  "native_recovery_renewed": false,
+  "nonpanic_resume_qualified": false,
+  "continuous_early_kernel_transport": false,
+  "authenticated_kernel_protocol": false,
+  "source_sdk_admitted": false,
+  "release_acceptance": false,
+  "remaining": [
+    "Exact clean native kernel and NetGDB/Netdump recovery renewal",
+    "Ring buffer provenance and safe resumable debugger entry",
+    "Continuous early-kernel network activation, authentication and physical NIC acceptance",
+    "Final source/compiler/product admission and exact release gates"
+  ]
+}

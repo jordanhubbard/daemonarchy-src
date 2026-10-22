@@ -7,6 +7,7 @@ on:
       - 'sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC'
       - 'sys/kern/kern_mbuf.c'
       - 'sys/net/debugnet.c'
+      - 'sys/net/iflib.c'
       - 'sys/sys/mbuf.h'
       - '.github/workflows/daemonarchy-source.yml'
   pull_request:
@@ -15,6 +16,7 @@ on:
       - 'sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC'
       - 'sys/kern/kern_mbuf.c'
       - 'sys/net/debugnet.c'
+      - 'sys/net/iflib.c'
       - 'sys/sys/mbuf.h'
       - '.github/workflows/daemonarchy-source.yml'
   workflow_dispatch:
@@ -37,3 +39,9 @@ jobs:
         run: >-
           python3 tools/daemonarchy/tests/run-debugnet-mbuf-pools.py
           --output-directory "${{ runner.temp }}/debugnet-pools-${{ github.run_id }}-${{ github.run_attempt }}"
+      - name: Sanitized production iflib ownership callback (not kernel acceptance)
+        env:
+          CC: clang
+        run: >-
+          python3 tools/daemonarchy/tests/run-iflib-debugnet-ownership.py
+          --output-directory "${{ runner.temp }}/iflib-debugnet-${{ github.run_id }}-${{ github.run_attempt }}"

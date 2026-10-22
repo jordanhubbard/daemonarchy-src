@@ -223,6 +223,10 @@ struct iflib_ctx {
 
 	iflib_txq_t ifc_txqs;
 	iflib_rxq_t ifc_rxqs;
+#ifdef DEBUGNET
+	int ifc_debugnet_saved_no_tx_batch;
+	bool ifc_debugnet_active;
+#endif
 	uint32_t ifc_if_flags;
 	uint32_t ifc_flags;
 	enum iflib_datapath_state ifc_datapath_state;
@@ -521,6 +525,9 @@ struct iflib_fl {
 	uint16_t	ifl_buf_size;
 	uint16_t	ifl_cltype;
 	uma_zone_t	ifl_zone;
+#ifdef DEBUGNET
+	uma_zone_t	ifl_debugnet_saved_zone;
+#endif
 	iflib_rxsd_array_t	ifl_sds;
 	iflib_rxq_t	ifl_rxq;
 	uint8_t		ifl_id;
@@ -7983,14 +7990,33 @@ iflib_debugnet_event(if_t ifp, enum debugnet_ev event)
 
 	switch (event) {
 	case DEBUGNET_START:
+		MPASS(!ctx->ifc_debugnet_active);
+		ctx->ifc_debugnet_active = true;
+		ctx->ifc_debugnet_saved_no_tx_batch = iflib_no_tx_batch;
 		for (i = 0; i < scctx->isc_nrxqsets; i++) {
 			rxq = &ctx->ifc_rxqs[i];
 			for (j = 0; j < rxq->ifr_nfl; j++) {
-				fl = rxq->ifr_fl;
+				fl = &rxq->ifr_fl[j];
+				fl->ifl_debugnet_saved_zone = fl->ifl_zone;
 				fl->ifl_zone = m_getzone(fl->ifl_buf_size);
 			}
 		}
 		iflib_no_tx_batch = 1;
+		break;
+	case DEBUGNET_END:
+		MPASS(ctx->ifc_debugnet_active);
+		/* Global mbuf zones are still overridden at this point. */
+		for (i = 0; i < scctx->isc_nrxqsets; i++) {
+			rxq = &ctx->ifc_rxqs[i];
+			for (j = 0; j < rxq->ifr_nfl; j++) {
+				fl = &rxq->ifr_fl[j];
+				fl->ifl_zone = fl->ifl_debugnet_saved_zone;
+				fl->ifl_debugnet_saved_zone = NULL;
+			}
+		}
+		iflib_no_tx_batch = ctx->ifc_debugnet_saved_no_tx_batch;
+		ctx->ifc_debugnet_saved_no_tx_batch = 0;
+		ctx->ifc_debugnet_active = false;
 		break;
 	default:
 		break;

@@ -458,3 +458,19 @@ All 165,330,944 core bytes reconstructed from the capture match the received dum
 hash without gaps or overlaps. Both VM pairs stop before deadline. Continuous
 early-kernel networking, authentication, physical NIC and final source/compiler
 admission remain open.
+
+### [ ] SRC-DEBUG-003 — Restore iflib debugnet allocator ownership
+
+- **GitHub issue:** [#16](https://github.com/jordanhubbard/daemonarchy-src/issues/16)
+- **Priority:** P0
+- **Owner:** Kernel iflib debugnet lifecycle
+- **Direction:** Restore each RX free-list allocator and exact prior batching policy after debugnet cleanup before attempting resumable debugger support.
+- **Conclusion:** Issue #16 reproduces missing DEBUGNET_END restoration and first-free-list-only activation using the verbatim production callback.
+- **Depends on:** SRC-DEBUG-002
+- **Implementation:**
+  - [x] Add saved per-list allocator/context batching state and pair START/END for every free list; retain the panic-only guard.
+- **Evidence:**
+  - [x] Baseline sanitizer fixture fails batching, zone restoration and multiple-list activation; candidate passes all three cases on macOS and FreeBSD.
+  - [ ] Build the exact changed kernel and renew NetGDB/Netdump recovery; qualify buffer provenance before any non-panic resume change.
+- **Evidence:** [Callback ownership record](../../verification/iflib-debugnet-ownership-development.json). Native fixture supervision exits zero in 1.276 seconds; two complete sessions preserve all queue/list pointers and prior batching values 0, 1 and 2. Controller regression selects 66 tests: 62 pass and four native-only checks skip. Kernel patch style checks and Python lint/format pass.
+- **Boundary:** Fake zone identities do not qualify ring-buffer provenance or non-panic resume. The existing panic-only restriction remains enforced.
