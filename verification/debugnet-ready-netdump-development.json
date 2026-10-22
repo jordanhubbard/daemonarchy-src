@@ -1,0 +1,380 @@
+{
+  "schema": "daemonarchy/debugnet-ready-netdump-development@1",
+  "observed_utc": "2026-10-22T22:18:30.491939+00:00",
+  "work_item": "DEBUG-001 / SRC-DEBUG-001",
+  "scope": "Readiness-repaired kernel panic Netdump over an em/e1000 private virtual wire, native postmortem inspection and packet-to-core byte reconstruction",
+  "kernel_source_revision": "7a4b58c717bc423e6a8575e27e5b60d409e10725",
+  "kernel_elf_build_id": "38821cf580ffed76cdffc9109ee84bd6f5f4d71a",
+  "kernel_products": [
+    {
+      "name": "kernel",
+      "bytes": 31535200,
+      "sha256": "56f416dc07d7ec358b68d6ce1770e05cd25f5a57ede43bb27fcba70925e43688",
+      "build_id": "38821cf580ffed76cdffc9109ee84bd6f5f4d71a"
+    },
+    {
+      "name": "kernel.full",
+      "bytes": 137523520,
+      "sha256": "70759d49b20ac12128b3db29a9ec03f71b570f57cd811a9ddeebf986609d22d3",
+      "build_id": "38821cf580ffed76cdffc9109ee84bd6f5f4d71a"
+    },
+    {
+      "name": "kernel.debug",
+      "bytes": 118500632,
+      "sha256": "536a253c7f0e6786e8e0db8c85a6b9163a7edc7790026e17edcaa17133c6989f",
+      "build_id": "38821cf580ffed76cdffc9109ee84bd6f5f4d71a"
+    }
+  ],
+  "loader_efi_sha256": "9472af7435e8376e0982edaa78f6a6cc1dfdfabcd544a3c6f73ebcecbf8f0f38",
+  "loader_boot_id": "60f4d81047b1988702e1b787a4e3a27e",
+  "independent_target_uuid_boot_id_mac_and_revision_verified": true,
+  "receiver": {
+    "repository": "https://github.com/markjdb/netdumpd",
+    "revision": "99dd0da99be7612b1feb52e4f71db308415e0259",
+    "source_archive_sha256": "8b55d0cb54d92e3a513256db755064966719e8a6b3d59759c1686631a031e134",
+    "source_files_verified": 16,
+    "native_build_exit_code": 0,
+    "native_build_seconds": 0.876,
+    "executable_sha256": "d6c6c4d800195f158ac64195fb60adb7383b946bdf606e386996eb6a4fbc189e",
+    "live_private_listener_verified_before_panic": true,
+    "terminal": {
+      "exit_code": 0,
+      "schema": "daemonarchy/native-command-terminal@1",
+      "seconds": 435.058
+    }
+  },
+  "controlled_panic": {
+    "owned_disposable_guest_only": true,
+    "serial_panic_count": 1,
+    "automatic_dump_and_reboot": true,
+    "elapsed_ssh_seconds": 6.323162916931324,
+    "ssh_exit_code": 255,
+    "ssh_closed_after_guest_reboot": true,
+    "mbuf_zones_restored": true,
+    "serial_dump_complete": true
+  },
+  "received_dump": {
+    "bytes": 165330944,
+    "sha256": "6061d75d067eab830df6b57249dc309d90c6a65872fffd67a59a4d0a184d613f",
+    "architecture": "amd64",
+    "format": "FreeBSD kernel minidump version 3",
+    "compression": "none",
+    "header_parity": "pass",
+    "expected_kernel_revision_and_panic_in_header": true,
+    "native_and_controller_hashes_match": true
+  },
+  "native_postmortem": {
+    "kgdb_package": "gdb-15.1_7",
+    "kgdb_sha256": "9cb838081115246b4be57f005e91db98c4761da1a6c0779cbb16d0a21d87fd45",
+    "exit_code": 0,
+    "seconds": 0.524,
+    "full_kernel_version_read_from_core": true,
+    "panic_pointer_and_actual_string_read_from_core": true,
+    "panic_string": "kdb_sysctl_panic",
+    "backtrace_frames": [
+      "doadump",
+      "kern_reboot",
+      "vpanic",
+      "panic",
+      "kdb_sysctl_panic",
+      "sys___sysctl"
+    ],
+    "threads": 100,
+    "matching_full_symbols": true,
+    "source_text_paths_available": false,
+    "optimized_arguments_and_userland_tail_qualified": false
+  },
+  "wire_reconstruction": {
+    "schema": "daemonarchy/netdump-wire-reconstruction@1",
+    "packets": 236962,
+    "client_message_counts": {
+      "herald": 1,
+      "finished": 1,
+      "data": 116047,
+      "kernel_dump_header": 1
+    },
+    "unique_data_messages": 116047,
+    "identical_retransmitted_data_messages": 0,
+    "contiguous_bytes": 165330944,
+    "received_core_sha256": "6061d75d067eab830df6b57249dc309d90c6a65872fffd67a59a4d0a184d613f",
+    "wire_reconstructed_core_sha256": "6061d75d067eab830df6b57249dc309d90c6a65872fffd67a59a4d0a184d613f",
+    "wire_and_received_core_match": true,
+    "no_gaps_or_overlaps_in_unique_data": true
+  },
+  "cleanup": {
+    "roles": {
+      "peer": {
+        "terminal": {
+          "exit_code": 0,
+          "expired": false,
+          "storage_pressure": false,
+          "seconds": 551.5074760220014
+        },
+        "process_absent": true
+      },
+      "target": {
+        "terminal": {
+          "exit_code": 0,
+          "expired": false,
+          "storage_pressure": false,
+          "seconds": 378.92643273994327
+        },
+        "process_absent": true
+      }
+    },
+    "target": "Automatic reboot after controlled panic; QEMU no-reboot exits zero",
+    "peer": "Normal shutdown after receiver and successful core inspection exit zero",
+    "maximum_each_guest_seconds": 1800,
+    "backing_custody": {
+      "peer": {
+        "isolated_qcow2_overlay": true,
+        "backing_image_separate": true,
+        "backing_qmp_verified": true,
+        "all_observed_backing_nodes_read_only": true
+      },
+      "target": {
+        "isolated_qcow2_overlay": true,
+        "backing_image_separate": true,
+        "backing_qmp_verified": false,
+        "target_already_stopped": true,
+        "limitation": "QMP not inspected after target automatic reboot exit"
+      }
+    },
+    "original_disks_preserved": true,
+    "host_free_bytes_at_completion": 47223590912,
+    "host_reserve_bytes": 42949672960
+  },
+  "retained_harness_failures": [
+    {
+      "attempt": "initial target SSH",
+      "result": "strict host key alias mismatch refused connection before any panic; corrected alias against retained key; same VM used"
+    },
+    {
+      "attempt": "symbol transfer",
+      "result": "existing case directory refused initial creation; same case reused without overwriting evidence"
+    }
+  ],
+  "raw_evidence": {
+    "peer/core-acceptance.json": {
+      "sha256": "32a88834310ca7e073c1390f51babc1039d68024bd9152f68fddbf1657e62d49",
+      "bytes": 534
+    },
+    "peer/core-inspection-spec.json": {
+      "sha256": "ff0cd19298bf59230321aa6e2904c2cbdfbaac09a1177177cf846a923b679bef",
+      "bytes": 268
+    },
+    "peer/core-inspection-supervisor.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/core-inspection-v3-command/started.json": {
+      "sha256": "50f485b419d9b6da4d291e7707c29f8a38e27fdade07e33635c5268ce4f50928",
+      "bytes": 304
+    },
+    "peer/core-inspection-v3-command/stderr.log": {
+      "sha256": "cce083cb667cede4361f0afa3531b7cb0ac57d04ed94f8310aeb3941949407ca",
+      "bytes": 111
+    },
+    "peer/core-inspection-v3-command/stdout.log": {
+      "sha256": "081ed5217164ce15e222e1883453ebb950d01a61fba1fd966a83911491645299",
+      "bytes": 22576
+    },
+    "peer/core-inspection-v3-command/terminal.json": {
+      "sha256": "efcd13d75374a0521855ccf927021c33d06b5a894117271bed029a11de50fa4b",
+      "bytes": 86
+    },
+    "peer/inspect_core.py": {
+      "sha256": "328b45463772fc206e87e66030e2438612170e0962f5aad297e6ab030610e32d",
+      "bytes": 382
+    },
+    "peer/loader-capture.bin": {
+      "sha256": "83c4ab28b5710701427d57f9e87ca96bb02bd284ef94830b96dc2ab5a76f6ce4",
+      "bytes": 2790
+    },
+    "peer/loader-command/started.json": {
+      "sha256": "b21302d572f4cf07555ae58603f02557c0c9bd477efbe6302b45dedcba7e0854",
+      "bytes": 279
+    },
+    "peer/loader-command/stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/loader-command/stdout.log": {
+      "sha256": "af1715026f5a90f5d18781a8955466f432952769d87ccec188e2c4cb9e6fb22c",
+      "bytes": 2895
+    },
+    "peer/loader-command/terminal.json": {
+      "sha256": "f0a4b0e9e7d2ab045800056edabfb34508afcb7fb6ff64813c1a2c015c3c989e",
+      "bytes": 86
+    },
+    "peer/loader-console.py": {
+      "sha256": "7e073ed513df06ade1d2fef3a11b7964499222ef25e974b26c87c8f1006dc3d2",
+      "bytes": 10549
+    },
+    "peer/loader-probe.py": {
+      "sha256": "365cb57cc7677138380b70a9f1039095d83c7864f521d4aa47926321dfa139a0",
+      "bytes": 941
+    },
+    "peer/loader-result.json": {
+      "sha256": "0499b17f3f05c3e99fe0fb717fcaa78468c43bf2e93dc45469b72b93592257ba",
+      "bytes": 113
+    },
+    "peer/loader-spec.json": {
+      "sha256": "29eb370e1a07b62782a5e2f2b6e9df561ec1a008be5bf67a0637aca5fcaeea1f",
+      "bytes": 231
+    },
+    "peer/loader-supervisor.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/received-core.json": {
+      "sha256": "30330004c6780f8ff058cb3da03e7ddaf79b61a20da4092495fd0e4a64d32b9e",
+      "bytes": 1070
+    },
+    "peer/receiver-build-command/started.json": {
+      "sha256": "e757f9e23a447b6fa32d975aba4c790a894c5cc9367245cbebcc441167d026fd",
+      "bytes": 237
+    },
+    "peer/receiver-build-command/stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/receiver-build-command/stdout.log": {
+      "sha256": "8932fb7789bedac8e6268750df09c2f428ff937bd160b256cf8d4266c715a711",
+      "bytes": 4304
+    },
+    "peer/receiver-build-command/terminal.json": {
+      "sha256": "14a426f8f234efc6d38c332cf274b03caf9fbdae988c21571441d563ec0e885f",
+      "bytes": 86
+    },
+    "peer/receiver-build-result.json": {
+      "sha256": "ba084c49b2de2f47229f52df0e53d1d66de2a38b07804c7f548391e0bd5c8432",
+      "bytes": 409
+    },
+    "peer/receiver-build-spec.json": {
+      "sha256": "b5f0e8888574b064256f89293321fbda863342d37b5d2c57d6c1cd657b8947b7",
+      "bytes": 197
+    },
+    "peer/receiver-build-supervisor.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/receiver-command/started.json": {
+      "sha256": "539714a4dad4b11ca1d94cf7d9ea346df5149051dd89e9ad0ab123bb2768ccb4",
+      "bytes": 398
+    },
+    "peer/receiver-command/stderr.log": {
+      "sha256": "bd32263a44bc82dd6d650bd62f3f7413427fb5ebfe108a65307a645c8d45ec3f",
+      "bytes": 39
+    },
+    "peer/receiver-command/stdout.log": {
+      "sha256": "e0c85a68e5efab26bc1218a9ecb59d7f0155e142e4a2568c1fabd189362f36c1",
+      "bytes": 276
+    },
+    "peer/receiver-command/terminal.json": {
+      "sha256": "a53355e53b428b9412926ad189eccc58b1ed0ba18351bf2b75c073214944bf1b",
+      "bytes": 88
+    },
+    "peer/receiver-spec.json": {
+      "sha256": "dc9b5ac920a6838b019de5d882cf2d49c2a1b577ce607c43ba917b6e2d402c62",
+      "bytes": 353
+    },
+    "peer/receiver-supervisor.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "peer/run-command.py": {
+      "sha256": "95a55c752c0d0f19edc54d61990668fa1477237a9b29b60954f9e851123136aa",
+      "bytes": 2076
+    },
+    "host/peer/started.json": {
+      "bytes": 1521,
+      "sha256": "ca3d87463708bd2b94b9d083c95f82a95cf0dfafabca1f658224fb581c45bcbb"
+    },
+    "host/peer/terminal.json": {
+      "bytes": 92,
+      "sha256": "18df08f1b07467b517e328dce2b87e712ff5bfa6b344849988a7eb412e494f6c"
+    },
+    "host/peer/console.log": {
+      "bytes": 13931,
+      "sha256": "9eab351a628c48f1c3b9fa0105378dfc4f9178c8e14cc05d6dc611d468efac6e"
+    },
+    "host/peer/qemu.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "host/peer/wire.pcap": {
+      "bytes": 182640917,
+      "sha256": "a171fa39822ec7054b6f0ed57db5c22745cd36b8dd2c4a3357d74ee299caf396"
+    },
+    "host/peer/supervisor.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "host/target/started.json": {
+      "bytes": 1898,
+      "sha256": "248caad36a4892fbfcedb56d24ceb6f16e1bab9bffc9c8a404ada50f3efcce0f"
+    },
+    "host/target/terminal.json": {
+      "bytes": 93,
+      "sha256": "72b2ec57740726c0b55ac2e152acec96e098a3cc52d02287169deda1b9ada8cb"
+    },
+    "host/target/console.log": {
+      "bytes": 23302,
+      "sha256": "23b715cbe1ffff48d478fc5a00dbb7e1ae908b24c17c6ee4f9a026f5cfe1b281"
+    },
+    "host/target/qemu.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "host/target/wire.pcap": {
+      "bytes": 182639783,
+      "sha256": "f2e773c70e103a911e50db4005f80264c159826ba2ceb5975b970f2e6bc0c14a"
+    },
+    "host/target/supervisor.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "controller/core-transfer.json": {
+      "sha256": "4f434f9ba5636cb9b163fb5a627874f3944fc8b73df96e8162f0ec20140a94ac",
+      "bytes": 184
+    },
+    "controller/wire-reconstruction.json": {
+      "sha256": "a52d43fb60bec16e43d6615963abe63af548c5eb310fffbd4b7875b53548607c",
+      "bytes": 596
+    },
+    "controller/backing-custody.json": {
+      "sha256": "a32c1d3a6b1f5021017402f0997bb75c6ce3037c8a62f8d9220b00f43391398b",
+      "bytes": 360
+    },
+    "controller/core-inspection-launch.json": {
+      "sha256": "35ad9098bbfc622bd68a11190c30af10bae09b464a07e3948bb5c9f275b9c50c",
+      "bytes": 856
+    },
+    "controller/failed-hostkey-panic-dispatch.json": {
+      "sha256": "3aea2b263f91d9d2d55d7e6c57c96de8ce14e4deadda12c6de97e475f637c644",
+      "bytes": 200
+    },
+    "controller/failed-hostkey-panic-ssh-result.json": {
+      "sha256": "534efb5e4ed6a5b403c7d8f8ad0e92d5b706ebf719ef14bb2d273f8ffa11faeb",
+      "bytes": 216
+    },
+    "controller/panic-ssh-result.json": {
+      "sha256": "916b89ecc3f7d6c378ab8834f38c864fea2eb3280e032b4c69d53b9d01720eb1",
+      "bytes": 137
+    }
+  },
+  "native_vm_netdump_on_repaired_kernel_passed": true,
+  "physical_nic_qualified": false,
+  "authenticated_kernel_protocol": false,
+  "continuous_early_kernel_transport": false,
+  "compiler_sdk_admitted": false,
+  "canonical_source_receipt_earned": false,
+  "release_acceptance": false,
+  "remaining": [
+    "Final admitted source/compiler/product lifecycle and exact final artifact renewal",
+    "Physical NIC and firmware acceptance",
+    "Authenticated kernel sessions and continuous early-kernel transport",
+    "Pre-driver network activation remains unsupported; direct allocator refusal verified separately"
+  ]
+}

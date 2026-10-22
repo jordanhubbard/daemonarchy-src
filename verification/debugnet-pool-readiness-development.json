@@ -171,13 +171,13 @@
     }
   },
   "linked_kernel_built": true,
-  "native_boot_and_netgdb_netdump_renewed": false,
+  "native_boot_and_netgdb_netdump_renewed": true,
   "early_kernel_transport_qualified": false,
   "source_sdk_admitted": false,
   "release_acceptance": false,
   "remaining": [
-    "Renew ordinary panic NetGDB and Netdump recovery on the exact built products",
-    "Driver-ready activation, authentication, physical NIC and final release acceptance"
+    "Continuous early-kernel network activation and authentication",
+    "Physical NIC and exact final admitted source/compiler/product lifecycle acceptance"
   ],
   "style9": {
     "errors": 0,
@@ -191,5 +191,7 @@
     "receipt": "missing"
   },
   "native_build_record": "verification/debugnet-early-kernel-development.json",
-  "early_native_direct_guard_verified": true
+  "early_native_direct_guard_verified": true,
+  "ready_netgdb_record": "verification/debugnet-ready-recovery-development.json",
+  "ready_netdump_record": "verification/debugnet-ready-netdump-development.json"
 }

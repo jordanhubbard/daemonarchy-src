@@ -431,13 +431,13 @@ activation, compiler/SDK admission and final release acceptance remain open.
 - **Evidence:**
   - [x] Reproduce the original allocator swap and pass controller/native sanitized function checks.
   - [x] Build the exact changed kernel and qualify direct pre-driver guard refusal plus continued boot.
-  - [ ] Renew panic NetGDB and Netdump VM recovery on those exact products.
+  - [x] Renew panic NetGDB and Netdump VM recovery on those exact products.
 - **Current evidence:** [Pool readiness](../../verification/debugnet-pool-readiness-development.json)
   reproduces allocator-pointer corruption before repair and passes seven absent/partial
   pool cases, retry and complete restoration on macOS and FreeBSD. Fixtures compile
   verbatim production activation/restoration functions around fake zone objects;
-  they do not link the kernel or qualify the driver/caller. The next action is an
-  exact clean GENERIC build and native refusal plus NetGDB/Netdump renewal.
+  they do not link the kernel or qualify the driver/caller. The separate exact-kernel
+  records below qualify real pre-driver refusal and ready-state VM recovery.
 
 The [early kernel checkpoint](../../verification/debugnet-early-kernel-development.json)
 now records a clean exact `7a4b58c717bc` GENERIC build in 521.803 supervised
@@ -450,6 +450,11 @@ verification. Normal shutdown exits zero before deadline; the original image
 remains read-only. The first serial disconnect truncated `continue` after its
 first character; the same guest resumes after completing that existing command.
 The raw observation remains retained. This is direct allocator refusal, not an
-early network session. A fresh private-wire NetGDB renewal pair is now starting;
-Netdump, authenticated/continuous kernel transport and physical acceptance remain
-open.
+early network session. [Ready-state NetGDB renewal](../../verification/debugnet-ready-recovery-development.json)
+passes two detach sessions and an abrupt client closure, restoring the allocator
+three times and returning to local DDB. [Netdump renewal](../../verification/debugnet-ready-netdump-development.json)
+passes on the same exact kernel; native postmortem reads the panic and 100 threads.
+All 165,330,944 core bytes reconstructed from the capture match the received dump
+hash without gaps or overlaps. Both VM pairs stop before deadline. Continuous
+early-kernel networking, authentication, physical NIC and final source/compiler
+admission remain open.
