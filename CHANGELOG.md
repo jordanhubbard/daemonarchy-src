@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Snapshot the selected debug NIC MAC and actual local/peer addresses separately
+  from ordinary netboot variables. Refuse a partial environment export so the
+  kernel cannot receive mixed handoff identity. Native sanitizer checks cover
+  every export failure and independence from later netboot metadata changes.
+
 - Propagate EFI metadata and boot-service exit errors before final module copying.
   Native production-code fixtures reproduce the ignored-error failure, then pass
   map/allocation/exit/retry/success checks with address/undefined-behavior sanitizers.

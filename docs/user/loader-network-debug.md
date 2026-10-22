@@ -93,12 +93,27 @@ observe return to the ordinary interpreter. A timeout does not imply a crash,
 power cycle or reboot. Reconnect with the same key to create a new session;
 `netdebug.boot_id` remains stable within that loader boot.
 
-Use `show boot.netif.hwaddr` to retain the firmware NIC's MAC address. The kernel
-receives that value and `netdebug.boot_id` in its environment: `kenv
-boot.netif.hwaddr` and `kenv netdebug.boot_id` can relate the native interface and
+Use `show netdebug.hwaddr`, `show netdebug.local_ip` and `show netdebug.peer_ip`
+to retain the selected debug NIC and addresses. These snapshot the last successful
+debug activation, including manual `netdebug start` arguments. They remain available
+after `netdebug stop` and firmware handoff; they do not indicate an active session.
+The kernel receives them and `netdebug.boot_id` in its environment. Use `kenv
+netdebug.hwaddr` and `kenv netdebug.boot_id` to relate the native interface and
 kernel boot to the controller's retained session. Match the MAC to `ifconfig`;
-loader unit names do not promise native interface names. This identifies the
-interface and boot, but does not activate kernel networking or a debugger.
+loader unit names do not promise native interface names. Ordinary netboot can
+change `boot.netif.hwaddr`, so that variable is not the debug NIC identity.
+Failure to export any snapshot field refuses activation and clears all four
+fields, avoiding a mixture of old and new identity. No key material is exported.
+This identifies the interface and boot, but does not activate kernel networking
+or a debugger.
+
+An actual two-NIC OVMF run now verifies this identity through the booted kernel.
+It also exposed a distinct open defect: a `net0` file request can reuse the
+connection opened for debug on `net1`, because the common network-device cache
+does not distinguish device units. Cross-interface netboot is not qualified.
+[Issue #11](https://github.com/jordanhubbard/daemonarchy-src/issues/11) owns its
+selection/lifetime repair; the failed transfer is retained in the
+[identity checkpoint](../../verification/loader-network-identity-development.json).
 
 `boot` ends firmware networking. The controller records
 `firmware_handoff_started` with `kernel_observed: false` and exits **3**; normal
@@ -247,8 +262,7 @@ sh "$SRC/tools/daemonarchy/tests/run-netconsole-receive.sh" "$SRC" "$RECEIVE_OBJ
 ```
 
 Both runners halt on address/undefined-behavior errors. FreeBSD LeakSanitizer is
-unsupported; the bootinfo fixture checks page ownership and the parser fixture
-performs no heap allocation. Compiler/bootstrap provenance remains unqualified.
+unsupported; the bootinfo fixture checks page ownership and the identity checks use native libc environment storage; no leak result is claimed. Compiler/bootstrap provenance remains unqualified.
 
 The pre-existing runtime `SetVirtualAddressMap()` return is still not propagated.
 The success-path fixture does not qualify recovery from that failure after boot

@@ -313,3 +313,21 @@ shared-NIC TFTP/queue-pressure checks and independent SSH after remote kernel bo
 The NFS-loaded kernel independently reaches a FreeBSD login after local UFS root mounting. Physical
 firmware/NICs, alternate handoffs, kernel debug continuity and release admission
 remain required.
+
+
+The loader now exports `netdebug.hwaddr`, `netdebug.local_ip` and
+`netdebug.peer_ip` from the actual successful debug attachment, separately from
+ordinary `boot.netif.*` metadata. These identify the last successful activation,
+not an active kernel transport. Native production-code checks cover all partial
+export failures and refusal to retain mixed old/new fields. A renewed native
+sanitizer check passes, and the exact EFI binary in an actual two-e1000 OVMF
+guest exports the selected second NIC and boot ID through remote boot into
+independently observed kernel environment/native interface state.
+[Identity evidence](../../verification/loader-network-identity-development.json)
+retains the separate failure: a `net0` TFTP request reused the cached `net1`
+connection instead of the requested interface. [Issue #11](https://github.com/jordanhubbard/daemonarchy-src/issues/11)
+owns distinct device-unit and live debug ownership. Next in progress: repair
+that cache/lifetime boundary, then renew cross-interface, same-NIC TFTP/NFS and
+local recovery tests. Comparing the unit and closing the old socket alone would
+retire the live debug NIC. Physical firmware, early-kernel transport and release
+admission remain open.

@@ -445,13 +445,37 @@ nc_cleanup(void)
 	if (netdev.dv_cleanup != NULL) netdev.dv_cleanup();
 }
 
+/* Keep debug identity separate from the interface selected by later netboot. */
+static int
+nc_export_identity(void)
+{
+	char mac[18], hex[33];
+
+	snprintf(mac, sizeof(mac), "%02x:%02x:%02x:%02x:%02x:%02x",
+	    nc.io.myea[0], nc.io.myea[1], nc.io.myea[2],
+	    nc.io.myea[3], nc.io.myea[4], nc.io.myea[5]);
+	nc_hex(hex, boot_id, 16);
+	if (setenv("netdebug.hwaddr", mac, 1) != 0 ||
+	    setenv("netdebug.local_ip", inet_ntoa(nc.local), 1) != 0 ||
+	    setenv("netdebug.peer_ip", inet_ntoa(nc.peer), 1) != 0 ||
+	    setenv("netdebug.boot_id", hex, 1) != 0) {
+		/* Never export a mixture of old and partially updated identity. */
+		unsetenv("netdebug.hwaddr");
+		unsetenv("netdebug.local_ip");
+		unsetenv("netdebug.peer_ip");
+		unsetenv("netdebug.boot_id");
+		return (ENOMEM);
+	}
+	return (0);
+}
+
 static int
 nc_start(const char *unit, const char *local, const char *peer, const char *keyfile)
 {
 	struct in_addr saved_ip = myip, saved_root = rootip;
 	n_long saved_mask = netmask;
 	struct iodesc *io;
-	char *end, hex[33];
+	char *end;
 	unsigned long number;
 	int error;
 
@@ -491,11 +515,11 @@ nc_start(const char *unit, const char *local, const char *peer, const char *keyf
 	if (nc.io.io_netif->nif_devdata == NULL) goto failed;
 	nc.io.myip = nc.local;
 	if (efinet_console_bind(&nc.io, nc_receive, nc_closed, NULL) != 0) goto failed;
+	if (nc_export_identity() != 0) { efinet_console_unbind(); goto failed; }
 	efinet_dev.dv_cleanup = nc_cleanup;
 	nc.enabled = true;
 	netconsole.c_flags = C_PRESENTIN | C_PRESENTOUT | C_ACTIVEIN | C_ACTIVEOUT;
 	efi_console.c_flags |= C_ACTIVEIN | C_ACTIVEOUT;
-	nc_hex(hex, boot_id, 16); setenv("netdebug.boot_id", hex, 1);
 	printf("Wired debug console enabled on net%lu; waiting for authenticated controller.\n", number);
 	return (CMD_OK);
 failed:

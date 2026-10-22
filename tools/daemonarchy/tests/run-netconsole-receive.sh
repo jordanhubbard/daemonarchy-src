@@ -40,6 +40,6 @@ if [ "$sanitize" = sanitize ]; then
     set -- "$@" -g -fno-omit-frame-pointer -fsanitize=address,undefined
 fi
 "$@" "$test_dir/netconsole-receive.c" "$source_root/stand/efi/loader/netconsole_proto.c" -lmd -o "$binary"
-# FreeBSD lacks LeakSanitizer; this parser fixture performs no heap allocation.
+# FreeBSD lacks LeakSanitizer; environment storage uses native libc; no LeakSanitizer result is claimed.
 ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 \
 UBSAN_OPTIONS=halt_on_error=1 "$binary"

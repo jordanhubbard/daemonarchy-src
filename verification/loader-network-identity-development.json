@@ -1,0 +1,100 @@
+{
+  "schema": "daemonarchy-src/loader-network-identity-development@1",
+  "observed_utc": "2026-10-22T12:27:44.957538+00:00",
+  "work_item": "SRC-DEBUG-001",
+  "scope": "Native production-code export controls and actual two-NIC UEFI-to-kernel identity; cross-interface file transfer failed and remains open",
+  "source_base_revision": "2b90a90a6e9336c87ff73d50a63a629aa77655fd",
+  "source_sha256": {
+    "stand/efi/loader/Makefile": "645ee9e011aee1a55129df4c7eceaa1a957b1b6f46f9ab622f7892effe6fc666",
+    "stand/efi/loader/netconsole_proto.c": "faf2ca127674ef7e8642f01e8ed29f037812b9a04826c1ff470cad05bc1d007b",
+    "stand/efi/loader/netconsole_proto.h": "6d43d91cce78a22c4c0ec9f7cad4ba7c12f5ab01a61126e03f0a3686591c6c38",
+    "stand/efi/loader/netconsole.c": "78945e4651b3ea36ebcbdd411465b1c5552781843980d22c11768dfc10074649",
+    "stand/efi/libefi/efinet.c": "acea1d62e7f21648326a07e7e43a2482a9607beaa4f312190c1c7a29e5d84fd5",
+    "stand/efi/include/efilib.h": "6cbf33352dd1ce189ff7ce1be48060f5ef4cf96ac6419137275dd7b017b57249",
+    "stand/efi/loader/conf.c": "4f7d70032bebc610e59597dde53b42e68d62a94f3635a6cbe3a44f42a7a41a7c",
+    "stand/efi/loader/bootinfo.c": "3fa005235812d91f5f45c7a6fc3c2ab372c12928f278becc9209e16ca965e89d",
+    "stand/lua/loader.lua": "7e454ce2220c2fbd4b87e2d5b2c60135ecfc4282906b15ae2ec4a9edc808ef83"
+  },
+  "test_source_sha256": {
+    "tools/daemonarchy/tests/netconsole-receive.c": "92d081cfc6eb6c5311c503c0f864eee3c44429e488aa9d86483195beab022f96",
+    "tools/daemonarchy/tests/run-netconsole-receive.sh": "fa5ea0c6aa1885ab72c4a28e7f18abc9091b0f29fc513a9c0e74bb15d680680d"
+  },
+  "native_stand_build": {
+    "passed": true,
+    "seconds": 84.147,
+    "platform": "FreeBSD amd64",
+    "bootstrap_toolchain_admitted": false
+  },
+  "artifacts": [
+    {
+      "name": "loader_lua.efi",
+      "sha256": "c67cc0d852af9aa263cb68c9d777a31aac0511700695b0894abcddf9cb28a01b",
+      "bytes": 733184
+    },
+    {
+      "name": "loader_lua.sym",
+      "sha256": "a2a1d356357c879669f2ed85cd793ff15176a6d97ff82f1246010a8864093d64",
+      "bytes": 881672
+    }
+  ],
+  "native_export_controls": {
+    "passed": true,
+    "seconds": 1.337,
+    "sanitizers": [
+      "address",
+      "undefined-behavior"
+    ],
+    "partial_export_failure_positions": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "ordinary_metadata_independence": true,
+    "leak_sanitizer_supported": false
+  },
+  "actual_uefi": {
+    "firmware": "OVMF / QEMU KVM",
+    "firmware_nics": 2,
+    "nic_model": "e1000",
+    "authenticated_pairing": true,
+    "debug_selected_second_nic": true,
+    "actual_mac_and_addresses_exported": true,
+    "firmware_handoff_observed": true,
+    "independent_kernel_ssh": true,
+    "kernel_observed": true,
+    "boot_id_matches_controller": true,
+    "debug_mac_matches_second_native_nic": true,
+    "debug_addresses_preserved": true,
+    "strict_pinned_host_key": true,
+    "observation_sha256": "29fb82531dc115a73708aaf8bde44f57dd9afbe61d24b8c317e7cd9ef6ed27fd",
+    "other_nic_file_transfer_qualified": false,
+    "release_acceptance": false
+  },
+  "cross_interface_netboot": {
+    "passed": false,
+    "issue": "https://github.com/jordanhubbard/daemonarchy-src/issues/11",
+    "failure": "A net0 file request reused the cached net1 connection; the expected TFTP file was not received.",
+    "source_boundary": "stand/common/dev_net.c caches by driver name without the device unit; the debug attachment shares that lifetime owner.",
+    "proposed_unit_only_cleanup_safe": false
+  },
+  "original_disks_preserved": true,
+  "physical_firmware_qualified": false,
+  "early_kernel_transport_qualified": false,
+  "canonical_lifecycle_receipt": false,
+  "release_acceptance": false,
+  "controller_regression": {
+    "selected": 66,
+    "skipped": 4,
+    "passed": 62,
+    "failed": 0,
+    "seconds": 3.782
+  },
+  "owned_vm_cleanup": {
+    "recovery_guest_exit_code": 0,
+    "recovery_guest_seconds": 548.687486296054,
+    "dual_nic_guest_exit_code": 0,
+    "dual_nic_guest_seconds": 356.6182821728289,
+    "original_disks_preserved": true
+  }
+}

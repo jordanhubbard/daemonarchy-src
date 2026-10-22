@@ -1,9 +1,21 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /* Exercise the production Ethernet demultiplexer, including NFS fragments. */
 #define main efi_application_main
+#define setenv fixture_setenv
 #include <stand/efi/loader/netconsole.c>
 #undef main
+#undef setenv
 #include <assert.h>
+
+extern int setenv(const char *, const char *, int);
+static unsigned env_calls, fail_env_call;
+int
+fixture_setenv(const char *name, const char *value, int overwrite)
+{
+	if (++env_calls == fail_env_call)
+		return (-1);
+	return (setenv(name, value, overwrite));
+}
 
 /* Sanitizer global registration retains console callbacks. None may run here. */
 struct console efi_console;
@@ -49,6 +61,27 @@ main(void)
 	be16enc(payload + 2, NC_PORT);
 	assert(nc_receive(frame, sizeof(frame), NULL) == 1);
 	assert(nc.ic == 0 && !nc.paired);
-	printf("netconsole fragment demultiplexing checks passed\n");
+	memcpy(nc.io.myea, "\x52\x54\x00\x33\x00\x10", 6);
+	memset(boot_id, 0xab, sizeof(boot_id));
+	assert(nc_export_identity() == 0);
+	assert(strcmp(getenv("netdebug.hwaddr"), "52:54:00:33:00:10") == 0);
+	assert(strcmp(getenv("netdebug.local_ip"), "172.16.33.10") == 0);
+	assert(strcmp(getenv("netdebug.peer_ip"), "172.16.33.20") == 0);
+	assert(strcmp(getenv("netdebug.boot_id"), "abababababababababababababababab") == 0);
+	assert(setenv("boot.netif.hwaddr", "52:54:00:33:00:99", 1) == 0);
+	assert(strcmp(getenv("netdebug.hwaddr"), "52:54:00:33:00:10") == 0);
+	/* Each partial export failure must remove all snapshot fields. */
+	for (i = 1; i <= 4; i++) {
+		env_calls = 0; fail_env_call = 0;
+		assert(nc_export_identity() == 0);
+		env_calls = 0; fail_env_call = i;
+		assert(nc_export_identity() == ENOMEM);
+		assert(getenv("netdebug.hwaddr") == NULL);
+		assert(getenv("netdebug.local_ip") == NULL);
+		assert(getenv("netdebug.peer_ip") == NULL);
+		assert(getenv("netdebug.boot_id") == NULL);
+	}
+	unsetenv("boot.netif.hwaddr");
+	printf("netconsole fragment and handoff identity checks passed\n");
 	return (0);
 }
