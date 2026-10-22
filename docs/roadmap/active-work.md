@@ -241,7 +241,7 @@ aggregate package groups and copied bootstrap tools cannot satisfy this step.
   cleanly. Its thirteen isolated checks pass; full SDK/lifecycle and package
   admission remain open.
 
-### [ ] AGENTS-001 — Restore discoverable agent onboarding for original source
+### [x] AGENTS-001 — Restore discoverable agent onboarding for original source
 
 - **Priority:** P2
 - **Owner:** Project agent entry point
@@ -256,7 +256,7 @@ aggregate package groups and copied bootstrap tools cannot satisfy this step.
 - **Evidence:**
   - [x] Project authority validates before and after the documentation repair.
   - [x] Both entry points delegate to existing SKILL.md and the canonical worktree root resolves and is ignored.
-  - [ ] Original in-progress loader file hashes remain unchanged and both documentation commits are pushed.
+  - [x] Original in-progress loader file hashes remain unchanged and both documentation commits are pushed.
 
 - **Validation:** Installed project authority validation passes before and after
   the entry-point repair. Canonical placement resolves identically from both
@@ -265,3 +265,10 @@ aggregate package groups and copied bootstrap tools cannot satisfy this step.
 - **Survey limitation:** The supported start survey returned
   `project.peer_work_tracker_failed`; explicit owned-repository issue and review
   reads succeeded. The forge-selection repair is tracked in Literate AI #99.
+
+- **Published repair:** Source-pipeline commit `570f5667a0e` and loader-branch
+  commit `2b90a90a6e9` are pushed and match their remote tracking heads. The local
+  cross-project audit now finds valid declared-skill delegation in all 91 active
+  checkouts across 21 project identities. Pinned parent versions and retained
+  evidence snapshots were not rewritten. Review and native acceptance of the
+  surrounding feature branches remain separate.
