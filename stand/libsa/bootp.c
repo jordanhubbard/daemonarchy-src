@@ -221,6 +221,10 @@ restart:
 	 * DISCOVER/OFFER/REQUEST/ACK cycle.
 	 */
 	if (bootp_response != NULL &&
+	    bootp_response_size >= offsetof(struct bootp, bp_vend) &&
+	    bootp_response->bp_htype == 1 &&
+	    bootp_response->bp_hlen == sizeof(d->myea) &&
+	    memcmp(bootp_response->bp_chaddr, d->myea, sizeof(d->myea)) == 0 &&
 	    bootp_response->bp_yiaddr.s_addr != INADDR_ANY) {
 		init_reboot = true;
 		rbootp = bootp_response;

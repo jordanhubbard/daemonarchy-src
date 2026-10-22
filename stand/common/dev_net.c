@@ -72,6 +72,7 @@
 
 static char *netdev_name;
 static int netdev_sock = -1;
+static int netdev_unit = -1;
 static int netdev_opens;
 
 static int	net_init(void);
@@ -130,8 +131,12 @@ net_open(struct open_file *f, ...)
 
 	devname = dev->d_dev->dv_name;
 	/* Before opening another interface, close the previous one first. */
-	if (netdev_sock >= 0 && strcmp(devname, netdev_name) != 0)
+	if (netdev_sock >= 0 && (strcmp(devname, netdev_name) != 0 ||
+	    dev->d_unit != netdev_unit)) {
+		if (netdev_opens != 0)
+			return (EBUSY);
 		net_cleanup();
+	}
 
 	/* On first open, do netif open, mount, etc. */
 	if (netdev_opens == 0) {
@@ -143,6 +148,13 @@ net_open(struct open_file *f, ...)
 				return (ENXIO);
 			}
 			netdev_name = strdup(devname);
+			if (netdev_name == NULL) {
+				netif_close(netdev_sock);
+				netdev_sock = -1;
+				return (ENOMEM);
+			}
+			netdev_unit = dev->d_unit;
+			netif_configure(netdev_sock);
 			DEBUG_PRINTF(1,("%s: netif_open() succeeded %#x\n",
 				__func__, rootip.s_addr));
 		}
@@ -156,6 +168,8 @@ net_open(struct open_file *f, ...)
 			if (error) {
 				/* getparams makes its own noise */
 				free(netdev_name);
+				netdev_name = NULL;
+				netdev_unit = -1;
 				netif_close(netdev_sock);
 				netdev_sock = -1;
 				return (error);
@@ -178,12 +192,19 @@ net_configure(struct devdesc *dev)
 {
 	int error;
 
-	if (netdev_sock >= 0)
-		return (0);
+	if (netdev_sock >= 0) {
+		if (dev->d_unit == netdev_unit &&
+		    strcmp(dev->d_dev->dv_name, netdev_name) == 0)
+			return (0);
+		if (netdev_opens != 0)
+			return (EBUSY);
+		net_cleanup();
+	}
 
 	netdev_sock = netif_open(dev);
 	if (netdev_sock < 0)
 		return (ENXIO);
+	netif_configure(netdev_sock);
 
 	error = 0;
 	if (rootip.s_addr == 0)
@@ -202,6 +223,7 @@ net_configure(struct devdesc *dev)
 		netdev_sock = -1;
 		return (ENOMEM);
 	}
+	netdev_unit = dev->d_unit;
 	return (error);
 }
 
@@ -220,6 +242,8 @@ net_close(struct open_file *f)
 	DEBUG_PRINTF(2,("%s: opens=%d\n", __func__, netdev_opens));
 
 	dev = f->f_devdata;
+	if (dev->d_opendata != NULL && netdev_opens > 0)
+		netdev_opens--;
 	dev->d_opendata = NULL;
 
 	return (0);
@@ -233,6 +257,9 @@ net_cleanup(void)
 		DEBUG_PRINTF(1,("%s: calling netif_close()\n", __func__));
 		rootip.s_addr = 0;
 		free(netdev_name);
+		netdev_name = NULL;
+		netdev_unit = -1;
+		netdev_opens = 0;
 		netif_close(netdev_sock);
 		netdev_sock = -1;
 	}

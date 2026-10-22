@@ -15,6 +15,8 @@ struct netif_driver {
 	void	(*netif_end)(struct netif *);
 	struct	netif_dif *netif_ifs;
 	int	netif_nifs;
+	/* Restore protocol configuration without restarting a shared device. */
+	void	(*netif_configure)(struct iodesc *);
 };
 
 struct netif_dif {
@@ -57,6 +59,8 @@ ssize_t		netif_get(struct iodesc *, void **, time_t);
 ssize_t		netif_put(struct iodesc *, void *, size_t);
 
 int		netif_open(void *);
+void		netif_configure(int);
+int		netif_shared(int);
 int		netif_close(int);
 
 struct iodesc	*socktodesc(int);

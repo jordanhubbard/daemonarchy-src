@@ -267,3 +267,33 @@ unsupported; the bootinfo fixture checks page ownership and the identity checks 
 The pre-existing runtime `SetVirtualAddressMap()` return is still not propagated.
 The success-path fixture does not qualify recovery from that failure after boot
 services have exited; this and alternate exec paths remain explicit limitations.
+
+## Network device ownership
+
+The debug console holds a separate raw socket on the selected interface. Ordinary
+network file access selects both driver and unit; switching units refuses while
+an ordinary file remains open. Closing a file releases its open count while
+retaining the idle cache. Each physical interface has stable storage shared by
+its protocol sockets, with shutdown deferred until its last socket closes.
+Stopping debug releases its reference without closing an ordinary cached socket.
+Ordinary access explicitly restores the selected interface protocol settings,
+including static EFI environment settings, without restarting shared hardware.
+DHCP reuses a cached reply only when its Ethernet identity matches the requesting
+interface and the retained header is complete; another interface starts discovery.
+
+Run the production-code regressions on native FreeBSD, each with a fresh existing
+external object directory:
+
+```sh
+sh "$SRC/tools/daemonarchy/tests/run-netif-ownership.sh" "$SRC" "$NETIF_OBJ"
+sh "$SRC/tools/daemonarchy/tests/run-netdev-ownership.sh" "$SRC" "$NETDEV_OBJ"
+sh "$SRC/tools/daemonarchy/tests/run-bootp-interface-cache.sh" "$SRC" "$BOOTP_OBJ"
+```
+
+These tests exercise stable distinct/shared owners, final-close lifetime,
+allocation/probe failure and retry, refusal during active file access, close
+accounting, unit switching, valid DHCP cache reuse and malformed/cross-interface
+cache rejection. Address and undefined-behavior sanitizers are enabled. The socket
+fixture explicitly checks allocation balance; no FreeBSD LeakSanitizer result is
+claimed. Actual EFI transfer, revocation/restart, kernel handoff, NFS and physical
+firmware results remain separate evidence obligations.

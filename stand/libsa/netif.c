@@ -100,13 +100,25 @@ netif_select(void *machdep_hint)
 {
 	int d, u, s;
 	struct netif_driver *drv;
-	struct netif cur_if;
+	struct netif cur_if = {0};
 	static struct netif best_if;
+	struct netif *live;
+	struct iodesc *desc;
 	int best_val;
 	int val;
 
 	best_val = 0;
-	best_if.nif_driver = NULL;
+	memset(&best_if, 0, sizeof(best_if));
+	live = NULL;
+	TAILQ_FOREACH(desc, &sockets, io_link) {
+		if (desc->io_netif == NULL)
+			continue;
+		val = netif_match(desc->io_netif, machdep_hint);
+		if (val > best_val) {
+			best_val = val;
+			live = desc->io_netif;
+		}
+	}
 
 	for (d = 0; netif_drivers[d] != NULL; d++) {
 		cur_if.nif_driver = netif_drivers[d];
@@ -140,6 +152,7 @@ netif_select(void *machdep_hint)
 				if (val > best_val) {
 					best_val = val;
 					best_if = cur_if;
+					live = NULL;
 				}
 			}
 #ifdef NETIF_DEBUG
@@ -149,8 +162,14 @@ netif_select(void *machdep_hint)
 		}
 	}
 
-	if (best_if.nif_driver == NULL)
-		return NULL;
+	if (live != NULL) {
+		best_if = *live;
+		return (&best_if);
+	}
+	if (best_if.nif_driver == NULL) {
+		errno = ENXIO;
+		return (NULL);
+	}
 
 	best_if.nif_driver->
 	    netif_ifs[best_if.nif_unit].dif_used |= (1 << best_if.nif_sel);
@@ -161,7 +180,7 @@ netif_select(void *machdep_hint)
 			best_if.nif_driver->netif_bname,
 			best_if.nif_unit, best_if.nif_sel);
 #endif
-	return &best_if;
+	return (&best_if);
 }
 
 int
@@ -308,11 +327,24 @@ socktodesc(int sock)
 	return (desc);
 }
 
+static void
+netif_discard_unused(void)
+{
+	struct iodesc *last, *previous;
+
+	TAILQ_FOREACH_REVERSE_SAFE(last, &sockets, socket_list, io_link, previous) {
+		if (last->io_netif != NULL)
+			break;
+		TAILQ_REMOVE(&sockets, last, io_link);
+		free(last);
+	}
+}
+
 int
 netif_open(void *machdep_hint)
 {
-	struct iodesc *s;
-	struct netif *nif;
+	struct iodesc *s, *existing;
+	struct netif *nif, *selected;
 
 	/* find a free socket */
 	s = socktodesc_impl(-1);
@@ -329,13 +361,45 @@ netif_open(void *machdep_hint)
 		TAILQ_INSERT_TAIL(&sockets, s, io_link);
 	}
 
-	netif_init();
-	nif = netif_select(machdep_hint);
-	if (!nif)
-		panic("netboot: no interfaces left untried");
+	TAILQ_FOREACH(existing, &sockets, io_link)
+		if (existing->io_netif != NULL)
+			break;
+	if (existing == NULL)
+		netif_init();
+	selected = netif_select(machdep_hint);
+	if (selected == NULL) {
+		netif_discard_unused();
+		return (-1);
+	}
+	TAILQ_FOREACH(existing, &sockets, io_link) {
+		nif = existing->io_netif;
+		if (nif == NULL || nif->nif_driver != selected->nif_driver ||
+		    nif->nif_unit != selected->nif_unit ||
+		    nif->nif_sel != selected->nif_sel)
+			continue;
+		/* A new protocol socket shares the existing physical owner. */
+		s->io_netif = nif;
+		s->myip = existing->myip;
+		memcpy(s->myea, existing->myea, sizeof(s->myea));
+		return (s->io_id);
+	}
+	/* Selection storage is temporary; each live physical owner is stable. */
+	nif = malloc(sizeof(*nif));
+	if (nif == NULL) {
+		selected->nif_driver->netif_ifs[selected->nif_unit].dif_used &=
+		    ~(1UL << selected->nif_sel);
+		netif_discard_unused();
+		errno = ENOMEM;
+		return (-1);
+	}
+	*nif = *selected;
 	if (netif_probe(nif, machdep_hint)) {
 		printf("netboot: couldn't probe %s%d\n",
 		    nif->nif_driver->netif_bname, nif->nif_unit);
+		nif->nif_driver->netif_ifs[nif->nif_unit].dif_used &=
+		    ~(1UL << nif->nif_sel);
+		free(nif);
+		netif_discard_unused();
 		errno = EINVAL;
 		return (-1);
 	}
@@ -344,19 +408,51 @@ netif_open(void *machdep_hint)
 	return (s->io_id);
 }
 
+void
+netif_configure(int sock)
+{
+	struct iodesc *s;
+
+	s = socktodesc(sock);
+	if (s != NULL && s->io_netif != NULL &&
+	    s->io_netif->nif_driver->netif_configure != NULL)
+		s->io_netif->nif_driver->netif_configure(s);
+}
+
+int
+netif_shared(int sock)
+{
+	struct iodesc *s, *other;
+
+	s = socktodesc(sock);
+	if (s == NULL || s->io_netif == NULL)
+		return (0);
+	TAILQ_FOREACH(other, &sockets, io_link)
+		if (other != s && other->io_netif == s->io_netif)
+			return (1);
+	return (0);
+}
+
 int
 netif_close(int sock)
 {
-	struct iodesc *s, *last;
+	struct iodesc *s;
+	struct netif *nif;
 	int err;
 
 	err = 0;
 	s = socktodesc_impl(sock);
-	if (s == NULL || sock < 0) {
+	if (s == NULL || s->io_netif == NULL || sock < 0) {
 		err = EBADF;
 		return (-1);
 	}
-	netif_detach(s->io_netif);
+	nif = s->io_netif;
+	if (!netif_shared(sock)) {
+		netif_detach(nif);
+		nif->nif_driver->netif_ifs[nif->nif_unit].dif_used &=
+		    ~(1UL << nif->nif_sel);
+		free(nif);
+	}
 	bzero(&s->destip, sizeof (s->destip));
 	bzero(&s->myip, sizeof (s->myip));
 	s->destport = 0;
@@ -366,12 +462,7 @@ netif_close(int sock)
 	s->io_netif = NULL;
 
 	/* free unused entries from tail. */
-	TAILQ_FOREACH_REVERSE_SAFE(last, &sockets, socket_list, io_link, s) {
-		if (last->io_netif != NULL)
-			break;
-		TAILQ_REMOVE(&sockets, last, io_link);
-		free(last);
-	}
+	netif_discard_unused();
 
 	if (err) {
 		errno = err;

@@ -1,6 +1,6 @@
 # Source authority and acceptance map
 
-<!-- literate-ai:authority-reviewed sha256:fd7468241e995426df91fe17ea8a756e908e021f8855132020f672f8b82f486a -->
+<!-- literate-ai:authority-reviewed sha256:ac2dc5be9b60fa545554d3df13a596aa068eb70c13c1d08b02a406bee6f17dff -->
 
 `PROJECT.md` owns the full original-source development requirements. The
 [source-unit guide](../user/source-units.md) maps the first concrete parser/header/utility
@@ -26,3 +26,11 @@ generated candidate can silently become upstream implementation or release
 authority. The selected units currently have no canonical Standard acceptance receipt.
 See the [development evidence](../../verification/source-native-development.json)
 for the distinct local-runtime and aggregate native build results.
+
+The [loader ownership checkpoint](../../verification/loader-network-ownership-development.json)
+qualifies scoped native owner/cache regressions and actual OVMF transfer,
+revocation/restart, NFS and independently observed kernel handoff on the recorded
+EFI bytes. Stable physical ownership and explicit ordinary protocol configuration
+preserve the raw debug socket while ordinary access selects its unit. This is
+native development evidence with an unadmitted source seed and bootstrap
+compiler; it is not canonical SDK, physical firmware or release acceptance.

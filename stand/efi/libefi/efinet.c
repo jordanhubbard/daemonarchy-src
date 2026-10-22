@@ -69,6 +69,7 @@ struct pxe_cache_entry {
 static struct pxe_cache_entry *pxe_cache;
 
 static void efinet_end(struct netif *);
+static void efi_env_net_params(struct iodesc *);
 static ssize_t efinet_get(struct iodesc *, void **, time_t);
 static void efinet_init(struct iodesc *, void *);
 static int efinet_match(struct netif *, void *);
@@ -251,7 +252,8 @@ struct netif_driver efinetif = {
 	.netif_put = efinet_put,
 	.netif_end = efinet_end,
 	.netif_ifs = NULL,
-	.netif_nifs = 0
+	.netif_nifs = 0,
+	.netif_configure = efi_env_net_params
 };
 
 #ifdef EFINET_DEBUG

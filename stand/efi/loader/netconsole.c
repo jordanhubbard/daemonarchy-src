@@ -25,8 +25,9 @@
 #define NC_OUTPUT 16384
 static struct {
 	struct devdesc dev;
-	struct open_file file;
 	struct iodesc io;
+	int socket;
+	bool owns_socket;
 	struct in_addr local, peer;
 	uint8_t key[32], session[16], challenge[16], peer_mac[6];
 	uint8_t input[NC_INPUT], output[NC_OUTPUT];
@@ -438,11 +439,24 @@ netconsole_handoff(void)
 }
 
 static void
+nc_close_socket(void)
+{
+	int socket;
+
+	if (!nc.owns_socket)
+		return;
+	socket = nc.socket;
+	nc.owns_socket = false;
+	(void)netif_close(socket);
+}
+
+static void
 nc_cleanup(void)
 {
 	/* Architecture exec paths clean devices before constructing bootinfo. */
 	netconsole_handoff();
 	if (netdev.dv_cleanup != NULL) netdev.dv_cleanup();
+	nc_close_socket();
 }
 
 /* Keep debug identity separate from the interface selected by later netboot. */
@@ -473,17 +487,18 @@ static int
 nc_start(const char *unit, const char *local, const char *peer, const char *keyfile)
 {
 	struct in_addr saved_ip = myip, saved_root = rootip;
+	struct in_addr saved_gateway = gateip, saved_server = servip;
 	n_long saved_mask = netmask;
 	struct iodesc *io;
 	char *end;
 	unsigned long number;
-	int error;
 
 	if (nc.enabled) { command_errmsg = "stop the current debug console first"; return (CMD_ERROR); }
 	number = strtoul(unit, &end, 10);
 	if (*unit == 0 || *end != 0 || number >= (unsigned)efinetif.netif_nifs) {
 		command_errmsg = "firmware network interface is unavailable"; return (CMD_ERROR);
 	}
+	nc_close_socket();
 	memset(&nc, 0, sizeof(nc));
 	nc.local.s_addr = inet_addr(__DECONST(char *, local));
 	nc.peer.s_addr = inet_addr(__DECONST(char *, peer));
@@ -499,18 +514,18 @@ nc_start(const char *unit, const char *local, const char *peer, const char *keyf
 		}
 		have_boot_id = true;
 	}
-	if (myip.s_addr != 0 && myip.s_addr != nc.local.s_addr) {
-		nc_closed(NULL); command_errmsg = "debug address differs from active netboot interface"; return (CMD_ERROR);
-	}
 	myip = nc.local;
 	if (rootip.s_addr == 0) rootip = nc.peer;
 	if (netmask == 0) netmask = htonl(0xffffff00);
 	nc.dev.d_dev = &efinet_dev; nc.dev.d_unit = number;
-	nc.file.f_devdata = &nc.dev;
-	error = efinet_dev.dv_open(&nc.file, &nc.dev);
-	if (error != 0 || nc.dev.d_opendata == NULL) goto failed;
-	io = socktodesc(*(int *)nc.dev.d_opendata);
+	nc.socket = netif_open(&nc.dev);
+	if (nc.socket < 0) goto failed;
+	nc.owns_socket = true;
+	io = socktodesc(nc.socket);
 	if (io == NULL || io->io_netif == NULL || io->io_netif->nif_unit != (int)number) goto failed;
+	/* Sharing one physical NIC must preserve its ordinary netboot address. */
+	if (netif_shared(nc.socket) && io->myip.s_addr != 0 &&
+	    io->myip.s_addr != nc.local.s_addr) goto failed;
 	nc.io = *io;
 	if (nc.io.io_netif->nif_devdata == NULL) goto failed;
 	nc.io.myip = nc.local;
@@ -520,11 +535,14 @@ nc_start(const char *unit, const char *local, const char *peer, const char *keyf
 	nc.enabled = true;
 	netconsole.c_flags = C_PRESENTIN | C_PRESENTOUT | C_ACTIVEIN | C_ACTIVEOUT;
 	efi_console.c_flags |= C_ACTIVEIN | C_ACTIVEOUT;
+	myip = saved_ip; rootip = saved_root; netmask = saved_mask;
+	gateip = saved_gateway; servip = saved_server;
 	printf("Wired debug console enabled on net%lu; waiting for authenticated controller.\n", number);
 	return (CMD_OK);
 failed:
-	if (saved_root.s_addr == 0 && netdev.dv_cleanup != NULL) netdev.dv_cleanup();
+	nc_close_socket();
 	myip = saved_ip; rootip = saved_root; netmask = saved_mask;
+	gateip = saved_gateway; servip = saved_server;
 	nc_closed(NULL); command_errmsg = "cannot attach firmware network console";
 	return (CMD_ERROR);
 }
@@ -540,6 +558,7 @@ command_netdebug(int argc, char *argv[])
 	}
 	if (argc == 2 && strcmp(argv[1], "stop") == 0) {
 		efinet_console_unbind(); nc_closed(NULL);
+		nc_close_socket();
 		printf("Wired debug console revoked.\n"); return (CMD_OK);
 	}
 	if (argc == 2 && strcmp(argv[1], "auto") == 0) {

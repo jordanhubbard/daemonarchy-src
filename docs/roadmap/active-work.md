@@ -326,9 +326,9 @@ independently observed kernel environment/native interface state.
 [Identity evidence](../../verification/loader-network-identity-development.json)
 retains the separate failure: a `net0` TFTP request reused the cached `net1`
 connection instead of the requested interface. [Issue #11](https://github.com/jordanhubbard/daemonarchy-src/issues/11)
-owns distinct device-unit and live debug ownership. Next in progress: repair
-that cache/lifetime boundary, then renew cross-interface, same-NIC TFTP/NFS and
-local recovery tests. Comparing the unit and closing the old socket alone would
+owns distinct device-unit and live debug ownership. The subsequent ownership
+checkpoint below records the repair and scoped cross-interface, same-NIC
+TFTP/NFS and local recovery renewals. Comparing the unit and closing the old socket alone would
 retire the live debug NIC. Physical firmware, early-kernel transport and release
 admission remain open.
 
@@ -339,3 +339,25 @@ correct unit-specific network context and safe final release. Add production-cod
 two-unit/lifetime controls before changing that owner, then repeat the actual
 UEFI regression. The current nine-file native loader overlay does not admit the
 complete source seed or compiler closure.
+
+The production socket-owner fixture reproduces the original static selection
+alias. The repair gives each live physical interface stable storage shared by
+matching sockets, with shutdown deferred until final close. Debug holds its own
+raw socket; ordinary file access compares driver and unit, refuses a switch while
+a file remains open, and decrements its count on close. Ordinary protocol
+configuration is restored explicitly without restarting shared hardware. DHCP
+requires a complete cached header with matching Ethernet identity before reuse.
+
+The [ownership checkpoint](../../verification/loader-network-ownership-development.json)
+records three native sanitizer ownership/cache suites, three renewed native
+parser/SNP/bootinfo suites and 62 passing controller cases with four declared
+skips. The exact rebuilt EFI passes actual two-e1000 `net0 → net1 → net0` TFTP,
+two same-NIC stop/restart cycles with revocation, session/adversarial checks,
+queue pressure with 112 drops and continued TFTP, and fragmented 8192-byte NFS
+reads plus NFS kernel boot. Four independent SSH observations match the loader
+boot IDs and selected MACs. The NFS case retains the debug address as metadata;
+it does not establish that address as active kernel networking. All six final
+owned guests exit successfully before their deadlines. Failed development and
+harness attempts remain retained. The native source seed/compiler are still
+unadmitted; physical firmware, early-kernel transport and release acceptance
+remain open. Issue #11 is implemented on the draft review, pending integration.
