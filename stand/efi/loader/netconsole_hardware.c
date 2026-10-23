@@ -271,7 +271,7 @@ netconsole_hardware(void)
 	inventory_length = 0;
 	inventory_truncated = 0;
 	report_printf("Daemonarchy firmware inventory; no kernel connection\n");
-	for (i = 0; i < nitems(fields); i++) {
+	for (i = 0; i < sizeof(fields) / sizeof(fields[0]); i++) {
 		value = getenv(fields[i]);
 		report_printf("%s: %.256s\n", fields[i], value != NULL ? value : "unavailable");
 	}
