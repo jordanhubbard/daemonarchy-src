@@ -245,6 +245,7 @@ aggregate package groups and copied bootstrap tools cannot satisfy this step.
 
 - **GitHub issue:** [#6](https://github.com/jordanhubbard/daemonarchy-src/issues/6)
 - **Design and native check:** [Wired loader console](../user/loader-network-debug.md).
+- **Guided activation candidate:** Daemonarchy UEFI menu entry `Network debugging` (`N`) and `netdebug setup` prompt for the wired NIC, static addresses and provisioned key-file path. Portable Lua interactions cover cancellation, invalid input, failure and command dispatch. Exact EFI/physical checks and ISO selection remain open; early-kernel transport is still absent.
 
 - **Priority:** P0
 - **Owner:** UEFI loader console and standalone networking

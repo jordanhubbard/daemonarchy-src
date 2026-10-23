@@ -3,6 +3,7 @@ name: Daemonarchy source build controller
 on:
   push:
     paths:
+      - 'stand/lua/**'
       - 'tools/daemonarchy/**'
       - 'sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC'
       - 'sys/kern/kern_mbuf.c'
@@ -12,6 +13,7 @@ on:
       - '.github/workflows/daemonarchy-source.yml'
   pull_request:
     paths:
+      - 'stand/lua/**'
       - 'tools/daemonarchy/**'
       - 'sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC'
       - 'sys/kern/kern_mbuf.c'
@@ -29,6 +31,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Loader setup interactions (not EFI acceptance)
+        run: >-
+          python3 tools/daemonarchy/tests/run-loader-debug-setup.py
+          --output-directory "${{ runner.temp }}/loader-setup-${{ github.run_id }}-${{ github.run_attempt }}"
       - name: Controller refusal and custody tests (not native acceptance)
         env:
           PYTHONDONTWRITEBYTECODE: '1'

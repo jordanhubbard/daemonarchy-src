@@ -36,6 +36,7 @@ local color = require("color")
 local core = require("core")
 local config = require("config")
 local password = require("password")
+require("netdebug")
 
 config.load()
 

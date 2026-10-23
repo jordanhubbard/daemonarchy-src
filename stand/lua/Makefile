@@ -28,6 +28,7 @@ FILES=	cli.lua \
 	gfx-orb.lua \
 	gfx-orbbw.lua \
 	menu.lua \
+	netdebug.lua \
 	password.lua \
 	screen.lua
 

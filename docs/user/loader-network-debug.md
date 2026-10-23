@@ -14,6 +14,29 @@ this change. Use `netdebug devices` to check firmware interface availability.
 
 ## Provision a debugging medium
 
+### Guided setup candidate
+
+The new Lua setup candidate adds **Network debugging** (`N`) to the Daemonarchy
+UEFI boot menu. The equivalent prompt command is `netdebug setup`. It lists
+firmware Ethernet interfaces and asks for the NIC number, the target and
+controller static IPv4 addresses, and the shared key-file path (default
+`/boot/debug.key`). The matching private key must already be provisioned on
+both systems using the procedure below. No public or shared default key is used.
+
+Esc or Ctrl-C cancels. Invalid addresses are retried. Successful activation
+pauses automatic boot at the ordinary loader prompt for the controller; use
+`netdebug stop` to revoke, `boot` to continue or `menu` to return. Settings are
+for the current loader session; this does not write a persistent profile. A
+loader without the native command reports that the debugging loader is needed.
+
+This candidate is not yet selected in an ISO. Portable interaction checks cover
+setup, cancellation, invalid input, activation failure and menu visibility;
+native EFI/physical acceptance remains open. The setup explicitly warns that
+the console ends at kernel handoff. It does not close the early-kernel transport
+gap or make an MSI early-reset capture possible.
+
+### Manual provisioning
+
 Build the actual FreeBSD loader using the native `stand` Makefiles with
 `LOADER_NET_SUPPORT=yes`; install the matching Lua startup files too. Stage the
 candidate on a separate recovery medium before replacing an installed loader.
