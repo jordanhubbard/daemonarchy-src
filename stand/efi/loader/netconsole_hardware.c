@@ -16,6 +16,53 @@ static EFI_GUID sn_guid = EFI_SIMPLE_NETWORK_PROTOCOL_GUID;
 static EFI_GUID nii_guid = EFI_NETWORK_INTERFACE_IDENTIFIER_PROTOCOL_GUID_31;
 static EFI_GUID pci_guid = EFI_PCI_IO_PROTOCOL_GUID;
 
+static void
+pci_inventory(void)
+{
+	EFI_HANDLE *handles;
+	EFI_PCI_IO_PROTOCOL *pci;
+	EFI_STATUS status;
+	UINTN size, segment, bus, device, function;
+	UINT32 id, class;
+	size_t i, found;
+
+	/* The built-in controller remains identifiable when firmware networking
+	 * is disabled and exposes no SNP handle. Do not initialize the device.
+	 */
+	size = 0;
+	status = BS->LocateHandle(ByProtocol, &pci_guid, NULL, &size, NULL);
+	if (status != EFI_BUFFER_TOO_SMALL || size > 4096 * sizeof(*handles)) {
+		printf("PCI Ethernet inventory unavailable.\n");
+		return;
+	}
+	handles = malloc(size);
+	if (handles == NULL)
+		return;
+	status = BS->LocateHandle(ByProtocol, &pci_guid, NULL, &size, handles);
+	if (status != EFI_SUCCESS) {
+		printf("PCI handle snapshot changed; retry netdebug devices.\n");
+		free(handles);
+		return;
+	}
+	found = 0;
+	for (i = 0; i < size / sizeof(*handles); i++) {
+		if (BS->HandleProtocol(handles[i], &pci_guid, (void **)&pci) != EFI_SUCCESS ||
+		    pci->Pci.Read(pci, EfiPciIoWidthUint32, 8, 1, &class) != EFI_SUCCESS ||
+		    (class >> 16) != 0x0200 ||
+		    pci->Pci.Read(pci, EfiPciIoWidthUint32, 0, 1, &id) != EFI_SUCCESS ||
+		    pci->GetLocation(pci, &segment, &bus, &device, &function) != EFI_SUCCESS)
+			continue;
+		printf("PCI Ethernet %04lx:%02lx:%02lx.%lx %04x:%04x\n",
+		    (unsigned long)segment, (unsigned long)bus,
+		    (unsigned long)device, (unsigned long)function,
+		    id & 0xffff, id >> 16);
+		found++;
+	}
+	if (found == 0)
+		printf("No PCI Ethernet controllers exposed by firmware.\n");
+	free(handles);
+}
+
 static void *
 ancestor_protocol(EFI_HANDLE device, EFI_GUID *guid)
 {
@@ -98,6 +145,7 @@ netconsole_hardware(void)
 	size_t i, count;
 	unsigned unit;
 
+	pci_inventory();
 	if (efinetif.netif_nifs == 0) {
 		printf("No firmware-visible Ethernet interfaces.\n");
 		return;
