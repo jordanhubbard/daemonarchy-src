@@ -7,6 +7,9 @@ test "$(uname -m)" = amd64
 out=$PWD/_build/earlynet-native
 mkdir -p "$out/lua"
 uname -a > "$out/worker.txt"
+git rev-parse HEAD > "$out/source-commit.txt"
+git rev-parse 'HEAD^{tree}' > "$out/source-tree.txt"
+git diff --exit-code
 df -k . /var/tmp
 sysctl hw.physmem
 test "$(df -k /var/tmp | awk 'NR==2 {print $4}')" -ge 4194304
@@ -28,7 +31,7 @@ make -C stand -j2 NO_ROOT=yes WITHOUT_LOADER_BIOS=yes LOADER_NET_SUPPORT=yes obj
     > "$out/obj.log" 2>&1
 if make -C stand -j2 NO_ROOT=yes WITHOUT_LOADER_BIOS=yes LOADER_NET_SUPPORT=yes all \
     > "$out/build.log" 2>&1; then
-    loader_obj=$(make -C stand/efi/loader -V .OBJDIR)
+    loader_obj=$(make -C stand/efi/loader_lua -V .OBJDIR)
     cp "$loader_obj/loader_lua.efi" "$out/loader.efi"
     cp stand/lua/*.lua "$out/lua/"
     sha256 "$out/loader.efi" "$out"/lua/*.lua > "$out/SHA256"
