@@ -44,8 +44,11 @@ if make -C stand -j2 NO_ROOT=yes WITHOUT_LOADER_BIOS=yes LOADER_NET_SUPPORT=yes 
     cp "$out"/lua/*.lua "$out/usb-root/boot/lua/"
     cp tools/daemonarchy/tests/firmware-inventory.lua \
         "$out/usb-root/boot/lua/loader.lua"
-    makefs -t msdos -s 16m -o fat_type=16 -o volume_label=DAEMDBG131 \
+    makefs -t msdos -s 16m -o fat_type=16 -o sectors_per_cluster=1 \
+        -o volume_label=DAEMDBG131 \
         "$out/inventory.esp" "$out/usb-root" > "$out/makefs.stdout" 2>&1
+    test "$(fstyp "$out/inventory.esp")" = msdosfs
+    fsck_msdosfs -n "$out/inventory.esp" > "$out/fsck.stdout" 2>&1
     mkimg -s gpt -p efi:="$out/inventory.esp" \
         -o "$out/daemonarchy-1.3.1-firmware-inventory-amd64.img"
     sha256 "$out/daemonarchy-1.3.1-firmware-inventory-amd64.img" >> "$out/SHA256"
