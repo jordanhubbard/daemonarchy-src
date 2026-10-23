@@ -20,6 +20,8 @@
 
 #include "netconsole_proto.h"
 #include "netconsole_undi.h"
+#include <Protocol/SimpleFileSystem.h>
+#include "netconsole_report.h"
 
 #define NC_PORT 6668
 #define NC_INPUT 1024
@@ -551,6 +553,12 @@ failed:
 static int
 command_netdebug(int argc, char *argv[])
 {
+	if (argc == 2 && strcmp(argv[1], "save") == 0) {
+		int result = netconsole_save_report();
+		if (result != CMD_OK)
+			command_errmsg = "USB report not saved; see the reason above";
+		return (result);
+	}
 	if (argc == 2 && strcmp(argv[1], "devices") == 0) {
 		netconsole_hardware();
 		return (CMD_OK);
@@ -573,7 +581,7 @@ command_netdebug(int argc, char *argv[])
 		    (uintmax_t)nc.lost, (uintmax_t)efinet_console_drops());
 		return (CMD_OK);
 	}
-	command_errmsg = "netdebug devices|status|stop|auto|start UNIT LOCAL-IP PEER-IP KEY-FILE";
+	command_errmsg = "netdebug devices|save|status|stop|auto|start UNIT LOCAL-IP PEER-IP KEY-FILE";
 	return (CMD_ERROR);
 }
 COMMAND_SET(netdebug, "netdebug", "approved wired loader console", command_netdebug);

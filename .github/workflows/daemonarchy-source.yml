@@ -46,6 +46,12 @@ jobs:
         run: >-
           python3 tools/daemonarchy/tests/run-loader-debug-setup.py
           --output-directory "${{ runner.temp }}/loader-setup-${{ github.run_id }}-${{ github.run_attempt }}"
+      - name: USB report preservation and failure controls
+        run: |
+          clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -fno-omit-frame-pointer -Istand/efi/loader \
+            tools/daemonarchy/tests/netconsole-report.c -o "${{ runner.temp }}/usb-report"
+          "${{ runner.temp }}/usb-report"
       - name: Controller refusal and custody tests (not native acceptance)
         env:
           PYTHONDONTWRITEBYTECODE: '1'

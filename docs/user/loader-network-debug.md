@@ -14,6 +14,23 @@ this change. Use `netdebug devices` to check firmware interface availability.
 
 ## 1.3.1 early-kernel connection work
 
+### Bring back the USB report
+
+The revised standalone inventory medium automatically runs `netdebug save`.
+It writes a numbered text file under `DAEMDBG/BOOT0001.TXT` on the marked USB
+it booted from; later boots use the next unused number. It refuses non-USB
+boot paths and media without the inventory marker, and never searches another
+disk for a writable destination. Older and partial reports are preserved.
+
+Wait for **Saved and verified USB report** before removing the USB. The writer
+flushes, closes, reopens and verifies the report before claiming success;
+read-only/full media or write/flush/readback errors produce **save FAILED**.
+Bring back the `DAEMDBG` folder for analysis. The report contains selected
+model/BIOS fields and PCI/MAC/UNDI inventory, not credentials or kernel logs.
+The earlier read-only inventory image does not implement this save function.
+
+### Connection status
+
 The operator assigns completion of the MSI built-in-Ethernet early-kernel
 connection to **1.3.1**, separately from the already in-progress 1.3 release.
 SRC-DEBUG-005 owns implementation and qualification. The loader-only console,
