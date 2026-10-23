@@ -57,6 +57,7 @@ ldnet_fields(uint8_t type, uint64_t sequence, size_t length)
 	case LDNET_CHALLENGE:
 		return (sequence == 0 && length == 16);
 	case LDNET_WELCOME:
+	case LDNET_KERNEL_WELCOME:
 		return (sequence == 0 && length == 32);
 	case LDNET_ACK:
 	case LDNET_OUTPUT_ACK:

@@ -21,7 +21,8 @@ enum ldnet_type {
 	LDNET_FINISH,
 	LDNET_CHALLENGE,
 	LDNET_WELCOME,
-	LDNET_OUTPUT_ACK
+	LDNET_OUTPUT_ACK,
+	LDNET_KERNEL_WELCOME
 };
 
 struct ldnet_message {

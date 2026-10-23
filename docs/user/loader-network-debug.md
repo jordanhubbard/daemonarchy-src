@@ -29,6 +29,14 @@ runtime descriptor candidate still needs actual post-handoff packet evidence,
 kernel callbacks/mapping and explicit hardware ownership; it is not an admitted
 runtime driver.
 
+The controller also has a tested kernel-pairing primitive for this work. It
+requires a fresh authenticated `KERNEL_WELCOME` (wire type 9) that echoes a new
+challenge, retains the observed loader boot ID and uses a different nonzero
+session. A loader `WELCOME`, wrong boot, stale session or timeout cannot emit
+`kernel_connected`. Real loopback UDP tests cover these controls. No kernel
+producer or automatic CLI transition is enabled yet; this is not an observed
+kernel connection or a substitute for the required runtime packet capture.
+
 The [UEFI UNDI definition](https://uefi.org/specs/UEFI/2.11/Apx_E_Universal_Network_Driver_Interfaces.html)
 and [runtime-driver guidance](https://tianocore-docs.github.io/edk2-UefiDriverWritersGuide/draft/25_network_driver_design_guidelines/252_nii_protocol_and_undi_implementations/)
 describe a potential firmware-runtime path. If that capability is absent on the

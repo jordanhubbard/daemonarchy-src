@@ -21,6 +21,7 @@ import time
 
 HEADER = struct.Struct("!4sBBHQ16s")
 HELLO, INPUT, OUTPUT, INPUT_ACK, FINISH, CHALLENGE, WELCOME, OUTPUT_ACK = range(1, 9)
+KERNEL_WELCOME = 9
 ZERO = bytes(16)
 MAX_PAYLOAD = 512
 
@@ -45,7 +46,7 @@ def decode(key, data, session=None):
         valid = sequence != 0 and size == 0
     elif kind == CHALLENGE:
         valid = sequence == 0 and size == 16
-    elif kind == WELCOME:
+    elif kind in (WELCOME, KERNEL_WELCOME):
         valid = sequence == 0 and size == 32
     elif kind == HELLO:
         valid = sequence == 0 and size == 0
@@ -112,6 +113,7 @@ class Console:
         self.last_output = None
         self.received = bytearray()
         self.handoff = False
+        self.phase = "firmware"
 
     def close(self):
         self.socket.close()
@@ -146,11 +148,16 @@ class Console:
             self.socket.send(encode(self.key, self.session, OUTPUT_ACK, sequence))
         elif kind == FINISH:
             self.handoff = True
-            self.event("firmware_handoff_started", sequence=sequence,
-                       output_gap=sequence != self.output_sequence, kernel_observed=False)
+            self.event("firmware_handoff_started" if self.phase == "firmware" else "kernel_transport_closed",
+                       sequence=sequence, output_gap=sequence != self.output_sequence,
+                       kernel_observed=self.phase == "kernel")
         return value
 
-    def pair(self):
+    def pair(self, *, kernel=False):
+        expected_boot = self.boot if kernel else None
+        previous_session = self.session
+        if kernel and (not self.handoff or expected_boot is None or self.phase != "firmware"):
+            raise ValueError("kernel pairing requires an observed firmware handoff and boot identity")
         challenge = secrets.token_bytes(16)
         request = encode(self.key, ZERO, CHALLENGE, 0, challenge)
         end = time.monotonic() + self.timeout
@@ -166,13 +173,26 @@ class Console:
             except ConnectionRefusedError:
                 continue
             value = decode(self.key, data)
-            if value is None or value[0] != WELCOME or value[3][:16] != challenge:
+            expected_kind = KERNEL_WELCOME if kernel else WELCOME
+            if value is None or value[0] != expected_kind or value[3][:16] != challenge or value[2] == ZERO:
                 self.event("pairing_packet_refused")
                 continue
+            if kernel and (value[3][16:] != expected_boot or value[2] == previous_session):
+                self.event("kernel_identity_refused")
+                continue
             self.session, self.boot = value[2], value[3][16:]
-            self.event("paired", session=self.session.hex(), boot_id=self.boot.hex())
+            self.input_sequence = self.output_sequence = 1
+            self.last_output = None
+            self.received.clear()
+            self.handoff = False
+            self.phase = "kernel" if kernel else "firmware"
+            self.event("kernel_connected" if kernel else "paired", session=self.session.hex(),
+                       boot_id=self.boot.hex(), kernel_observed=kernel)
             return
-        raise TimeoutError("no authenticated response to the fresh pairing challenge")
+        if kernel:
+            self.event("kernel_connection_unobserved", boot_id=expected_boot.hex(), kernel_observed=False)
+        raise TimeoutError("no authenticated kernel response for this boot" if kernel else
+                           "no authenticated response to the fresh pairing challenge")
 
     def send_line(self, line):
         encoded = line.encode("ascii")

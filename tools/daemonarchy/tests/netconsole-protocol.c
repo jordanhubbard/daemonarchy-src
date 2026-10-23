@@ -124,6 +124,16 @@ main(void)
 	    1, NULL, 0);
 	assert(ldnet_decode(other, n, key, session, &message));
 	assert(message.type == LDNET_OUTPUT_ACK);
+	n = ldnet_encode(other, sizeof(other), key, session,
+	    LDNET_KERNEL_WELCOME, 0, key, 32);
+	assert(ldnet_decode(other, n, key, session, &message));
+	assert(message.type == LDNET_KERNEL_WELCOME);
+	other[5] = LDNET_WELCOME;
+	assert(!ldnet_decode(other, n, key, session, &message));
+	assert(ldnet_encode(other, sizeof(other), key, session,
+	    LDNET_KERNEL_WELCOME, 1, key, 32) == 0);
+	assert(ldnet_encode(other, sizeof(other), key, session,
+	    LDNET_KERNEL_WELCOME, 0, key, 16) == 0);
 	puts("netconsole protocol: HMAC/session vectors, mutation, bounds, roles and replay checks passed");
 	return (0);
 }
