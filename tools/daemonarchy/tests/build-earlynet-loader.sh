@@ -39,7 +39,11 @@ if make -C stand -j2 NO_ROOT=yes WITHOUT_LOADER_BIOS=yes LOADER_NET_SUPPORT=yes 
     sha256 "$out/loader.efi" "$out"/lua/*.lua > "$out/SHA256"
     # A separate read-only bring-up medium exposes firmware capability without
     # requiring the failing kernel to start or altering the 1.3 installer.
-    mkdir -p "$out/usb-root/EFI/BOOT" "$out/usb-root/boot/lua"
+    mkdir -p "$out/usb-root/EFI/BOOT" "$out/usb-root/boot/lua" \
+        "$out/usb-root/boot/defaults"
+    # EFI loader root discovery accepts a loader configuration without a
+    # kernel. Keep this standalone medium self-contained and non-autobooting.
+    printf 'autoboot_delay="NO"\n' > "$out/usb-root/boot/defaults/loader.conf"
     cp "$out/loader.efi" "$out/usb-root/EFI/BOOT/BOOTX64.EFI"
     cp "$out"/lua/*.lua "$out/usb-root/boot/lua/"
     cp tools/daemonarchy/tests/firmware-inventory.lua \
