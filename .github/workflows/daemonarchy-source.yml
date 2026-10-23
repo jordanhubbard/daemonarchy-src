@@ -68,6 +68,16 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+      - name: Retain checkout identity before native synchronization
+        run: |
+          mkdir -p _build/earlynet-native
+          git diff --exit-code
+          git rev-parse HEAD > _build/earlynet-native/source-commit.txt
+          git rev-parse 'HEAD^{tree}' > _build/earlynet-native/source-tree.txt
+          sha256sum stand/efi/loader/netconsole*.c stand/efi/loader/netconsole*.h \
+            stand/lua/netdebug.lua stand/lua/loader.lua stand/lua/menu.lua \
+            tools/daemonarchy/tests/firmware-inventory.lua \
+            > _build/earlynet-native/feature-inputs.sha256
       - name: Native FreeBSD EFI build and admission controls
         uses: vmactions/freebsd-vm@c46abacb49f09938ca4e1702d15d836285d694cc # v1
         with:

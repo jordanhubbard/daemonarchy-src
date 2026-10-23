@@ -7,9 +7,11 @@ test "$(uname -m)" = amd64
 out=$PWD/_build/earlynet-native
 mkdir -p "$out/lua"
 uname -a > "$out/worker.txt"
-git rev-parse HEAD > "$out/source-commit.txt"
-git rev-parse 'HEAD^{tree}' > "$out/source-tree.txt"
-git diff --exit-code
+test -s "$out/source-commit.txt"
+test -s "$out/source-tree.txt"
+while read -r expected input; do
+    test "$(sha256 -q "$input")" = "$expected"
+done < "$out/feature-inputs.sha256"
 df -k . /var/tmp
 sysctl hw.physmem
 test "$(df -k /var/tmp | awk 'NR==2 {print $4}')" -ge 4194304
