@@ -19,6 +19,7 @@
 #endif
 
 #include "netconsole_proto.h"
+#include "netconsole_undi.h"
 
 #define NC_PORT 6668
 #define NC_INPUT 1024
@@ -550,10 +551,8 @@ failed:
 static int
 command_netdebug(int argc, char *argv[])
 {
-	unsigned int i;
 	if (argc == 2 && strcmp(argv[1], "devices") == 0) {
-		for (i = 0; i < (unsigned)efinetif.netif_nifs; i++) printf("net%u: firmware Ethernet interface\n", i);
-		if (efinetif.netif_nifs == 0) printf("No firmware-visible Ethernet interfaces.\n");
+		netconsole_hardware();
 		return (CMD_OK);
 	}
 	if (argc == 2 && strcmp(argv[1], "stop") == 0) {

@@ -12,6 +12,29 @@ Thunderbolt Ethernet adapter is not necessarily visible to firmware. BIOS boot,
 Wi-Fi, arbitrary USB NIC drivers and early-kernel networking are not supplied by
 this change. Use `netdebug devices` to check firmware interface availability.
 
+## 1.3.1 early-kernel connection work
+
+The operator assigns completion of the MSI built-in-Ethernet early-kernel
+connection to **1.3.1**, separately from the already in-progress 1.3 release.
+SRC-DEBUG-005 owns implementation and qualification. The loader-only console,
+guided setup and initialized-driver NetGDB do not satisfy that requirement.
+
+The new `netdebug devices` inventory candidate prints each firmware NIC's MAC,
+PCI location/vendor/device when available, and UNDI 3.1 descriptor status. It
+does not start a NIC, change DMA, call an UNDI entry point or claim a kernel
+connection. Descriptor checks reject malformed/truncated/checksum-invalid data,
+unsupported interfaces/buses/versions, address overflow, boot-services-only
+memory, unreadable memory and non-executable/non-runtime entry storage. A
+runtime descriptor candidate still needs actual post-handoff packet evidence,
+kernel callbacks/mapping and explicit hardware ownership; it is not an admitted
+runtime driver.
+
+The [UEFI UNDI definition](https://uefi.org/specs/UEFI/2.11/Apx_E_Universal_Network_Driver_Interfaces.html)
+and [runtime-driver guidance](https://tianocore-docs.github.io/edk2-UefiDriverWritersGuide/draft/25_network_driver_design_guidelines/252_nii_protocol_and_undi_implementations/)
+describe a potential firmware-runtime path. If that capability is absent on the
+selected built-in NIC, an early native polling backend is required. Do not call
+SNP after `ExitBootServices` or relabel later SSH/NetGDB as this early connection.
+
 ## Provision a debugging medium
 
 ### Guided setup candidate

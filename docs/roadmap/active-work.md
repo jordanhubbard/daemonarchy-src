@@ -495,3 +495,15 @@ match the received core hash without gaps or overlaps. Both finite guests stop
 cleanly. Read-only product sharing and the selected GENERIC-only ESP preserve
 retained evidence within the worker reserve. Buffer provenance, safe non-panic
 resume and final source/compiler/product admission remain open.
+
+### [ ] SRC-DEBUG-005 — Finish the built-in-NIC early-kernel connection for 1.3.1
+
+- **Priority:** P0
+- **Owner:** UEFI and early kernel diagnostics
+- **Direction:** Implement the loader-to-kernel connection needed to capture the MSI early reset using its built-in NIC; keep the in-progress 1.3 release separate.
+- **Conclusion:** SNP loader output and ready-driver NetGDB do not close the firmware handoff gap. Inspect runtime UNDI and PCI identity before selecting the early polling backend; descriptor admission is not an active connection.
+- **Depends on:** SRC-DEBUG-001
+- **Implementation:**
+  - [ ] Provide a kernel-owned early polling transport, authenticated phase transition, startup/probe output and safe native-driver ownership transfer, integrated with guided loader setup.
+- **Evidence:**
+  - [ ] Require exact native loader/kernel builds, real post-ExitBootServices pre-driver packets, deliberate VM reset/panic captures, failure/revocation controls and an exact MSI built-in-NIC capture.

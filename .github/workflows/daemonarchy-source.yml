@@ -4,6 +4,8 @@ on:
   push:
     paths:
       - 'stand/lua/**'
+      - 'stand/efi/loader/netconsole*'
+      - 'stand/efi/loader/Makefile'
       - 'tools/daemonarchy/**'
       - 'sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC'
       - 'sys/kern/kern_mbuf.c'
@@ -14,6 +16,8 @@ on:
   pull_request:
     paths:
       - 'stand/lua/**'
+      - 'stand/efi/loader/netconsole*'
+      - 'stand/efi/loader/Makefile'
       - 'tools/daemonarchy/**'
       - 'sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC'
       - 'sys/kern/kern_mbuf.c'
@@ -31,6 +35,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: UNDI descriptor admission (not firmware execution)
+        run: |
+          clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -fno-omit-frame-pointer -Istand/efi/loader \
+            stand/efi/loader/netconsole_undi.c tools/daemonarchy/tests/netconsole-undi.c \
+            -o "${{ runner.temp }}/undi-admission"
+          "${{ runner.temp }}/undi-admission"
       - name: Loader setup interactions (not EFI acceptance)
         run: >-
           python3 tools/daemonarchy/tests/run-loader-debug-setup.py
@@ -51,3 +62,51 @@ jobs:
         run: >-
           python3 tools/daemonarchy/tests/run-iflib-debugnet-ownership.py
           --output-directory "${{ runner.temp }}/iflib-debugnet-${{ github.run_id }}-${{ github.run_attempt }}"
+
+  native-loader:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Native FreeBSD EFI build and admission controls
+        uses: vmactions/freebsd-vm@c46abacb49f09938ca4e1702d15d836285d694cc # v1
+        with:
+          release: '15.0'
+          arch: x86_64
+          mem: '4096'
+          cpu: '2'
+          run: |
+            set -eu
+            mkdir -p _build/earlynet-native/lua
+            uname -a > _build/earlynet-native/worker.txt
+            df -k . /var/tmp
+            sysctl hw.physmem
+            test "$(df -k /var/tmp | awk 'NR==2 {print $4}')" -ge 4194304
+            cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
+              -fno-omit-frame-pointer -Istand/efi/loader \
+              stand/efi/loader/netconsole_undi.c tools/daemonarchy/tests/netconsole-undi.c \
+              -o /var/tmp/undi-admission
+            ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 \
+              UBSAN_OPTIONS=halt_on_error=1 /var/tmp/undi-admission \
+              > _build/earlynet-native/admission.stdout
+            /usr/libexec/flua tools/daemonarchy/tests/loader-debug-setup.lua "$PWD" \
+              > _build/earlynet-native/setup.stdout
+            export MAKEOBJDIRPREFIX=/var/tmp/earlynet-loader-objects
+            make -C stand -j2 NO_ROOT=yes LOADER_NET_SUPPORT=yes obj \
+              > _build/earlynet-native/obj.log 2>&1
+            if make -C stand -j2 NO_ROOT=yes LOADER_NET_SUPPORT=yes all \
+              > _build/earlynet-native/build.log 2>&1; then
+              loader_obj=$(make -C stand/efi/loader -V .OBJDIR)
+              cp "$loader_obj/loader_lua.efi" _build/earlynet-native/loader.efi
+              cp stand/lua/*.lua _build/earlynet-native/lua/
+              sha256 _build/earlynet-native/loader.efi _build/earlynet-native/lua/*.lua \
+                > _build/earlynet-native/SHA256
+            else
+              tail -80 _build/earlynet-native/build.log
+              exit 1
+            fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: earlynet-native-loader-${{ github.sha }}
+          path: _build/earlynet-native/
