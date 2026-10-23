@@ -98,6 +98,8 @@ mock_open(EFI_FILE_PROTOCOL *parent, EFI_FILE_PROTOCOL **file,
 	unsigned slot;
 	size_t i;
 	(void)attributes;
+	/* Error outputs are intentionally unusable, as the firmware API permits. */
+	*file = (EFI_FILE_PROTOCOL *)(uintptr_t)1;
 	for (i = 0; wide[i] != 0; i++) {
 		assert(i < sizeof(name) - 1);
 		name[i] = wide[i];

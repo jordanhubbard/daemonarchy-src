@@ -16,6 +16,19 @@ report_path(CHAR16 *wide, const char *ascii)
 }
 
 static EFI_STATUS
+report_open(EFI_FILE_PROTOCOL *parent, EFI_FILE_PROTOCOL **file,
+    CHAR16 *path, UINT64 mode)
+{
+	EFI_FILE_PROTOCOL *opened = NULL;
+	EFI_STATUS status;
+
+	/* Firmware does not promise an output handle when Open fails. */
+	status = parent->Open(parent, &opened, path, mode, 0);
+	*file = status == EFI_SUCCESS ? opened : NULL;
+	return (status == EFI_SUCCESS && opened == NULL ? EFI_DEVICE_ERROR : status);
+}
+
+static EFI_STATUS
 report_verify(EFI_FILE_PROTOCOL *file, const char *data, size_t length)
 {
 	char buffer[256];
@@ -59,7 +72,7 @@ nc_report_write(EFI_FILE_PROTOCOL *root, const char *data, size_t length,
 		return (EFI_INVALID_PARAMETER);
 	/* Require the purpose-built medium's existing marker before any write. */
 	report_path(path, "\\DAEMDBG\\PROBE.TAG");
-	status = root->Open(root, &file, path, EFI_FILE_MODE_READ, 0);
+	status = report_open(root, &file, path, EFI_FILE_MODE_READ);
 	if (status != EFI_SUCCESS)
 		return (status);
 	status = report_verify(file, NC_REPORT_MARKER, sizeof(NC_REPORT_MARKER) - 1);
@@ -70,14 +83,14 @@ nc_report_write(EFI_FILE_PROTOCOL *root, const char *data, size_t length,
 	if (status != EFI_SUCCESS)
 		return (status);
 	report_path(path, "\\DAEMDBG");
-	status = root->Open(root, &directory, path,
-	    EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE, 0);
+	status = report_open(root, &directory, path,
+	    EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE);
 	if (status != EFI_SUCCESS)
 		return (status);
 	for (slot = 1; slot <= NC_REPORT_SLOTS; slot++) {
 		snprintf(name, sizeof(name), "BOOT%04u.TXT", slot);
 		report_path(path, name);
-		status = directory->Open(directory, &file, path, EFI_FILE_MODE_READ, 0);
+		status = report_open(directory, &file, path, EFI_FILE_MODE_READ);
 		if (status == EFI_NOT_FOUND)
 			break;
 		if (status != EFI_SUCCESS)
@@ -91,8 +104,8 @@ nc_report_write(EFI_FILE_PROTOCOL *root, const char *data, size_t length,
 		status = EFI_VOLUME_FULL;
 		goto done;
 	}
-	status = directory->Open(directory, &file, path,
-	    EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE | EFI_FILE_MODE_CREATE, 0);
+	status = report_open(directory, &file, path,
+	    EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE | EFI_FILE_MODE_CREATE);
 	if (status != EFI_SUCCESS)
 		goto done;
 	for (offset = 0; offset < length; offset += size) {
@@ -116,7 +129,7 @@ nc_report_write(EFI_FILE_PROTOCOL *root, const char *data, size_t length,
 	if (status != EFI_SUCCESS)
 		goto done;
 	/* Reopen and verify exact bytes before claiming a successful save. */
-	status = directory->Open(directory, &file, path, EFI_FILE_MODE_READ, 0);
+	status = report_open(directory, &file, path, EFI_FILE_MODE_READ);
 	if (status != EFI_SUCCESS)
 		goto done;
 	status = report_verify(file, data, length);
