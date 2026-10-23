@@ -43,6 +43,14 @@ describe a potential firmware-runtime path. If that capability is absent on the
 selected built-in NIC, an early native polling backend is required. Do not call
 SNP after `ExitBootServices` or relabel later SSH/NetGDB as this early connection.
 
+The native build job also prepares a separate firmware-inventory USB image.
+Its Lua startup prints NIC/runtime capability automatically and leaves the
+loader prompt available. It contains no kernel, installer, credentials or
+automatic network activation, and does not write internal storage. This is a
+preflight artifact for selecting the real MSI backend, not a 1.3.1 installer or
+a working early-kernel transport. Exact UEFI boot evidence is still required
+before recommending its use.
+
 ## Provision a debugging medium
 
 ### Guided setup candidate

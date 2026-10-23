@@ -498,6 +498,8 @@ resume and final source/compiler/product admission remain open.
 
 ### [ ] SRC-DEBUG-005 — Finish the built-in-NIC early-kernel connection for 1.3.1
 
+- **GitHub issue:** [#21](https://github.com/jordanhubbard/daemonarchy-src/issues/21), milestone **1.3.1**.
+
 - **Priority:** P0
 - **Owner:** UEFI and early kernel diagnostics
 - **Direction:** Implement the loader-to-kernel connection needed to capture the MSI early reset using its built-in NIC; keep the in-progress 1.3 release separate.

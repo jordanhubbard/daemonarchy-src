@@ -5,6 +5,7 @@
 #include <efi.h>
 #include <efilib.h>
 #include <efipciio.h>
+#include <netinet/in.h>
 #include <netif.h>
 #include <Protocol/SimpleNetwork.h>
 #include <Protocol/NetworkInterfaceIdentifier.h>
