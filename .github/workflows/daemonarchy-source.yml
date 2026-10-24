@@ -1,0 +1,107 @@
+name: Daemonarchy source build controller
+
+on:
+  push:
+    paths:
+      - 'stand/lua/**'
+      - 'stand/efi/loader/netconsole*'
+      - 'stand/efi/loader/Makefile'
+      - 'tools/daemonarchy/**'
+      - 'sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC'
+      - 'sys/kern/kern_mbuf.c'
+      - 'sys/net/debugnet.c'
+      - 'sys/net/iflib.c'
+      - 'sys/sys/mbuf.h'
+      - '.github/workflows/daemonarchy-source.yml'
+  pull_request:
+    paths:
+      - 'stand/lua/**'
+      - 'stand/efi/loader/netconsole*'
+      - 'stand/efi/loader/Makefile'
+      - 'tools/daemonarchy/**'
+      - 'sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC'
+      - 'sys/kern/kern_mbuf.c'
+      - 'sys/net/debugnet.c'
+      - 'sys/net/iflib.c'
+      - 'sys/sys/mbuf.h'
+      - '.github/workflows/daemonarchy-source.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  controller:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: UNDI descriptor admission (not firmware execution)
+        run: |
+          clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -fno-omit-frame-pointer -Istand/efi/loader \
+            stand/efi/loader/netconsole_undi.c tools/daemonarchy/tests/netconsole-undi.c \
+            -o "${{ runner.temp }}/undi-admission"
+          "${{ runner.temp }}/undi-admission"
+      - name: Loader setup interactions (not EFI acceptance)
+        run: >-
+          python3 tools/daemonarchy/tests/run-loader-debug-setup.py
+          --output-directory "${{ runner.temp }}/loader-setup-${{ github.run_id }}-${{ github.run_attempt }}"
+      - name: USB report preservation and failure controls
+        run: |
+          clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -fno-omit-frame-pointer -Istand/efi/loader \
+            tools/daemonarchy/tests/netconsole-report.c -o "${{ runner.temp }}/usb-report"
+          "${{ runner.temp }}/usb-report"
+      - name: Controller refusal and custody tests (not native acceptance)
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 -m unittest discover -s tools/daemonarchy -p 'test_*.py' -v
+      - name: Sanitized production mbuf ownership functions (not kernel acceptance)
+        env:
+          CC: clang
+        run: >-
+          python3 tools/daemonarchy/tests/run-debugnet-mbuf-pools.py
+          --output-directory "${{ runner.temp }}/debugnet-pools-${{ github.run_id }}-${{ github.run_attempt }}"
+      - name: Sanitized production iflib ownership callback (not kernel acceptance)
+        env:
+          CC: clang
+        run: >-
+          python3 tools/daemonarchy/tests/run-iflib-debugnet-ownership.py
+          --output-directory "${{ runner.temp }}/iflib-debugnet-${{ github.run_id }}-${{ github.run_attempt }}"
+
+  native-loader:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Retain checkout identity before native synchronization
+        run: |
+          mkdir -p _build/earlynet-native
+          git diff --exit-code
+          git rev-parse HEAD > _build/earlynet-native/source-commit.txt
+          git rev-parse 'HEAD^{tree}' > _build/earlynet-native/source-tree.txt
+          sha256sum stand/efi/loader/netconsole*.c stand/efi/loader/netconsole*.h \
+            stand/lua/netdebug.lua stand/lua/loader.lua stand/lua/menu.lua \
+            tools/daemonarchy/tests/firmware-inventory.lua \
+            > _build/earlynet-native/feature-inputs.sha256
+      - name: Native FreeBSD EFI build and admission controls
+        uses: vmactions/freebsd-vm@c46abacb49f09938ca4e1702d15d836285d694cc # v1
+        with:
+          release: '15.0'
+          arch: x86_64
+          mem: '4096'
+          cpu: '2'
+          run: |
+            mkdir -p _build/earlynet-native
+            result=0
+            sh tools/daemonarchy/tests/build-earlynet-loader.sh \
+              > _build/earlynet-native/run.stdout \
+              2> _build/earlynet-native/run.stderr || result=$?
+            printf '%s\n' "$result" > _build/earlynet-native/exit-status
+      - name: Require successful native result
+        run: test "$(cat _build/earlynet-native/exit-status)" = 0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: earlynet-native-loader-${{ github.sha }}
+          path: _build/earlynet-native/

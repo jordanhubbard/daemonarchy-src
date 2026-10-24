@@ -243,6 +243,7 @@ menu.welcome = {
 			boot_entry_1,
 			boot_entry_2,
 			menu_entries.prompt,
+			menu_entries.netdebug,
 			menu_entries.reboot,
 			menu_entries.console,
 			{
@@ -272,6 +273,18 @@ menu.welcome = {
 		}
 	end,
 	all_entries = {
+		netdebug = {
+			entry_type = core.MENU_RETURN,
+			name = color.highlight("N") .. "etwork debugging",
+			visible = function()
+				return core.isUEFIBoot() and
+				    loader.getenv("loader_brand") == "daemonarchy"
+			end,
+			func = function()
+				require("netdebug").setup()
+			end,
+			alias = {"n", "N"},
+		},
 		multi_user = {
 			entry_type = core.MENU_ENTRY,
 			name = function()

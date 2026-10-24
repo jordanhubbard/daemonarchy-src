@@ -1,0 +1,36 @@
+{
+  "schema": "daemonarchy/standard-rebind-checkpoint@1",
+  "framework_revision": "ca604c000d6a2eae1906fe10a6f7f1156bab2b43",
+  "wheel_sha256": "db7df86194a04164aab6e4936f91eda63ba62e679ae43a6069bee1c2779d1ede",
+  "distribution_identity": "sha256:95ff863c311e475172efbca8a7a2fd012d727974368ce84293503804462b8fe0",
+  "distribution_members": 1204,
+  "plan_identity": "sha256:7d14cf0557dd281087dca3d34cabdf41ce44aab7d37fa7f3fbe9f533b5651108",
+  "standard_policy_identity": "sha256:a5ca0d6d13daff0199f218c5e4af723a2cec87b927e75dd3a731c511b5d85ac7",
+  "required_evidence_kinds_preserved": 16,
+  "controller_checks": {
+    "macos_passed": 58,
+    "macos_native_only_skipped": 4,
+    "native_freebsd_passed": 62,
+    "native_freebsd_skipped": 0
+  },
+  "installed_singlestep_sbom_checks": {
+    "native_freebsd_passed": 7,
+    "native_freebsd_skipped": 0
+  },
+  "local_and_native_rebind_applied": true,
+  "native_checkout_base": "949a40c88544a6a64bca0f8877f38ed77f71e656",
+  "native_checkout_state": "exact source revision with reviewed Standard rebind metadata",
+  "native_executable_profile": {
+    "input_members": 5270,
+    "owned_input_nodes": 5622,
+    "canonical_units": 5,
+    "managed_components_including_project_root": 6,
+    "manifest_identity": "sha256:b3b95f194a006f04e98fe84394a7be53ef620cd9f1c075145889f16f952d9761",
+    "authorization_identity": "sha256:6f5fea016007308a753aaec4e7c7dc345350c27adaabd5f60831bd1083c741ae",
+    "admitted": false
+  },
+  "receipt": "missing",
+  "acceptance_qualified": false,
+  "packages_qualified": false,
+  "active_workspace_selection_changed": false
+}

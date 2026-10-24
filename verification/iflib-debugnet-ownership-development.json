@@ -1,0 +1,362 @@
+{
+  "schema": "daemonarchy/iflib-debugnet-ownership-development@1",
+  "observed_utc": "2026-10-22T22:24:18.715264+00:00",
+  "issue": "https://github.com/jordanhubbard/daemonarchy-src/issues/16",
+  "baseline_revision": "4966d0d824ade7d83a746ec568b41d92dc5a6a6a",
+  "scope": "Verbatim iflib debugnet event callback around distinct fake receive queues and allocator identities; not linked driver or buffer-provenance qualification",
+  "production_source_sha256": "4da21c5745e91940fa248230fdf1575bf0694017e7540323c5202ba0b09bfb1d",
+  "implementation": [
+    "Save exact per-free-list allocator pointers before DEBUGNET_START",
+    "Index every receive free list rather than repeating list zero",
+    "Restore pointers and prior global batching value on DEBUGNET_END without consulting still-overridden global zones",
+    "Keep NetGDB panic-only guard unchanged"
+  ],
+  "controller": {
+    "baseline": {
+      "source_sha256": "e1cb4815d6d8538bbc6ca4943ac68219dbd702b996289bbf1c5a1bb16286bbb1",
+      "function_sha256": [
+        "af9d9fc6391ee56f54f3daa4d035782cc84876d23fb2d322cf93dc17ee2c422d"
+      ],
+      "scope": "Verbatim iflib event callback with fake queues and allocator identities; not a linked kernel or buffer-provenance qualification",
+      "build_exit_code": 0,
+      "cases": [
+        {
+          "name": "restore",
+          "exit_code": -6
+        },
+        {
+          "name": "zones",
+          "exit_code": -6
+        },
+        {
+          "name": "all-lists",
+          "exit_code": -6
+        }
+      ]
+    },
+    "candidate": {
+      "source_sha256": "4da21c5745e91940fa248230fdf1575bf0694017e7540323c5202ba0b09bfb1d",
+      "function_sha256": [
+        "52391f86bde1db4ba0d6bee08878d0ca3060f4af8ac8966559b920c6ace9dcc5"
+      ],
+      "scope": "Verbatim iflib event callback with fake queues and allocator identities; not a linked kernel or buffer-provenance qualification",
+      "build_exit_code": 0,
+      "cases": [
+        {
+          "name": "restore",
+          "exit_code": 0
+        },
+        {
+          "name": "zones",
+          "exit_code": 0
+        },
+        {
+          "name": "all-lists",
+          "exit_code": 0
+        }
+      ]
+    },
+    "regression_tests": {
+      "selected": 66,
+      "passed": 62,
+      "skipped": 4,
+      "failed": 0,
+      "seconds": 3.857
+    }
+  },
+  "native": {
+    "native_os": "FreeBSD",
+    "compiler": "FreeBSD clang version 21.1.8 (https://github.com/llvm/llvm-project.git llvmorg-21.1.8-0-g2078da43e25a)",
+    "cases": [
+      {
+        "phase": "baseline",
+        "case": "restore",
+        "exit_code": -6
+      },
+      {
+        "phase": "baseline",
+        "case": "zones",
+        "exit_code": -6
+      },
+      {
+        "phase": "baseline",
+        "case": "all-lists",
+        "exit_code": -6
+      },
+      {
+        "phase": "candidate",
+        "case": "restore",
+        "exit_code": 0
+      },
+      {
+        "phase": "candidate",
+        "case": "zones",
+        "exit_code": 0
+      },
+      {
+        "phase": "candidate",
+        "case": "all-lists",
+        "exit_code": 0
+      }
+    ],
+    "fixtures_sha256": {
+      "baseline": "2a1420b9bbb2759b9283388ba7c75e48b0b1b09739f61aab2f1eeea859706470",
+      "candidate": "ce9fc6908200970ed59c1753deb3103c14f8cde357d6d17c8cd33abe9a7c10f3"
+    }
+  },
+  "native_terminal": {
+    "exit_code": 0,
+    "schema": "daemonarchy/native-command-terminal@1",
+    "seconds": 1.276
+  },
+  "raw_native_evidence": {
+    "baseline-all-lists.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "baseline-restore.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "result.json": {
+      "sha256": "2b7bdd59ba540a6f8fc1b487ca6f85d55dd785462212894dbc300673c23018a1",
+      "bytes": 884
+    },
+    "supervisor.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "qualify.py": {
+      "sha256": "5fb45f5f5a929304d4908f53d657767feac67825480b3195477c22a6fee61ebe",
+      "bytes": 1322
+    },
+    "baseline-zones.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "candidate-all-lists.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "candidate-zones.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "baseline-build.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "candidate-restore.stdout": {
+      "sha256": "11e9e4007ed3912630524d37c118dbd4be572d9e92426340d8818f627a078e1d",
+      "bytes": 81
+    },
+    "candidate-build.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "baseline.c": {
+      "sha256": "2a1420b9bbb2759b9283388ba7c75e48b0b1b09739f61aab2f1eeea859706470",
+      "bytes": 3125
+    },
+    "run-command.py": {
+      "sha256": "95a55c752c0d0f19edc54d61990668fa1477237a9b29b60954f9e851123136aa",
+      "bytes": 2076
+    },
+    "baseline-zones.stderr": {
+      "sha256": "cdf3ed900a31aa11115b28cb33735ba1d7c77f3df428e5b0dd22ff9cabadfa20",
+      "bytes": 142
+    },
+    "candidate-all-lists.stdout": {
+      "sha256": "11e9e4007ed3912630524d37c118dbd4be572d9e92426340d8818f627a078e1d",
+      "bytes": 81
+    },
+    "candidate-zones.stdout": {
+      "sha256": "11e9e4007ed3912630524d37c118dbd4be572d9e92426340d8818f627a078e1d",
+      "bytes": 81
+    },
+    "baseline-restore.stderr": {
+      "sha256": "bd24decf579f979063d9475eac423f88d50ed8a5966ca56dd70ce049bbd5dae9",
+      "bytes": 129
+    },
+    "baseline-all-lists.stderr": {
+      "sha256": "3ff39e8ff760ca3d80161c83397b9826bb52887c217b64234c749db96cbe0b11",
+      "bytes": 139
+    },
+    "candidate.c": {
+      "sha256": "ce9fc6908200970ed59c1753deb3103c14f8cde357d6d17c8cd33abe9a7c10f3",
+      "bytes": 3808
+    },
+    "spec.json": {
+      "sha256": "596a5da3f77f06d097b3e45398be8f9138800bd6be91e47b267149445526ee73",
+      "bytes": 239
+    },
+    "baseline-build.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "candidate-restore.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "candidate-build.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "qualification-command/terminal.json": {
+      "sha256": "70341882bb19c62ea9a9649570803af5963eadeb9bfa604e85d08fc4ed03e26e",
+      "bytes": 86
+    },
+    "qualification-command/started.json": {
+      "sha256": "8d3f51c6c201af2aeaaf8423a6ddcea1233fd5f23aa857b9a29f63e88d422e52",
+      "bytes": 280
+    },
+    "qualification-command/stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "qualification-command/stdout.log": {
+      "sha256": "83e3b3a59083a1791ffc9ec47819402aa54c7fd0cce9786f1c033d9acdf6b891",
+      "bytes": 690
+    }
+  },
+  "style9": {
+    "errors": 0,
+    "warnings": 0,
+    "checked_patch_lines": 54
+  },
+  "source_authority": "pass",
+  "aggregate_source_verify": {
+    "locks": "fail; implicit target",
+    "receipt": "missing; fail"
+  },
+  "linked_kernel_built": true,
+  "native_recovery_renewed": true,
+  "nonpanic_resume_qualified": false,
+  "continuous_early_kernel_transport": false,
+  "authenticated_kernel_protocol": false,
+  "source_sdk_admitted": false,
+  "release_acceptance": false,
+  "remaining": [
+    "Ring buffer provenance and safe resumable debugger entry",
+    "Continuous early-kernel network activation, authentication and physical NIC acceptance",
+    "Final source/compiler/product admission and exact release gates"
+  ],
+  "candidate_revision": "4f46a741fb2f71141dbfb09b723ce443e0450f48",
+  "candidate_tree": "4aacb3bafaedc70ddb4b198c9e499a8142919679",
+  "review": "https://github.com/jordanhubbard/daemonarchy-src/pull/17",
+  "native_kernel_build": {
+    "state": "passed; exact clean GENERIC build, no installation",
+    "source_revision": "4f46a741fb2f71141dbfb09b723ce443e0450f48",
+    "setup_seconds": 3.947,
+    "maximum_seconds": 2400,
+    "jobs": 4,
+    "fresh_object_directory": true,
+    "install_performed": false,
+    "cold_checkout_reused_after_process_cwd_argv_mount_and_export_audits": true,
+    "primary_refs_and_head_unchanged": true,
+    "old_revision_and_index_preserved": true,
+    "planned_write_budget_bytes": 3221225472,
+    "host_reserve_bytes": 42949672960,
+    "exit_code": 0,
+    "supervised_seconds": 526.747,
+    "native_build_seconds": 526.282,
+    "build_id": "0a71d6f0677d45edf987fbd288d58febd07a949a",
+    "products": [
+      {
+        "name": "kernel",
+        "bytes": 31535296,
+        "sha256": "d61cbae2ab1035437e3c6a6dead84966879d76804ff96d5ee60d1fb0bfa4e5fe",
+        "build_id": "0a71d6f0677d45edf987fbd288d58febd07a949a"
+      },
+      {
+        "name": "kernel.full",
+        "bytes": 137524184,
+        "sha256": "8038b86021e98a1d5a0831e6547f02b9a26cd0dd1f5e5fafa24aaa8fafd60466",
+        "build_id": "0a71d6f0677d45edf987fbd288d58febd07a949a"
+      },
+      {
+        "name": "kernel.debug",
+        "bytes": 118501296,
+        "sha256": "4425e345b606d03b0d1f7f5a6bc6b83962b18993a4d4639911423321e2412154",
+        "build_id": "0a71d6f0677d45edf987fbd288d58febd07a949a"
+      }
+    ],
+    "raw_evidence": {
+      "prepared.json": {
+        "bytes": 430,
+        "sha256": "b6a29855e3cf809151b88c8e87dcc54cb85d6c0240650a832ef8233717440d3b"
+      },
+      "source-before.json": {
+        "bytes": 209,
+        "sha256": "1ee469dc03ddcc63b0dae2500f75c56733079da6ce2ff29785213c2e6c397c65"
+      },
+      "primary-before.json": {
+        "bytes": 162,
+        "sha256": "9b1816f59d8c62607bc60d263d95ccebe8896c5ae1612546c9fc7e83a9a88abd"
+      },
+      "build-inputs.json": {
+        "bytes": 865,
+        "sha256": "ecb499bb93cc0fe704b8939eccbc0d4cc8a1b18684e9233bf4b94840b149ee18"
+      },
+      "products.json": {
+        "bytes": 1208,
+        "sha256": "037fa8f3fdc2f82e92ba1ac5867425b8caf6ed904703e5d656db2afccd4f09bb"
+      },
+      "build.py": {
+        "bytes": 2805,
+        "sha256": "8489a4f88f59447900dfc22b20e2ccb36caa174fbcfab001d2f768cb7bb88c2d"
+      },
+      "prepare.py": {
+        "bytes": 3598,
+        "sha256": "d563142cf96fb2cf7a0ac2a053ef815ad85cb450711328e91aac3fd0a3552423"
+      },
+      "run-command.py": {
+        "bytes": 2076,
+        "sha256": "95a55c752c0d0f19edc54d61990668fa1477237a9b29b60954f9e851123136aa"
+      },
+      "setup-command/started.json": {
+        "bytes": 294,
+        "sha256": "24d2eb0a6cb9766bcafa1ed10603269deccdf74d26ffdd13dcf9ce25b01506fd"
+      },
+      "setup-command/terminal.json": {
+        "bytes": 86,
+        "sha256": "8a72183947e549be10cef232802a0456ab3a9e9349617a1746429c820bb38282"
+      },
+      "setup-command/stdout.log": {
+        "bytes": 658,
+        "sha256": "3e6fd6c16cf4f4ca1ed8b4c942f28944a32463026cc656ed1cb91fdf0b998c73"
+      },
+      "setup-command/stderr.log": {
+        "bytes": 368,
+        "sha256": "1d77c1c1fde60765b10784a1f6829e4b48bbe91a09c1e3110192bafb7c2ffd69"
+      },
+      "build-command/started.json": {
+        "bytes": 292,
+        "sha256": "53e18ee5aa92bf27eb2dc8355377b14c1831d3d15ddfc17c236a698e7617f1b8"
+      },
+      "build-command/terminal.json": {
+        "bytes": 88,
+        "sha256": "4f2f6eb3c898b3babc28f47e3804c4de8b9b7d4481f0b4ad358cd2b5d3b55acb"
+      },
+      "build-command/stdout.log": {
+        "bytes": 3949661,
+        "sha256": "afbe69b37716be52fcdc4cd45ac949165a165078153ad3f6c3d6e645e142c163"
+      },
+      "build-command/stderr.log": {
+        "bytes": 325,
+        "sha256": "c0f449cc74ecc27d226b24140da98e4082939778fecf23941cd2b3fae286d40e"
+      }
+    }
+  },
+  "hosted_controller_ci": {
+    "run": "https://github.com/jordanhubbard/daemonarchy-src/actions/runs/39864909917",
+    "source_revision": "3291676019349a7ee8f159ccab33528fca8471b1",
+    "state": "completed",
+    "conclusion": "success"
+  },
+  "native_recovery_state": "Exact-kernel NetGDB memory restoration and native Netdump byte reconstruction pass; all owned guests stopped",
+  "native_netgdb_renewed": true,
+  "native_netgdb_record": "verification/iflib-debugnet-live-recovery-development.json",
+  "native_netdump_renewed": true,
+  "native_netdump_record": "verification/iflib-debugnet-netdump-development.json"
+}

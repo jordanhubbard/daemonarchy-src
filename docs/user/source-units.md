@@ -1,0 +1,114 @@
+# Initial original-source units
+
+These three leaf contracts and two support contracts select a small real dependency closure. They do
+not catalogue the whole source tree or constitute execution admission. Keep
+discovered, registered, locked, admitted, built, tested, accepted and packaged
+counts separate. Unselected inputs remain in their original source locations.
+The [authority and acceptance map](../architecture/design-traceability.md) connects these
+boundaries to the complete source-development requirements and missing evidence.
+
+| Unit | Original inputs | Relationships |
+| --- | --- | --- |
+| libutil-header | `lib/libutil/libutil.h` | Shared public header owned once; all consumers bind its exact bytes. Other declarations remain present, without claiming their implementations. |
+| expand-number | `lib/libutil/expand_number.c`, `lib/libutil/expand_number.3`, `lib/libutil/tests/expand_number_test.c` | Build dependency on the header; original signed/unsigned parser implementation and four original ATF cases. This is a parser slice, not the complete libutil library. |
+| truncate | `usr.bin/truncate/truncate.c`, `usr.bin/truncate/truncate.1`, `usr.bin/truncate/tests/truncate_test.sh` | Build dependency on the header and runtime dependency on the parser slice; twenty original ATF shell cases. |
+| native-build-support | Shared `share/mk`, selected parent/leaf Makefiles, profile and test/report helpers | Build dependency on the captured bootstrap; owned once for all three leaves. |
+| native-bootstrap | Explicit captured compiler, sysroot, resources, runtime and test tools | Unknown host-bootstrap provenance; copying or locking these bytes does not admit their producer. |
+
+The original `usr.bin/truncate/Makefile` declares `LIBADD=util`. A selected parser
+slice must use a distinct private library identity and installation prefix; it
+must not replace system libutil or claim all its symbols. Retain the original
+Makefiles and shared native build rules as explicitly owned build inputs when
+forming the executable manifest. The two support contracts own the selected
+bootstrap/build/test infrastructure. Missing ownership must refuse
+admission rather than assigning unreviewed files to an arbitrary leaf.
+
+Compiler/linker binaries, resource directories, system headers, startup objects,
+linker scripts, runtime libraries, ATF/Kyua and any report-producing interpreter
+need explicit custody and bootstrap provenance. A copied host SDK has unknown
+source-build provenance. Never attribute it to this fork without a recorded build.
+
+Bind native target, ABI, options, flags, packaging and toolchain through selected
+Flavors and the retained profile, separately from unit identity. The unit slots
+require the local `source-freebsd` OS policy and the framework's pinned
+`package-pkg` provider. The provider is imported at framework revision
+`ab15e04e9fb6aadadf26c9a8085640eec275edcc`, including its retained-origin,
+live-admission and independent native-inspection requirements.
+These choices select OS and package intent, not a compiler or executable build
+profile. Standard binding, admitted compiler/runtime inputs, actual execution
+and package qualification remain required. The source target Flavor contributes
+no generation command or ambient compiler fallback.
+
+This adopted project has a Standard lifecycle binding and complete installed
+test receipt policy. The initial reviewed plan/apply transaction used framework
+revision `4613eda2447eca5ad02b1abee2130375b83b29de`, plan identity
+`sha256:a8369c3fc540e0f8cf6d186eb23c6cc2fa45ab005e5e74e44dd228965dabf14f`,
+and installed distribution identity
+`sha256:6c341fe24f1c3fbc859620227ea453d122cd842fc73bc5c920a99063e4ad3cdb`.
+The controller review's current rebind uses framework revision
+`d6070ba530a743f323e12e23b37b2c7840d49a3b`, plan identity
+`sha256:f274b56021aa1800589687b631fe41349fdff5ebf12a058c8dab0fc153bb95a0`,
+and installed distribution identity
+`sha256:45a9c62db237a2b5facee35f992b33fde07b8643c44eccf94f6a654debb633e4`.
+A separate reviewed native project using installed `6e370033` now passes the
+selected original and independent suites. The [development record](../../verification/source-native-development.json)
+retains its local-runtime receipt and cleanup evidence; it does not advance this
+checkout's Standard pin or qualify its source-built SDK.
+The rebind preserves original-source authority but marks accepted source
+membership and the test receipt stale until a complete rebuild. It grants no
+native tool admission or execution qualification.
+
+The project declares `verification/current.json` as the eventual Standard test
+receipt path. This is an output destination, not a receipt or evidence claim; the
+file remains absent until the complete lifecycle earns one. The first installed
+binding needs this path before adding a receipt policy.
+
+The parser cases are `expand_number__ok`, `expand_number__bad`,
+`expand_unsigned` and `expand_generic`. Preserve the utility's complete original
+inventory; its `deallocate` case requires root. An unprivileged skip does not
+establish complete coverage. Use the closed native Kyua database reporter
+described in `tools/daemonarchy/README.md` without inventing pass reports.
+`bad_truncate` and `cannot_open` require an unprivileged user. The original
+Kyua requirements checker rejects these when invoked as root without configured
+`unprivileged_user`; bind that selection explicitly in the reviewed guest
+configuration. Preserve each case's required-user semantics rather than running
+all cases as root or counting a context-related skip as complete coverage.
+
+`tools/daemonarchy/retained/original-cases.json` is the reviewed selection consumed
+by the existing Kyua report producer. It declares the four original parser and
+twenty original utility registrations as `parser.*` and `truncate.*` report IDs,
+using test-program names `expand_number_test` and `truncate_test`. Before a run,
+compare the actual newly built ATF listings with this exact selection. The source
+registration check and inventory parser validate authoring only. The later native
+run matches the complete inventory and passes all 24 cases without skips. No
+selected case has an authorized skip.
+
+Independent acceptance must inspect actual file sizes/content preservation and
+malformed-input refusal separately from original tests. Changed source, shared
+header, dependency, options or compiler must invalidate the affected plan,
+actions, receipts and packages. Package source/build support units as well as
+runtime products. Preserve license notices and observed dependency metadata.
+
+### Prepared utility verifier policy
+
+`verification/retained-project-acceptance.json` uses the framework's typed
+retained acceptance policy and filesystem cases. Eleven cases declare exact
+fixture bytes, expected file lengths/content digests, command results and bounded
+resources. They cover prefix preservation, zero-filled growth, relative sizes,
+creation, no-create, reference sizes, multiple operands, binary suffixes,
+rounding up and invalid-size refusal without changing the fixture.
+
+The policy binds all five current Component lock identities. Its intended
+sealed executable is `products/bin/truncate`, with acceptance action
+`accept-truncate`. The eventual profile must select that policy identity, declare
+the same exact acceptance inventory and include the executable in its build and
+package inventories. Use the existing Standard acceptance owner; do not add a
+shell runner that independently awards acceptance.
+
+Keep this verifier policy outside the retained input manifest's roots: the
+framework withholds independent expectations from build commands and rejects a
+policy included among build inputs. Component lock changes require a fresh
+review of the policy binding. The separate native run now matches all eleven
+declared cases against the built utility and admits its local-runtime receipt. That result does not supply an
+admitted SDK, the canonical Standard lifecycle receipt, per-unit package
+acceptance or installation/update/rollback qualification.

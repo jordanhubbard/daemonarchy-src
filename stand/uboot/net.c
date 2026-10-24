@@ -69,7 +69,8 @@ struct netif_driver uboot_net = {
 	net_put,		/* netif_put */
 	net_end,		/* netif_end */
 	net_ifs,		/* netif_ifs */
-	nitems(net_ifs)		/* netif_nifs */
+	nitems(net_ifs),		/* netif_nifs */
+	NULL			/* netif_configure */
 };
 
 struct uboot_softc {

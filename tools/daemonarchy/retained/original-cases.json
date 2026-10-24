@@ -1,0 +1,125 @@
+{
+  "cases": [
+    {
+      "case": "expand_generic",
+      "id": "parser.expand_generic",
+      "program": "expand_number_test"
+    },
+    {
+      "case": "expand_number__bad",
+      "id": "parser.expand_number__bad",
+      "program": "expand_number_test"
+    },
+    {
+      "case": "expand_number__ok",
+      "id": "parser.expand_number__ok",
+      "program": "expand_number_test"
+    },
+    {
+      "case": "expand_unsigned",
+      "id": "parser.expand_unsigned",
+      "program": "expand_number_test"
+    },
+    {
+      "case": "bad_refer",
+      "id": "truncate.bad_refer",
+      "program": "truncate_test"
+    },
+    {
+      "case": "bad_truncate",
+      "id": "truncate.bad_truncate",
+      "program": "truncate_test"
+    },
+    {
+      "case": "cannot_open",
+      "id": "truncate.cannot_open",
+      "program": "truncate_test"
+    },
+    {
+      "case": "deallocate",
+      "id": "truncate.deallocate",
+      "program": "truncate_test"
+    },
+    {
+      "case": "illegal_option",
+      "id": "truncate.illegal_option",
+      "program": "truncate_test"
+    },
+    {
+      "case": "illegal_size",
+      "id": "truncate.illegal_size",
+      "program": "truncate_test"
+    },
+    {
+      "case": "negative",
+      "id": "truncate.negative",
+      "program": "truncate_test"
+    },
+    {
+      "case": "new_absolute_grow",
+      "id": "truncate.new_absolute_grow",
+      "program": "truncate_test"
+    },
+    {
+      "case": "new_absolute_shrink",
+      "id": "truncate.new_absolute_shrink",
+      "program": "truncate_test"
+    },
+    {
+      "case": "new_relative_grow",
+      "id": "truncate.new_relative_grow",
+      "program": "truncate_test"
+    },
+    {
+      "case": "new_relative_shrink",
+      "id": "truncate.new_relative_shrink",
+      "program": "truncate_test"
+    },
+    {
+      "case": "new_zero",
+      "id": "truncate.new_zero",
+      "program": "truncate_test"
+    },
+    {
+      "case": "no_files",
+      "id": "truncate.no_files",
+      "program": "truncate_test"
+    },
+    {
+      "case": "opt_c",
+      "id": "truncate.opt_c",
+      "program": "truncate_test"
+    },
+    {
+      "case": "opt_rs",
+      "id": "truncate.opt_rs",
+      "program": "truncate_test"
+    },
+    {
+      "case": "reference",
+      "id": "truncate.reference",
+      "program": "truncate_test"
+    },
+    {
+      "case": "rounddown",
+      "id": "truncate.rounddown",
+      "program": "truncate_test"
+    },
+    {
+      "case": "rounddown_zero",
+      "id": "truncate.rounddown_zero",
+      "program": "truncate_test"
+    },
+    {
+      "case": "roundup",
+      "id": "truncate.roundup",
+      "program": "truncate_test"
+    },
+    {
+      "case": "too_large_size",
+      "id": "truncate.too_large_size",
+      "program": "truncate_test"
+    }
+  ],
+  "schema": "daemonarchy/kyua-case-inventory@1"
+}

@@ -72,6 +72,7 @@
 
 static char *netdev_name;
 static int netdev_sock = -1;
+static int netdev_unit = -1;
 static int netdev_opens;
 
 static int	net_init(void);
@@ -130,8 +131,12 @@ net_open(struct open_file *f, ...)
 
 	devname = dev->d_dev->dv_name;
 	/* Before opening another interface, close the previous one first. */
-	if (netdev_sock >= 0 && strcmp(devname, netdev_name) != 0)
+	if (netdev_sock >= 0 && (strcmp(devname, netdev_name) != 0 ||
+	    dev->d_unit != netdev_unit)) {
+		if (netdev_opens != 0)
+			return (EBUSY);
 		net_cleanup();
+	}
 
 	/* On first open, do netif open, mount, etc. */
 	if (netdev_opens == 0) {
@@ -143,6 +148,12 @@ net_open(struct open_file *f, ...)
 				return (ENXIO);
 			}
 			netdev_name = strdup(devname);
+			if (netdev_name == NULL) {
+				net_cleanup();
+				return (ENOMEM);
+			}
+			netdev_unit = dev->d_unit;
+			netif_configure(netdev_sock);
 			DEBUG_PRINTF(1,("%s: netif_open() succeeded %#x\n",
 				__func__, rootip.s_addr));
 		}
@@ -155,9 +166,7 @@ net_open(struct open_file *f, ...)
 			error = net_getparams(netdev_sock);
 			if (error) {
 				/* getparams makes its own noise */
-				free(netdev_name);
-				netif_close(netdev_sock);
-				netdev_sock = -1;
+				net_cleanup();
 				return (error);
 			}
 		}
@@ -178,12 +187,19 @@ net_configure(struct devdesc *dev)
 {
 	int error;
 
-	if (netdev_sock >= 0)
-		return (0);
+	if (netdev_sock >= 0) {
+		if (dev->d_unit == netdev_unit &&
+		    strcmp(dev->d_dev->dv_name, netdev_name) == 0)
+			return (0);
+		if (netdev_opens != 0)
+			return (EBUSY);
+		net_cleanup();
+	}
 
 	netdev_sock = netif_open(dev);
 	if (netdev_sock < 0)
 		return (ENXIO);
+	netif_configure(netdev_sock);
 
 	error = 0;
 	if (rootip.s_addr == 0)
@@ -191,17 +207,16 @@ net_configure(struct devdesc *dev)
 	if (error == 0)
 		net_setparams(netdev_sock);
 	if (error != 0) {
-		netif_close(netdev_sock);
-		netdev_sock = -1;
+		net_cleanup();
 		return (error);
 	}
 
 	netdev_name = strdup(dev->d_dev->dv_name);
 	if (netdev_name == NULL) {
-		netif_close(netdev_sock);
-		netdev_sock = -1;
+		net_cleanup();
 		return (ENOMEM);
 	}
+	netdev_unit = dev->d_unit;
 	return (error);
 }
 
@@ -220,6 +235,8 @@ net_close(struct open_file *f)
 	DEBUG_PRINTF(2,("%s: opens=%d\n", __func__, netdev_opens));
 
 	dev = f->f_devdata;
+	if (dev->d_opendata != NULL && netdev_opens > 0)
+		netdev_opens--;
 	dev->d_opendata = NULL;
 
 	return (0);
@@ -231,8 +248,16 @@ net_cleanup(void)
 
 	if (netdev_sock >= 0) {
 		DEBUG_PRINTF(1,("%s: calling netif_close()\n", __func__));
-		rootip.s_addr = 0;
+		myip.s_addr = rootip.s_addr = gateip.s_addr = servip.s_addr = 0;
+		netmask = 0;
+		rootpath[0] = '\0';
+		rootport = 0;
+		intf_mtu = 0;
+		netproto = NET_NONE;
 		free(netdev_name);
+		netdev_name = NULL;
+		netdev_unit = -1;
+		netdev_opens = 0;
 		netif_close(netdev_sock);
 		netdev_sock = -1;
 	}
@@ -367,7 +392,8 @@ net_setparams(int sock)
 
 		snprintf(mtu, sizeof(mtu), "%u", intf_mtu);
 		setenv("boot.netif.mtu", mtu, 1);
-	}
+	} else
+		unsetenv("boot.netif.mtu");
 
 	DEBUG_PRINTF(1,("%s: netproto=%d\n", __func__, netproto));
 }

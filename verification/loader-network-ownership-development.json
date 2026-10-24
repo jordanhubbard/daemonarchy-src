@@ -1,0 +1,325 @@
+{
+  "schema": "daemonarchy-src/loader-network-ownership-development@1",
+  "observed_utc": "2026-10-22T13:55:30.214474+00:00",
+  "work_item": "SRC-DEBUG-001",
+  "issue": "https://github.com/jordanhubbard/daemonarchy-src/issues/11",
+  "review": "https://github.com/jordanhubbard/daemonarchy-src/pull/7",
+  "scope": "Native development checks for network unit selection, shared ownership and protocol context; no whole-source/compiler admission, physical firmware or release qualification",
+  "source_base_revision": "0509b3e10895693830eff34200f36e141ceaeaf4",
+  "source_sha256": {
+    "stand/efi/loader/Makefile": "645ee9e011aee1a55129df4c7eceaa1a957b1b6f46f9ab622f7892effe6fc666",
+    "stand/efi/loader/netconsole_proto.c": "faf2ca127674ef7e8642f01e8ed29f037812b9a04826c1ff470cad05bc1d007b",
+    "stand/efi/loader/netconsole_proto.h": "6d43d91cce78a22c4c0ec9f7cad4ba7c12f5ab01a61126e03f0a3686591c6c38",
+    "stand/efi/loader/netconsole.c": "0b11be5fb76e8e1a159ffd1aa05780ee25ebfe42d8bb9b49b20540b363bedd5d",
+    "stand/efi/libefi/efinet.c": "4181a817b6e136842878ef8738dba963c352baf2fdb52614cbf388187309f51c",
+    "stand/efi/include/efilib.h": "6cbf33352dd1ce189ff7ce1be48060f5ef4cf96ac6419137275dd7b017b57249",
+    "stand/efi/loader/conf.c": "4f7d70032bebc610e59597dde53b42e68d62a94f3635a6cbe3a44f42a7a41a7c",
+    "stand/efi/loader/bootinfo.c": "3fa005235812d91f5f45c7a6fc3c2ab372c12928f278becc9209e16ca965e89d",
+    "stand/lua/loader.lua": "7e454ce2220c2fbd4b87e2d5b2c60135ecfc4282906b15ae2ec4a9edc808ef83",
+    "stand/libsa/netif.c": "bf084f8a5a703842a66c17fd7b11b3f490689ac0f27642330a5cf366a881382c",
+    "stand/libsa/netif.h": "a65328e43fe1bd2f30da2ea5bcd3570645f49424efc901059f424a92ae71851d",
+    "stand/common/dev_net.c": "14af3603d863f7e27af07e6252e947897eae08556be68bab77939f8375c1cb4d",
+    "stand/libsa/bootp.c": "14fbcff38051a349db7bc4f6f058b6a53b8ee407556846dc114081dceb31563a",
+    "stand/uboot/net.c": "9007d42c7dfcc2d270e9a2e59396504fed7ae20bb3c078a9d0108ed384a61797"
+  },
+  "native_stand_build": {
+    "exit_code": 0,
+    "seconds": 100.114,
+    "platform": "FreeBSD amd64",
+    "byte_pinned_overrides": 14,
+    "native_seed_revision_attested": false,
+    "complete_source_tree_admitted": false,
+    "bootstrap_toolchain_admitted": false
+  },
+  "artifacts": [
+    {
+      "name": "loader_lua.efi",
+      "bytes": 734208,
+      "sha256": "114c5d7fb204e60cd3e6d2dd37fd6f0dae05df4df0951a29df1d194e8f339ce1"
+    },
+    {
+      "name": "loader_lua.sym",
+      "bytes": 877816,
+      "sha256": "c9f5499e4a1648b7fcf4c3985c1f5e54f568d0335fd8ec4b81d01b6482ed144b"
+    }
+  ],
+  "native_owner_controls": [
+    {
+      "name": "netif-owner",
+      "scope": "Stable distinct/shared owners, optional protocol configuration, final close, failed-probe retry and allocation balance; the baseline is the earlier retained fixture exposing the selection alias",
+      "baseline": {
+        "exit_code": 134,
+        "seconds": 0.692,
+        "source_sha256": {
+          "tools/daemonarchy/tests/netif-ownership.c": "779b8a5cd364dab3fccf37d2798f99023942f123298d3d2474a57ff24800947d",
+          "tools/daemonarchy/tests/run-netif-ownership.sh": "e3d337700bdbe1229eccde2270c129ae846230047eb125bcc29a169ed80d93ec",
+          "stand/libsa/netif.c": "655bab17f17201f6761c4e6e6f643f4e9e8245aeba64a4b040725aec01925b87",
+          "stand/libsa/netif.h": "235303bbc8acd422f676f837e887fff8b7aae5a8049975aeee8a1c214d2d20ff"
+        }
+      },
+      "candidate": {
+        "exit_code": 0,
+        "seconds": 0.542,
+        "source_sha256": {
+          "tools/daemonarchy/tests/netif-ownership.c": "2e55070a86a6da6992543f4230271e8ff944c6cce4c6b4931928116b66e14e18",
+          "tools/daemonarchy/tests/run-netif-ownership.sh": "e3d337700bdbe1229eccde2270c129ae846230047eb125bcc29a169ed80d93ec",
+          "stand/libsa/netif.c": "bf084f8a5a703842a66c17fd7b11b3f490689ac0f27642330a5cf366a881382c",
+          "stand/libsa/netif.h": "a65328e43fe1bd2f30da2ea5bcd3570645f49424efc901059f424a92ae71851d"
+        }
+      }
+    },
+    {
+      "name": "netdev-owner",
+      "scope": "Active-file refusal, close accounting, unit switching and protocol configuration; the baseline is the retained pre-configuration fixture exposing the missing close decrement",
+      "baseline": {
+        "exit_code": 134,
+        "seconds": 0.44,
+        "source_sha256": {
+          "tools/daemonarchy/tests/netdev-ownership.c": "2a715ce166edfd250594f8d4cfd865c09d512f7a1962e7ff0ce041c375a6f5dc",
+          "tools/daemonarchy/tests/run-netdev-ownership.sh": "b172320f135f85b8993759a1e7a42503195bcf3bd81d79aff8d3a9bf5c4bf5af",
+          "stand/common/dev_net.c": "5b65f1c61bc3617e71d9711f8db8673f2c0d196b19185665de1e49651a8f6a48"
+        }
+      },
+      "candidate": {
+        "exit_code": 0,
+        "seconds": 0.714,
+        "source_sha256": {
+          "tools/daemonarchy/tests/netdev-ownership.c": "75731b60cd8c29a7042e6c6aec15f9ec22cec03ecf64c3b2911b7cf5456992a3",
+          "tools/daemonarchy/tests/run-netdev-ownership.sh": "b172320f135f85b8993759a1e7a42503195bcf3bd81d79aff8d3a9bf5c4bf5af",
+          "stand/common/dev_net.c": "14af3603d863f7e27af07e6252e947897eae08556be68bab77939f8375c1cb4d",
+          "stand/libsa/netif.h": "a65328e43fe1bd2f30da2ea5bcd3570645f49424efc901059f424a92ae71851d"
+        }
+      }
+    },
+    {
+      "name": "bootp-interface-cache",
+      "scope": "Actual DHCP first outgoing message: valid matching reply reuse, different MAC, invalid identity fields and truncated cache",
+      "baseline": {
+        "exit_code": 134,
+        "seconds": 0.701,
+        "source_sha256": {
+          "tools/daemonarchy/tests/bootp-interface-cache.c": "950d7a111a35ef19ada74acf9c88651f5508bb2a1fdba87b3a5c2f874e365cd6",
+          "tools/daemonarchy/tests/run-bootp-interface-cache.sh": "72767f48e236a7f71d40ada300c3520e08f80d1ee860ae31afc7d600ba948888",
+          "stand/libsa/bootp.c": "b95a2a5f352887d20df5f1b7b8ac661b631461d1020a57c6311170494500a195"
+        }
+      },
+      "candidate": {
+        "exit_code": 0,
+        "seconds": 0.56,
+        "source_sha256": {
+          "tools/daemonarchy/tests/bootp-interface-cache.c": "950d7a111a35ef19ada74acf9c88651f5508bb2a1fdba87b3a5c2f874e365cd6",
+          "tools/daemonarchy/tests/run-bootp-interface-cache.sh": "72767f48e236a7f71d40ada300c3520e08f80d1ee860ae31afc7d600ba948888",
+          "stand/libsa/bootp.c": "14fbcff38051a349db7bc4f6f058b6a53b8ee407556846dc114081dceb31563a"
+        }
+      }
+    }
+  ],
+  "native_sanitizer_regressions": [
+    {
+      "name": "netconsole-receive",
+      "exit_code": 0,
+      "seconds": 0.411
+    },
+    {
+      "name": "efinet-console",
+      "exit_code": 0,
+      "seconds": 0.284
+    },
+    {
+      "name": "efi-bootinfo",
+      "exit_code": 0,
+      "seconds": 0.272
+    }
+  ],
+  "sanitizers": [
+    "address",
+    "undefined-behavior"
+  ],
+  "leak_sanitizer_supported": false,
+  "controller_tests": {
+    "selected": 66,
+    "passed": 62,
+    "declared_skips": 4,
+    "failed": 0
+  },
+  "actual_uefi": {
+    "firmware": "OVMF",
+    "nic_model": "e1000",
+    "cross_interface": {
+      "seconds": 3.582,
+      "result": {
+        "schema": "daemonarchy/loader-network-owner-development@1",
+        "paired": true,
+        "transfers": [
+          {
+            "requested_unit": 0,
+            "expected_payload_seen": true,
+            "ordinary_mac_matches_requested_unit": true,
+            "debug_identity_preserved": true
+          },
+          {
+            "requested_unit": 1,
+            "expected_payload_seen": true,
+            "ordinary_mac_matches_requested_unit": true,
+            "debug_identity_preserved": true
+          },
+          {
+            "requested_unit": 0,
+            "expected_payload_seen": true,
+            "ordinary_mac_matches_requested_unit": true,
+            "debug_identity_preserved": true
+          }
+        ],
+        "identity_preserved": true,
+        "firmware_handoff_seen": true,
+        "kernel_observed": false,
+        "release_acceptance": false,
+        "boot_id": "6a3e66c5bf29d44832ab4b4ec99f406e"
+      }
+    },
+    "same_interface_lifetime": {
+      "seconds": 5.534,
+      "result": {
+        "schema": "daemonarchy/loader-socket-lifetime-development@1",
+        "cycles": [
+          {
+            "cycle": 1,
+            "revocation_refused_pairing": true,
+            "repeated_stop_safe": true,
+            "restart_preserved_boot_id": true,
+            "restart_rotated_session": true,
+            "ordinary_transfer_preserved": true
+          },
+          {
+            "cycle": 2,
+            "revocation_refused_pairing": true,
+            "repeated_stop_safe": true,
+            "restart_preserved_boot_id": true,
+            "restart_rotated_session": true,
+            "ordinary_transfer_preserved": true
+          }
+        ],
+        "kernel_observed": false,
+        "release_acceptance": false,
+        "boot_id": "2e6ac2a0e661715054a883c1819eaed8",
+        "firmware_handoff_seen": true
+      }
+    },
+    "queue_pressure_and_tftp": {
+      "seconds": 1.084,
+      "result": {
+        "schema": "daemonarchy/loader-network-owner-development@1",
+        "paired": true,
+        "transfers": [
+          {
+            "requested_unit": 0,
+            "expected_payload_seen": true,
+            "ordinary_mac_matches_requested_unit": true,
+            "debug_identity_preserved": true
+          },
+          {
+            "requested_unit": 0,
+            "expected_payload_seen": true,
+            "ordinary_mac_matches_requested_unit": true,
+            "debug_identity_preserved": true
+          }
+        ],
+        "identity_preserved": true,
+        "firmware_handoff_seen": true,
+        "kernel_observed": false,
+        "release_acceptance": false,
+        "boot_id": "cfe59f06690c31433f10b69a51956f71",
+        "normal_rx_drops": 112
+      }
+    },
+    "adversarial_protocol": {
+      "seconds": 2.335,
+      "result": {
+        "checks": [
+          "output_ack_loss_and_input_ack_reflection",
+          "forged_truncated_oversized_gap_duplicate_changed_input",
+          "fresh_pairing_stable_boot_id_old_session_revoked"
+        ],
+        "passed": true,
+        "kernel_boot_observed": false
+      }
+    },
+    "nfs": {
+      "command_exit_code": 0,
+      "seconds": 6.679,
+      "small_file_read": true,
+      "read_size": 8192,
+      "fragmented_file_loaded_and_listed": true,
+      "fragmented_file_sha256": "8aa85cc6d94dcde68d09b631e2dd75131257f1f163273314c4df72e3e6019022",
+      "kernel_loaded_over_nfs": true,
+      "firmware_handoff_seen": true,
+      "kernel_independently_observed": true,
+      "kernel_payload_source_sdk_admitted": false
+    }
+  },
+  "independent_kernel_observations": {
+    "loader-dualnic-v5": {
+      "boot_id": "6a3e66c5bf29d44832ab4b4ec99f406e",
+      "debug_mac_matches_native_interface": true,
+      "ordinary_mac_matches_unit_0": true,
+      "debug_address_configured_in_kernel": true,
+      "observation_sha256": "f8048fed94bf3d0a1a9a6542ae8cdb3f108cd5dabff3f2efdd6d200bd87432ff"
+    },
+    "loader-samenic-v3": {
+      "boot_id": "2e6ac2a0e661715054a883c1819eaed8",
+      "debug_mac_matches_native_interface": true,
+      "ordinary_mac_matches_unit_0": true,
+      "debug_address_configured_in_kernel": true,
+      "observation_sha256": "10adc7831cb4c104b3ad999bf3941609257c70a036a26281e025dedc26f7173d"
+    },
+    "loader-samenic-v4": {
+      "boot_id": "cfe59f06690c31433f10b69a51956f71",
+      "debug_mac_matches_native_interface": true,
+      "ordinary_mac_matches_unit_0": true,
+      "debug_address_configured_in_kernel": true,
+      "observation_sha256": "bebc3d7286c51ce81326ea5e4829669597162cdd7de38f3cc40bee15961edb1e"
+    },
+    "loader-nfs-owner-client-v14": {
+      "boot_id": "6dbcdf3530cb033e1ba4a79f797fb642",
+      "debug_mac_matches_native_interface": true,
+      "ordinary_mac_matches_unit_0": true,
+      "debug_address_configured_in_kernel": false,
+      "observation_sha256": "54fb53d6fefffa9d55fb8ce257efc68923ef77b40ba8159854e4160cfed3a016"
+    }
+  },
+  "failed_development_attempts": [
+    {
+      "case": "pre-close-accounting EFI",
+      "outcome": "Initial profile used NFS instead of TFTP; the subsequent switch returned EBUSY because close did not decrement the count"
+    },
+    {
+      "case": "pre-cache-identity EFI",
+      "outcome": "Unit 0 TFTP passed; unit 1 requested the cached unit 0 DHCP lease and received repeated NACKs"
+    },
+    {
+      "case": "pre-protocol-configuration EFI",
+      "outcome": "NFS paired but small read timed out; shared ordinary access lacked restored static protocol settings"
+    },
+    {
+      "case": "initial stop/restart harness",
+      "outcome": "Fresh pairing raced admitted stop input; corrected harness waits for independent serial revocation completion"
+    },
+    {
+      "case": "initial large NFS harness",
+      "outcome": "Small read passed; data load refused before a kernel was loaded; corrected test loads the kernel first"
+    }
+  ],
+  "cleanup": {
+    "final_owned_guests": 6,
+    "all_exit_zero": true,
+    "all_before_deadline": true,
+    "all_processes_gone": true,
+    "original_disks_preserved": true,
+    "failed_case_disks_and_logs_retained": true
+  },
+  "raw_evidence_custody": "Private per-command logs, packet captures, kernel observations and retained VM overlays; no keys or private routing committed",
+  "canonical_source_receipt_earned": false,
+  "physical_firmware_qualified": false,
+  "kernel_debug_transport_qualified": false,
+  "release_acceptance": false
+}

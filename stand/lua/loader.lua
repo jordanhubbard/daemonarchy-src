@@ -36,8 +36,18 @@ local color = require("color")
 local core = require("core")
 local config = require("config")
 local password = require("password")
+require("netdebug")
 
 config.load()
+
+-- The explicitly selected wired-debug profile waits at the ordinary prompt.
+-- Failure leaves the normal local boot path available.
+if core.isUEFIBoot() and loader.getenv("netdebug_enable") == "YES" then
+	if loader.perform("netdebug auto") == 0 then
+		loader.setenv("autoboot_delay", "NO")
+		return
+	end
+end
 
 if core.isUEFIBoot() then
 	loader.perform("efi-autoresizecons")

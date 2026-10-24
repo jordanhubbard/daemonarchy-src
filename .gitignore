@@ -41,3 +41,14 @@ tags
 sys/*/compile
 /src.conf
 .tgrep
+
+# Literate AI metadata diagnostics; native objects/staging remain outside src.
+/_build/
+/.worktrees/
+/.literate/conversion-authority.lock
+**/.component*.write.lock
+
+# Reviewed host-specific native inputs and generated retained authority
+/tools/daemonarchy/retained/bootstrap/
+/tools/daemonarchy/retained/generated/
+__pycache__/

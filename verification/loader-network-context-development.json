@@ -1,0 +1,149 @@
+{
+  "schema": "daemonarchy/loader-network-context-development@1",
+  "observed_utc": "2026-10-22T15:21:52.335115+00:00",
+  "scope": "Ordinary network context cleanup after interface changes and failed setup; native development evidence only",
+  "baseline_revision": "983b4315ec01f066d1c340da6fc723281fc87c88",
+  "baseline_tree": "3005c0ecefd36d5d516ed528789262f85c203f7a",
+  "source_sha256": {
+    "tools/daemonarchy/tests/netdev-ownership.c": "5b5e9aac4b74b0d7772400bf98c751e1be11e33773d5eb6cf2914671b40af095",
+    "tools/daemonarchy/tests/run-netdev-ownership.sh": "b172320f135f85b8993759a1e7a42503195bcf3bd81d79aff8d3a9bf5c4bf5af",
+    "stand/common/dev_net.c": "7e37df6ad3550ee5a9ff0b2f7210113ce7ba8a8cfdb784cf59716a0d53f4851b",
+    "stand/libsa/netif.h": "a65328e43fe1bd2f30da2ea5bcd3570645f49424efc901059f424a92ae71851d"
+  },
+  "source_changes_for_native_loader": [
+    "stand/common/dev_net.c"
+  ],
+  "native_build": {
+    "exit_code": 0,
+    "build_seconds": 265.752,
+    "supervised_seconds": 266.741,
+    "full_baseline_checkout_revalidated": true,
+    "preceding_checkout_supervisor_exit_code": 1,
+    "preceding_checkout_child_exit_status_observed": false,
+    "recovery": "Followed the original checkout child, then verified complete clean baseline before applying the pinned change",
+    "efi_bytes": 734208,
+    "efi_sha256": "9472af7435e8376e0982edaa78f6a6cc1dfdfabcd544a3c6f73ebcecbf8f0f38",
+    "symbols_bytes": 877816,
+    "symbols_sha256": "2d2d43878fa5eb43c57eb3d2609a297bce21a0a8604e46cfa1e11ae6c972602f"
+  },
+  "native_production_fixture": {
+    "baseline_failed_dhcp_exit": 134,
+    "baseline_missing_mtu_exit": 134,
+    "candidate_exit_code": 0,
+    "candidate_seconds": 0.721,
+    "sanitizers": [
+      "address",
+      "undefined-behavior"
+    ],
+    "leak_sanitizer_qualified": false,
+    "controls": [
+      "failed DHCP/RARP refuses stale interface address",
+      "ordinary address, route, server, path, port and MTU cleared with socket",
+      "failed setup closes owner and clean retry succeeds",
+      "new configuration without MTU removes stale boot.netif.mtu",
+      "existing active-file refusal and close accounting preserved"
+    ]
+  },
+  "controller": {
+    "selected": 66,
+    "passed": 62,
+    "skipped": 4,
+    "failed": 0,
+    "seconds": 6.737,
+    "skip_scope": "native-only cases"
+  },
+  "actual_uefi": {
+    "cross_nic_tftp": {
+      "exit_code": 0,
+      "seconds": 5.883,
+      "result": {
+        "schema": "daemonarchy/loader-network-owner-development@1",
+        "paired": true,
+        "transfers": [
+          {
+            "requested_unit": 0,
+            "expected_payload_seen": true,
+            "ordinary_mac_matches_requested_unit": true,
+            "debug_identity_preserved": true
+          },
+          {
+            "requested_unit": 1,
+            "expected_payload_seen": true,
+            "ordinary_mac_matches_requested_unit": true,
+            "debug_identity_preserved": true
+          },
+          {
+            "requested_unit": 0,
+            "expected_payload_seen": true,
+            "ordinary_mac_matches_requested_unit": true,
+            "debug_identity_preserved": true
+          }
+        ],
+        "identity_preserved": true,
+        "firmware_handoff_seen": true,
+        "kernel_observed": false,
+        "release_acceptance": false,
+        "boot_id": "d3190115ee40ac8aa433cc061fcb2a4b"
+      }
+    },
+    "same_nic_revocation_restart": {
+      "exit_code": 0,
+      "seconds": 7.687,
+      "result": {
+        "schema": "daemonarchy/loader-socket-lifetime-development@1",
+        "cycles": [
+          {
+            "cycle": 1,
+            "revocation_refused_pairing": true,
+            "repeated_stop_safe": true,
+            "restart_preserved_boot_id": true,
+            "restart_rotated_session": true,
+            "ordinary_transfer_preserved": true
+          },
+          {
+            "cycle": 2,
+            "revocation_refused_pairing": true,
+            "repeated_stop_safe": true,
+            "restart_preserved_boot_id": true,
+            "restart_rotated_session": true,
+            "ordinary_transfer_preserved": true
+          }
+        ],
+        "kernel_observed": false,
+        "release_acceptance": false,
+        "boot_id": "ed92bbe0084240a338eb78a7478aab7c",
+        "firmware_handoff_seen": true
+      }
+    },
+    "nfs_small_fragmented_and_kernel_load": {
+      "exit_code": 0,
+      "seconds": 7.882,
+      "result": {
+        "schema": "daemonarchy/loader-nfs-owner-development@1",
+        "paired": true,
+        "small_read": true,
+        "fragmented_read": true,
+        "firmware_handoff_seen": true,
+        "kernel_observed": false,
+        "release_acceptance": false,
+        "boot_id": "37389e2abb9ad1ec0054d49e100f4a72"
+      }
+    }
+  },
+  "independent_kernel_observations": 3,
+  "all_four_owned_guests_exited_zero_before_deadline": true,
+  "original_disks_preserved": true,
+  "native_source_sdk_admitted": false,
+  "compiler_source_admitted": false,
+  "physical_firmware_qualified": false,
+  "early_kernel_debug_transport_qualified": false,
+  "release_acceptance": false,
+  "nfs_kernel_debug_address": "Preserved metadata only; independent ifconfig did not find the debug IP configured in the kernel",
+  "project_gates": {
+    "authority": "passed",
+    "native_freebsd_component_locks": 5,
+    "native_freebsd_locks_current": true,
+    "default_host_lock_gate": "Fails because these committed locks select freebsd, not host; each passes explicit freebsd verification",
+    "configured_native_receipt": "missing"
+  }
+}

@@ -1,0 +1,158 @@
+{
+  "schema": "daemonarchy/debugnet-ready-recovery-development@1",
+  "observed_utc": "2026-10-22T22:08:05.638205+00:00",
+  "issue": "https://github.com/jordanhubbard/daemonarchy-src/issues/14",
+  "review": "https://github.com/jordanhubbard/daemonarchy-src/pull/15",
+  "scope": "Ready allocator activation/restoration through native panic NetGDB, orderly detach and abrupt peer closure on the exact readiness-repaired kernel",
+  "source_revision": "7a4b58c717bc423e6a8575e27e5b60d409e10725",
+  "source_tree": "db475e9dc7df8371476ed7ff85326040438e91b0",
+  "kernel_elf_build_id": "38821cf580ffed76cdffc9109ee84bd6f5f4d71a",
+  "kernel_full_sha256": "70759d49b20ac12128b3db29a9ec03f71b570f57cd811a9ddeebf986609d22d3",
+  "native_build_record": "verification/debugnet-early-kernel-development.json",
+  "early_guard_record": "verification/debugnet-early-kernel-development.json",
+  "saved_state_flag_offset_verified_from_native_debug_types": 48,
+  "loader_boot_id": "e88763b588a5cb8d6bb04698a9508283",
+  "independent_target_uuid_boot_id_nic_and_revision_verified": true,
+  "client": {
+    "gdb_sha256": "ac9d1357f4fe13204599a3965629a0bcea58262d0a74b9d7108a6c550b4023cc",
+    "gdb_version": "GNU gdb (GDB) 15.1 [GDB v15.1 for FreeBSD]",
+    "proxy_revision": "9d7f2ca5608ab346f81143e7815e11e1e20c921e",
+    "proxy_sources_hash_verified": true
+  },
+  "nonpanic_refused_and_local_continue_passed": true,
+  "controlled_panic_count": 1,
+  "native_sessions": {
+    "detach": {
+      "mode": "detach",
+      "exit_code": 0,
+      "seconds": 1.318,
+      "registers_seen": true,
+      "panic_symbol_seen": true,
+      "candidate_version_seen": true,
+      "backtrace_seen": true,
+      "detach_seen": true
+    },
+    "detach-renewal": {
+      "mode": "detach",
+      "exit_code": 0,
+      "seconds": 1.307,
+      "registers_seen": true,
+      "panic_symbol_seen": true,
+      "candidate_version_seen": true,
+      "backtrace_seen": true,
+      "detach_seen": true
+    },
+    "close": {
+      "mode": "close",
+      "exit_code": 23,
+      "seconds": 1.212,
+      "registers_seen": true,
+      "panic_symbol_seen": true,
+      "candidate_version_seen": true,
+      "backtrace_seen": true,
+      "detach_seen": false
+    }
+  },
+  "kernel_threads": 100,
+  "ready_allocator_activation_count": 3,
+  "allocator_restoration_count": 3,
+  "orderly_detach_sessions": 2,
+  "abrupt_peer_close": {
+    "client_exit_code": 23,
+    "no_detach_command": true,
+    "peer_finished_seen_on_wire": true,
+    "generic_gdb_termination_seen": true,
+    "mbuf_zones_restored": true,
+    "returned_to_ddb": true,
+    "local_register_inspection_passed": true,
+    "local_pager_recovery_passed": true,
+    "local_reset_passed": true
+  },
+  "wire": {
+    "packets": 9364,
+    "heralds": 3,
+    "peer_finished": 3,
+    "pcap_sha256": "0ba659aad5834019e098b877f0c3e6e9e6a4e78d2604c89ad8d05d4f4e62f5ab"
+  },
+  "cleanup": {
+    "roles": {
+      "peer": {
+        "terminal": {
+          "exit_code": 0,
+          "expired": false,
+          "storage_pressure": false,
+          "seconds": 660.8068149238825
+        },
+        "process_absent": true
+      },
+      "target": {
+        "terminal": {
+          "exit_code": 0,
+          "expired": false,
+          "storage_pressure": false,
+          "seconds": 545.010968837887
+        },
+        "process_absent": true
+      }
+    },
+    "target": "DDB reset with QEMU no-reboot",
+    "peer": "Normal shutdown after all three proxies exit zero",
+    "serial_bridge_exit_code": 0,
+    "original_disks_preserved": true,
+    "all_guests_stopped": true,
+    "maximum_each_vm_seconds": 1800
+  },
+  "raw_evidence": {
+    "detach-gdb-result.json": {
+      "sha256": "620e602b4ec7e6ce278e374c8d001ce9cdcdf4dfa5e870d0c5e73fbdfc198856",
+      "bytes": 22137
+    },
+    "detach-renewal-gdb-result.json": {
+      "sha256": "5d5825ac2a18c375cb507ac2ac8f9db9cee1ad8d17cf24b5b644656c75701ab7",
+      "bytes": 22040
+    },
+    "close-gdb-result.json": {
+      "sha256": "0b3fa945eafe3a6d07825c9cbd2543b46ffc6c89bc2f1268c1f3de0516f25b55",
+      "bytes": 22409
+    },
+    "host-evidence/target/console.log": {
+      "sha256": "ba8c2da2fba9e6d27367630abd28efc060d12d9f51f1fe94df6843ff6f2d4f8c",
+      "bytes": 29525
+    },
+    "host-evidence/target/wire.pcap": {
+      "sha256": "0ba659aad5834019e098b877f0c3e6e9e6a4e78d2604c89ad8d05d4f4e62f5ab",
+      "bytes": 1294121
+    },
+    "host-evidence/target/serial-bridge-output.log": {
+      "sha256": "dea3918994c25b5f8c1e40629e83be6ab344c50bff4612ba8e6fe47fcc674112",
+      "bytes": 7269
+    },
+    "peer-evidence/proxy-repeat-3-command/stdout.log": {
+      "sha256": "735f16c22f75d8eed549a9dbb4c590a866909cf4f048149db26c9267638ff094",
+      "bytes": 361
+    },
+    "peer-evidence/proxy-repeat-3-command/stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "saved-state-offset.json": {
+      "sha256": "699dec19f6a48b05a42feb08e634c8b5dab728a0703e1ab4bd60841ca881906b",
+      "bytes": 178
+    }
+  },
+  "kernel_reentry_messages_retained": 3,
+  "native_netdump_on_this_kernel_qualified": true,
+  "physical_nic_qualified": false,
+  "authenticated_kernel_protocol": false,
+  "continuous_early_kernel_transport": false,
+  "source_sdk_admitted": false,
+  "canonical_source_receipt_earned": false,
+  "release_acceptance": false,
+  "limitations": [
+    "Source text paths and optimized arguments remain unqualified on the debugger peer",
+    "Separate IPv6 WITNESS observations are retained in the boot logs",
+    "The first SSH observation expired during DHCP; the same guest continued without restart"
+  ],
+  "native_netdump_scope": "Separate private-wire VM development record; release acceptance remains false",
+  "native_netdump_record": "verification/debugnet-ready-netdump-development.json"
+}

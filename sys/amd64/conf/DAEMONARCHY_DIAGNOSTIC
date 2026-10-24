@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Development only. Enable startup tracing with debug.verbose_sysinit=1.
+include GENERIC
+ident DAEMONARCHY_DIAGNOSTIC
+
+options VERBOSE_SYSINIT=0

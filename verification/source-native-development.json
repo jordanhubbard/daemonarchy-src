@@ -1,0 +1,258 @@
+{
+  "schema": "daemonarchy/source-native-development@1",
+  "source_revision": "d98e6c2da7571295bb3c70236afe637a987370e0",
+  "scope": "Installed original-source retained local-runtime execution and separate aggregate native build; not canonical Standard SDK/pkg/release admission",
+  "retained_runtime": {
+    "framework_commit": "6e3700337f2ff2be61b5b86390059878093fc1bd",
+    "wheel_identity": "sha256:34e7801e802d8324eaf3857fe49c18cf5989436dac80b63222833f3ed28eef58",
+    "distribution_identity": "sha256:5b07e1c258d5ce77bf7755d1686d80ef84145c122c4c8cede618ca09968531bb",
+    "native_platform": "FreeBSD-16.0-CURRENT-amd64-64bit-ELF",
+    "native_python": "3.12.15",
+    "original_tests": {
+      "selected": 24,
+      "passed": 24,
+      "failed": 0,
+      "skipped": 0,
+      "complete_inventory_matched": true,
+      "report_sha256": "d5de391a49f80e0cdb060938632bd90d7686e2b1e46e3086912ca5ed5e3b0ace",
+      "lifecycle_terminal_observed": true
+    },
+    "independent_acceptance": {
+      "cases": 11,
+      "declared_exits_and_stream_hashes_matched": true,
+      "expected_nonzero_exit_cases": 1,
+      "policy_identity": "sha256:874cf058d2ffd67bf058277838c431275c1755693143e53f40258dcde93332ff",
+      "observation_identities": [
+        "sha256:951a29c09a64141caf6525278e354d404546a055d1f26f63ae6055a001030d58",
+        "sha256:914c113e397d4b825301ef5de6ecd1f9485fd57eb65100d41dc05a2d236b7eb8",
+        "sha256:ae6c45bf8cf625f871e1fdfd05737e47726ba7bbe89bc62030ba705828d2a718",
+        "sha256:56f797a0f3adef51b943dfcc42f093ffc6fa179eb9f9ab5b94d5d2c8807df543",
+        "sha256:15540a2ce4ba6c30f1f97f4e5d0fe67d712af5c22197b4f0709a53bcac39f01f",
+        "sha256:eefb794cba43d2da8efa2e4fd8346900449a482b0dc27d9d186093886b73a527",
+        "sha256:351a8bf6f6305119d0851a224908b954c46a7d8f983b4574e69a1269d5e55ef0",
+        "sha256:d1eddddfface7273fe5ce52a4f99cb9b6362ce55904a8726dff785f73c6b58ab",
+        "sha256:13c89c23ab52ebd2904459dd0d7e975a9f333d1b14c0db62be7d22271942585b",
+        "sha256:3f46dd1a8539f42a7cf2a44ab653a2f39d0d9f5495d83968669ae61737c6d376",
+        "sha256:dfe7c7c8d5b71e06a7a2c20cb6dea0bd9ad253c98e75e43f5fc4a2d45fc8d1d9"
+      ]
+    },
+    "plan_identity": "sha256:b06c0a4678cc4264538eb1f42a25426a937b0a2092ce0f36c6ce2f4b7b9e1d16",
+    "retained_receipt_identity": "sha256:924264d401159e317059b69c80087ec3a9cd047ca4652a53ca7903fa6c29f559",
+    "retained_receipt_admitted": true,
+    "verified_retained_records": 34,
+    "cleanup": {
+      "completed_run_bound": true,
+      "cleanup_ok": true,
+      "prefix_mode": "0700",
+      "prefix_access_acl": [
+        "user::rwx",
+        "group::---",
+        "other::---"
+      ],
+      "remaining_nullfs_mounts": 0,
+      "allocation_observations": 51,
+      "distinct_allocations": 1
+    },
+    "retained_custody_verification_sha256": "ddcc9411e9a374ad130e5121070a7a86cd7cf254959dc0e696d611a599dab036",
+    "retained_acceptance_verification_sha256": "d866d58a0f56280493cb6eb5e34d0c24952c5a2ca949add9d0843987bdd74988"
+  },
+  "aggregate_build": {
+    "build_plan_identity": "fd3e6497036ad9494e5dbf519b4a93e12751ccf9fd0f468409a00482d3ba935f",
+    "build_jobs": 4,
+    "build_complete": true,
+    "completed_phases": [
+      {
+        "elapsed_seconds": 7930.977,
+        "exit": 0,
+        "log": "logs/buildworld-1.log",
+        "log_sha256": "2e6ced1671a1bf29d6331cd271ba7320333eb27a06c5c649e74ca1644c4de0c5",
+        "name": "buildworld"
+      },
+      {
+        "elapsed_seconds": 600.195,
+        "exit": 0,
+        "log": "logs/buildkernel-1.log",
+        "log_sha256": "817dad901fbf8687402119b317a5ee87c328f242af43b8f6b8e1fa7f69196f1e",
+        "name": "buildkernel"
+      },
+      {
+        "elapsed_seconds": 352.074,
+        "exit": 0,
+        "log": "logs/packages-1.log",
+        "log_sha256": "b9c437b700bd57e1015bfc3c1848430c1d8601f7b727231f8fb4168d24fde15a",
+        "name": "packages"
+      },
+      {
+        "elapsed_seconds": 0.471,
+        "exit": 0,
+        "log": "logs/release-obj-1.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "name": "release-obj"
+      },
+      {
+        "elapsed_seconds": 469.502,
+        "exit": 0,
+        "log": "logs/sets-1.log",
+        "log_sha256": "da2153404d7c59e71b496cdc45be17b940345d8eba8d3cb6c078e7e80c218aa4",
+        "name": "sets"
+      }
+    ],
+    "source_archive_audit": {
+      "status": "git-parity-verified",
+      "source_revision": "d98e6c2da7571295bb3c70236afe637a987370e0",
+      "tracked_members": 114710,
+      "symlinks": 138,
+      "hardlinks": 0,
+      "root_ownership": true,
+      "git_modes_and_bytes_match": true,
+      "archive_sha256": "9bfea8e85e2290b8e9a1972d17fdb681540b5d7d7d78273564fc78392682ea3d",
+      "sdk_admitted": false,
+      "package_acceptance": false,
+      "release_acceptance": false
+    },
+    "sdk_package_inspection": {
+      "scope": "Read-only metadata and role inspection of source-built pkgbase artifacts; not SDK or payload admission",
+      "package_manifests_verified": 524,
+      "artifact_hashes_match_build_result": true,
+      "candidate_dependency_closure": [
+        {
+          "name": "FreeBSD-clang",
+          "sha256": "70e33a60291a950eafc08fea2c4ec7cc385c9c86b205181842530accbe54060e",
+          "size": 43887675,
+          "observed_roles": {
+            "compiler_resources": {
+              "count": 6,
+              "sample": [
+                "/usr/lib/clang/21/lib/freebsd/libclang_rt.asan-i386.so",
+                "/usr/lib/clang/21/lib/freebsd/libclang_rt.asan-x86_64.so",
+                "/usr/lib/clang/21/share/asan_ignorelist.txt",
+                "/usr/lib/clang/21/share/cfi_ignorelist.txt",
+                "/usr/lib/clang/21/share/msan_ignorelist.txt",
+                "/usr/lib/clang/21/share/"
+              ]
+            }
+          },
+          "observed_links": {
+            "symlinks": 0,
+            "hardlinks": 15
+          }
+        },
+        {
+          "name": "FreeBSD-clang-dev",
+          "sha256": "ca25ba17694f72eb0fb52dff443e9c89e2994359b5f8329135ea12b80a941ef5",
+          "size": 15481492,
+          "observed_roles": {
+            "compiler_resources": {
+              "count": 316,
+              "sample": [
+                "/usr/lib/clang/21/include/__clang_cuda_builtin_vars.h",
+                "/usr/lib/clang/21/include/__clang_cuda_cmath.h",
+                "/usr/lib/clang/21/include/__clang_cuda_complex_builtins.h",
+                "/usr/lib/clang/21/include/__clang_cuda_device_functions.h",
+                "/usr/lib/clang/21/include/__clang_cuda_intrinsics.h",
+                "/usr/lib/clang/21/include/__clang_cuda_libdevice_declares.h"
+              ]
+            }
+          },
+          "observed_links": {
+            "symlinks": 2,
+            "hardlinks": 0
+          }
+        },
+        {
+          "name": "FreeBSD-clibs",
+          "sha256": "20a431fa0df793b794a462f06f6d24a85f15a54ae3470ec04e007fd892b69cf5",
+          "size": 1468762,
+          "observed_roles": {
+            "cxx_runtime": {
+              "count": 2,
+              "sample": [
+                "/lib/libc++.so.1",
+                "/lib/libcxxrt.so.1"
+              ]
+            }
+          },
+          "observed_links": {
+            "symlinks": 3,
+            "hardlinks": 3
+          }
+        },
+        {
+          "name": "FreeBSD-clibs-dev",
+          "sha256": "30256f0fce5741b80dd8c0dd51aa933001ed04d8315e13ddcba1da79ad56ee36",
+          "size": 18822479,
+          "observed_roles": {
+            "cxx_headers": {
+              "count": 1752,
+              "sample": [
+                "/usr/include/c++/v1/__algorithm/adjacent_find.h",
+                "/usr/include/c++/v1/__algorithm/all_of.h",
+                "/usr/include/c++/v1/__algorithm/any_of.h",
+                "/usr/include/c++/v1/__algorithm/binary_search.h",
+                "/usr/include/c++/v1/__algorithm/clamp.h",
+                "/usr/include/c++/v1/__algorithm/comp.h"
+              ]
+            },
+            "cxx_runtime": {
+              "count": 2,
+              "sample": [
+                "/usr/lib/libc++.so",
+                "/usr/lib/libcxxrt.so"
+              ]
+            },
+            "startup": {
+              "count": 3,
+              "sample": [
+                "/usr/lib/crt1.o",
+                "/usr/lib/crti.o",
+                "/usr/lib/crtn.o"
+              ]
+            }
+          },
+          "observed_links": {
+            "symlinks": 22,
+            "hardlinks": 1820
+          }
+        },
+        {
+          "name": "FreeBSD-libcompiler_rt-dev",
+          "sha256": "2311cd3e44b57aec969731e98de5cd9fe87359e9c7617835940fc8f2acee78b4",
+          "size": 247588,
+          "observed_roles": {},
+          "observed_links": {
+            "symlinks": 1,
+            "hardlinks": 0
+          }
+        },
+        {
+          "name": "FreeBSD-lld",
+          "sha256": "237e87300f37719bdf9b6e44ab33f0a7357ff43226c54429301112a9d7c7a189",
+          "size": 866777,
+          "observed_roles": {
+            "linker": {
+              "count": 2,
+              "sample": [
+                "/usr/bin/ld.lld",
+                "/usr/share/man/man1/ld.lld.1.gz"
+              ]
+            }
+          }
+        }
+      ],
+      "private_observation_sha256": {
+        "source-pkgbase-manifests-v1.json": "567e6254e4b06a50efed3c4e0cf57f111e82f6d249c49ac401dcfb179dd113d2",
+        "source-sdk-package-roles-v1.json": "7793773c2887a0b4e4fe1bf4e382fcc100637d1f4bda049bd653fd6eb02b47a2",
+        "source-sdk-package-inspection-v1.json": "07885a45785c60b258525935aa3550aa06a53533c52a9e7fdf882cd5fccb5eab"
+      },
+      "hardlink_equivalence_custody_required": true,
+      "source_sdk_admitted": false,
+      "relocated_compilation_verified": false,
+      "package_acceptance": false
+    }
+  },
+  "canonical_standard_lifecycle_receipt": false,
+  "source_sdk_admitted": false,
+  "per_unit_pkg_provenance_complete": false,
+  "package_acceptance": false,
+  "release_acceptance": false
+}

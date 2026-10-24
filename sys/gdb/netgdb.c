@@ -184,10 +184,7 @@ netgdb_dbg_getc(void)
 		debugnet_network_poll(netgdb_conn);
 	}
 
-	if (c == CTRL('C')) {
-		netgdb_fini();
-		/* Caller gdb_getc() will print that we got ^C. */
-	}
+	/* gdb_getc() owns port termination and the return to DDB on ^C. */
 	return (c);
 }
 

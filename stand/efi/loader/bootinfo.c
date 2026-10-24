@@ -252,6 +252,10 @@ bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
 	 * invalidate the key.  This matches the pre-allocation
 	 * strategy used by the Linux EFI stub.
 	 */
+#ifdef LOADER_NET_SUPPORT
+	if (exit_bs)
+		netconsole_handoff();
+#endif
 	sz = 0;
 	status = BS->GetMemoryMap(&sz, NULL, &efi_mapkey, &dsz, &mmver);
 	if (status != EFI_BUFFER_TOO_SMALL) {
@@ -358,6 +362,9 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	vm_offset_t size;
 	char *rootdevname;
 	int howto;
+#ifdef EFI
+	int error;
+#endif
 #ifdef __i386__
 	/*
 	 * The 32-bit UEFI loader is used to
@@ -386,6 +393,14 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	    MODINFOMD_DTBP
 #endif
 	};
+#endif
+#if defined(EFI) && defined(LOADER_NET_SUPPORT)
+	/* Architecture exec paths clean devices before entering bi_load(). */
+	if (exit_bs && efinet_console_handoff_check() != 0) {
+		printf("Firmware network did not quiesce; refusing kernel handoff. "
+		    "Reboot to recover.\n");
+		return (EIO);
+	}
 #endif
 	howto = bi_getboothowto(args);
 
@@ -483,7 +498,9 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	geli_export_key_metadata(kfp);
 #endif
 #ifdef EFI
-	bi_load_efi_data(kfp, exit_bs);
+	error = bi_load_efi_data(kfp, exit_bs);
+	if (error != 0)
+		return (error);
 #else
 	bi_loadsmap(kfp);
 #endif

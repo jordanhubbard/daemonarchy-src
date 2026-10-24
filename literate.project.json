@@ -1,0 +1,109 @@
+{
+  "schema": "urn:literate-ai:schema:v2:project-definition",
+  "project_id": "daemonarchy-src",
+  "version": "1.2.0",
+  "profile": "canonical",
+  "agent_skill": "SKILL.md",
+  "component_roots": [
+    "tools/daemonarchy/components"
+  ],
+  "flavor_roots": [
+    "flavors"
+  ],
+  "skill_roots": [
+    "tools/daemonarchy/skills",
+    "skills"
+  ],
+  "workflow_roots": [
+    "tools/daemonarchy/workflows"
+  ],
+  "routing_roots": [
+    "tools/daemonarchy/routing"
+  ],
+  "documentation_roots": [
+    "docs"
+  ],
+  "source_intelligence": {
+    "schema": "urn:literate-ai:schema:v1:project-source-intelligence-policy",
+    "provider_id": "none",
+    "command": null,
+    "minimum_version": null,
+    "artifact_path": null,
+    "stages": {
+      "project-maintenance": "off",
+      "source-generation": "off",
+      "cache-consumption": "off",
+      "source-to-specification": "off",
+      "repository-source-admission": "off",
+      "structural-review": "off"
+    },
+    "artifact_publication": "metadata-only"
+  },
+  "lifecycle_driver": {
+    "schema": "urn:literate-ai:schema:v2:project-lifecycle-driver",
+    "binding": "standard",
+    "framework_distribution_identity": {
+      "schema": "urn:literate-ai:schema:v1:content-identity",
+      "algorithm": "sha256",
+      "digest": "45a9c62db237a2b5facee35f992b33fde07b8643c44eccf94f6a654debb633e4"
+    },
+    "policy_identity": {
+      "schema": "urn:literate-ai:schema:v1:content-identity",
+      "algorithm": "sha256",
+      "digest": "a5ca0d6d13daff0199f218c5e4af723a2cec87b927e75dd3a731c511b5d85ac7"
+    }
+  },
+  "test_receipt": "verification/current.json",
+  "test_receipt_policy": {
+    "schema": "urn:literate-ai:schema:v1:project-test-receipt-policy",
+    "suite_id": "literate-ai-standard",
+    "suite_version": "1.0.0",
+    "runner_identity": {
+      "schema": "urn:literate-ai:schema:v1:content-identity",
+      "algorithm": "sha256",
+      "digest": "d53cea771a20bf5b87312a4f4579dc25a9ba2a99ee20ebeedce33903e0adc04b"
+    },
+    "required_evidence_kinds": [
+      "acceptance-result",
+      "build-result",
+      "generation-provenance",
+      "lifecycle-command",
+      "lifecycle-plan",
+      "lifecycle-request",
+      "observation-result",
+      "resolved-sbom",
+      "security-scan-report",
+      "source-cache-decision",
+      "source-cache-lifecycle",
+      "source-intelligence",
+      "source-sbom",
+      "test-report",
+      "test-runner",
+      "workspace-admission"
+    ],
+    "minimum_test_count": 1
+  },
+  "default_flavor_selectors": [
+    "+source-freebsd",
+    "+package-pkg"
+  ],
+  "repository_policy": {
+    "schema": "literate-ai/repository-policy@1",
+    "default_branch": "daemonarchy",
+    "main_state": "free",
+    "pre_release_version": null,
+    "default_component": null,
+    "sample_component_roots": [
+      "samples"
+    ],
+    "work_queue": "docs/roadmap/active-work.md",
+    "remote": "origin",
+    "merge_method": "merge",
+    "pull_request_labels": [],
+    "release_engineer_source": "README.md#release-engineers",
+    "release_ci_workflow": "CI",
+    "patch_authority": "strict",
+    "writers": [],
+    "branch_gc_minimum_age_days": 7
+  }
+}

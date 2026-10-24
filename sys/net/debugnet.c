@@ -673,11 +673,16 @@ debugnet_connect(const struct debugnet_conn_params *dcp,
 		.dp_seqno = 1,
 		.dp_ifp = dcp->dc_ifp,
 		.dp_rx_handler = dcp->dc_rx_handler,
+		.dp_finish_handler = dcp->dc_finish_handler,
 		.dp_drv_input = NULL,
 	};
 
-	/* Switch to the debugnet mbuf zones. */
-	debugnet_mbuf_start();
+	/* Switch only after a driver has prepared all reserved mbuf zones. */
+	error = debugnet_mbuf_start();
+	if (error != 0) {
+		printf("%s: debugnet mbuf pools are not ready\n", __func__);
+		return (error);
+	}
 
 	/* At least one needed parameter is missing; infer it. */
 	if (pcb->dp_client == INADDR_ANY || pcb->dp_gateway == INADDR_ANY ||
