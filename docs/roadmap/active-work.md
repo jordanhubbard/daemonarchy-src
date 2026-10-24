@@ -241,6 +241,38 @@ aggregate package groups and copied bootstrap tools cannot satisfy this step.
   cleanly. Its thirteen isolated checks pass; full SDK/lifecycle and package
   admission remain open.
 
+### [x] AGENTS-001 — Restore discoverable agent onboarding for original source
+
+- **Priority:** P2
+- **Owner:** Project agent entry point
+- **GitHub issue:** [#8](https://github.com/jordanhubbard/daemonarchy-src/issues/8)
+- **Framework gap:** [literate-ai#113](https://github.com/jordanhubbard/literate-ai/issues/113)
+- **Direction:** Audit adopted projects and restore missing root AGENTS.md delegation without disturbing original source or in-progress loader work.
+- **Conclusion:** This project declares SKILL.md but neither active checkout contains the optional coding-agent entry point. Add thin delegates and repository-owned worktree guidance; preserve every existing source change and lifecycle boundary. Track the metadata-only adoption discovery gap in Literate AI issue 113 and this repair in source issue 8.
+- **Depends on:** none
+- **Implementation:**
+  - [x] Add AGENTS.md delegating to the existing SKILL.md on both active review branches.
+  - [x] Ignore the canonical .worktrees directory without changing native source or project pins.
+- **Evidence:**
+  - [x] Project authority validates before and after the documentation repair.
+  - [x] Both entry points delegate to existing SKILL.md and the canonical worktree root resolves and is ignored.
+  - [x] Original in-progress loader file hashes remain unchanged and both documentation commits are pushed.
+
+- **Validation:** Installed project authority validation passes before and after
+  the entry-point repair. Canonical placement resolves identically from both
+  checkouts, ignore matching and whitespace checks pass, and hashes of all six
+  pre-existing loader edits are unchanged. This is documentation evidence only.
+- **Survey limitation:** The supported start survey returned
+  `project.peer_work_tracker_failed`; explicit owned-repository issue and review
+  reads succeeded. The forge-selection repair is tracked in Literate AI #99.
+
+- **Published repair:** Source-pipeline commit `570f5667a0e` and loader-branch
+  commit `2b90a90a6e9` are pushed and match their remote tracking heads. The local
+  cross-project audit now finds valid declared-skill delegation in all 91 active
+  checkouts across 21 project identities. Pinned parent versions and retained
+  evidence snapshots were not rewritten. Review and native acceptance of the
+  surrounding feature branches remain separate.
+
 ### [ ] SRC-DEBUG-001 — Deliver a wired UEFI loader debug console for the next FreeBSD release
 
 - **GitHub issue:** [#6](https://github.com/jordanhubbard/daemonarchy-src/issues/6)

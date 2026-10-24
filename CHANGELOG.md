@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Restore the root coding-agent entry point to the existing source-development
+  `SKILL.md` and require repository-owned, ignored worktree placement.
+
 - Snapshot the selected debug NIC MAC and actual local/peer addresses separately
   from ordinary netboot variables. Refuse a partial environment export so the
   kernel cannot receive mixed handoff identity. Native sanitizer checks cover
