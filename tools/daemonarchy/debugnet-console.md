@@ -21,11 +21,17 @@ kernel. It rejects an unexpected boot ID. Plain mode provides no peer
 authentication or confidentiality. Both the kernel and controller must be
 explicitly enabled; do not expose UDP 26003 on an untrusted network.
 
+At the EFI loader, `set netdebug.plain=1` before `netdebug setup` selects the
+explicit plain mode. The firmware controller uses
+`loader-console.py TARGET --plain`; the packet HMAC uses a public all-zero
+protocol key and provides no authentication. This does not auto-start the
+kernel controller.
+
 This is an isolated mountroot implementation slice, not a complete network
-bring-up claim. The EFI loader still uses authenticated LDNC and does not yet
-activate plain mode or auto-start this controller; the separate
-`loader-console.py --follow-kernel` mode expects LDNC kernel frames rather
-than debugnet framing. A single continuous controller and same-boot handoff
-must be implemented and tested. Predriver panic, post-mount panic, native NIC
+bring-up claim. The firmware LDNC controller and the kernel debugnet
+controller use different wire framing. `loader-console.py --follow-kernel`
+expects LDNC kernel frames rather than debugnet framing. A single continuous
+controller and same-boot handoff must be implemented and tested. Predriver
+panic, post-mount panic, native NIC
 support outside debugnet capable devices, VM mountroot interaction, hard reset
 capture, and physical laptop operation remain unqualified.

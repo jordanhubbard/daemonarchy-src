@@ -57,7 +57,7 @@ static void nc_out(int);
 static int nc_in(void);
 struct console netconsole = {
 	.c_name = "netdebug",
-	.c_desc = "authenticated wired debug console",
+	.c_desc = "wired debug console",
 	.c_probe = nc_probe, .c_init = nc_init, .c_out = nc_out,
 	.c_in = nc_in, .c_ready = nc_ready
 };
@@ -510,7 +510,11 @@ nc_start(const char *unit, const char *local, const char *peer, const char *keyf
 	    nc.local.s_addr == nc.peer.s_addr) {
 		command_errmsg = "supply distinct static IPv4 addresses"; return (CMD_ERROR);
 	}
-	if (nc_key(keyfile) != 0) { command_errmsg = "cannot read a 32-byte or 64-hex debug key file"; return (CMD_ERROR); }
+	if (keyfile != NULL && nc_key(keyfile) != 0) {
+		command_errmsg =
+		    "cannot read a 32-byte or 64-hex debug key file";
+		return (CMD_ERROR);
+	}
 	if (!have_boot_id) {
 		if (nc_random(boot_id, sizeof(boot_id)) != 0) {
 			nc_closed(NULL); command_errmsg = "no usable firmware/CPU entropy"; return (CMD_ERROR);
@@ -534,13 +538,21 @@ nc_start(const char *unit, const char *local, const char *peer, const char *keyf
 	nc.io.myip = nc.local;
 	if (efinet_console_bind(&nc.io, nc_receive, nc_closed, NULL) != 0) goto failed;
 	if (nc_export_identity() != 0) { efinet_console_unbind(); goto failed; }
+	if (keyfile == NULL) {
+		if (setenv("netdebug.plain", "1", 1) != 0) {
+			efinet_console_unbind(); goto failed;
+		}
+	} else
+		unsetenv("netdebug.plain");
 	efinet_dev.dv_cleanup = nc_cleanup;
 	nc.enabled = true;
 	netconsole.c_flags = C_PRESENTIN | C_PRESENTOUT | C_ACTIVEIN | C_ACTIVEOUT;
 	efi_console.c_flags |= C_ACTIVEIN | C_ACTIVEOUT;
 	myip = saved_ip; rootip = saved_root; netmask = saved_mask;
 	gateip = saved_gateway; servip = saved_server;
-	printf("Wired debug console enabled on net%lu; waiting for authenticated controller.\n", number);
+	printf("Wired debug console enabled on net%lu; "
+	    "waiting for %s controller.\n",
+	    number, keyfile == NULL ? "plain" : "authenticated");
 	return (CMD_OK);
 failed:
 	nc_close_socket();
@@ -571,9 +583,18 @@ command_netdebug(int argc, char *argv[])
 	if (argc == 2 && strcmp(argv[1], "auto") == 0) {
 		const char *unit = getenv("netdebug.interface"), *ip = getenv("netdebug.ip");
 		const char *peer = getenv("netdebug.peer"), *key = getenv("netdebug.keyfile");
+		const char *plain = getenv("netdebug.plain");
+		if (ip != NULL && peer != NULL && plain != NULL &&
+		    strcmp(plain, "1") == 0)
+			return (nc_start(unit != NULL ? unit : "0", ip, peer,
+			    NULL));
 		if (ip != NULL && peer != NULL && key != NULL) return (nc_start(unit != NULL ? unit : "0", ip, peer, key));
-		command_errmsg = "set netdebug.ip, netdebug.peer and netdebug.keyfile"; return (CMD_ERROR);
+		command_errmsg = "set netdebug.ip, netdebug.peer and "
+		    "netdebug.keyfile or netdebug.plain=1";
+		return (CMD_ERROR);
 	}
+	if (argc == 5 && strcmp(argv[1], "start-plain") == 0)
+		return (nc_start(argv[2], argv[3], argv[4], NULL));
 	if (argc == 6 && strcmp(argv[1], "start") == 0) return (nc_start(argv[2], argv[3], argv[4], argv[5]));
 	if (argc == 1 || (argc == 2 && strcmp(argv[1], "status") == 0)) {
 		printf("Wired debug console: %s; controller %s; lost output bytes %ju; normal RX drops %ju\n",
@@ -581,7 +602,9 @@ command_netdebug(int argc, char *argv[])
 		    (uintmax_t)nc.lost, (uintmax_t)efinet_console_drops());
 		return (CMD_OK);
 	}
-	command_errmsg = "netdebug devices|save|status|stop|auto|start UNIT LOCAL-IP PEER-IP KEY-FILE";
+	command_errmsg = "netdebug devices|save|status|stop|auto|"
+	    "start-plain UNIT LOCAL-IP PEER-IP|"
+	    "start UNIT LOCAL-IP PEER-IP KEY-FILE";
 	return (CMD_ERROR);
 }
 COMMAND_SET(netdebug, "netdebug", "approved wired loader console", command_netdebug);

@@ -19,9 +19,9 @@ ZERO = bytes(16)
 INPUT, OUTPUT, ACK, FINISH, CHALLENGE, WELCOME, OUTPUT_ACK, KERNEL_WELCOME = range(2, 10)
 
 
-def packet(kind, sequence, session, payload=b""):
+def packet(kind, sequence, session, payload=b"", key=KEY):
     data = HEADER.pack(b"LDNC", 1, kind, len(payload), sequence, session) + payload
-    return data + hmac.digest(KEY, data, "sha256")
+    return data + hmac.digest(key, data, "sha256")
 
 
 class CLITests(unittest.TestCase):
@@ -35,6 +35,7 @@ class CLITests(unittest.TestCase):
         self.server.bind(("127.0.0.1", 0))
         self.server.settimeout(2)
         self.process = None
+        self.wire_key = KEY
 
     def tearDown(self):
         if self.process is not None:
@@ -44,11 +45,13 @@ class CLITests(unittest.TestCase):
         self.server.close()
         self.temp.cleanup()
 
-    def start(self, follow=True):
+    def start(self, follow=True, plain=False):
         args = [sys.executable, str(Path(__file__).with_name("loader-console.py")),
                 "127.0.0.1", "--port", str(self.server.getsockname()[1]),
-                "--key-file", str(self.key), "--timeout", "0.6", "--command", "boot",
+                "--timeout", "0.6", "--command", "boot",
                 "--output", str(self.root / "output"), "--events", str(self.root / "events")]
+        self.wire_key = bytes(32) if plain else KEY
+        args += ["--plain"] if plain else ["--key-file", str(self.key)]
         if follow:
             args.append("--follow-kernel")
         self.process = subprocess.Popen(args, stdin=subprocess.PIPE,
@@ -66,11 +69,11 @@ class CLITests(unittest.TestCase):
         data, self.address = self.server.recvfrom(2048)
         magic, version, kind, size, sequence, session = HEADER.unpack_from(data)
         self.assertEqual((magic, version, len(data)), (b"LDNC", 1, 64 + size))
-        self.assertEqual(data[-32:], hmac.digest(KEY, data[:-32], "sha256"))
+        self.assertEqual(data[-32:], hmac.digest(self.wire_key, data[:-32], "sha256"))
         return kind, sequence, session, data[32:-32]
 
     def send(self, kind, sequence, session, payload=b""):
-        self.server.sendto(packet(kind, sequence, session, payload), self.address)
+        self.server.sendto(packet(kind, sequence, session, payload, self.wire_key), self.address)
 
     def finish(self):
         stdout, stderr = self.process.communicate(timeout=3)
@@ -137,6 +140,13 @@ class CLITests(unittest.TestCase):
         self.assertEqual((code, stderr), (3, b""))
         self.assertEqual(events[-1]["event"], "firmware_handoff_started")
         self.assertNotIn("kernel_connected", [e["event"] for e in events])
+
+    def test_explicit_plain_mode_works_without_a_key_file(self):
+        self.start(follow=False, plain=True)
+        code, stdout, stderr, events = self.finish()
+        self.assertEqual((code, stderr), (3, b""))
+        self.assertIn(b"loader handoff", stdout)
+        self.assertEqual(events[-1]["event"], "firmware_handoff_started")
 
     def test_keyboard_interrupt_closes_capture_without_traceback(self):
         self.start()

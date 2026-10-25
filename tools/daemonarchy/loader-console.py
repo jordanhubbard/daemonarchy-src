@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Approved UDP console for a FreeBSD UEFI loader on a trusted wired network.
 
-Authentication does not encrypt traffic. Capture files retain output/events only.
+--plain uses a public all-zero protocol key: no authentication or encryption.
+Keyed mode authenticates packets but does not encrypt traffic. Capture files
+retain output/events only.
 Exit 3 means the firmware transport closed without an observed kernel session.
 --follow-kernel requires a fresh same-boot kernel response; silence never proves
 a reboot or panic.
@@ -243,6 +245,8 @@ def main():
     parser.add_argument("--port", type=int, default=6668)
     parser.add_argument("--bind", default="0.0.0.0")
     parser.add_argument("--key-file", type=Path)
+    parser.add_argument("--plain", action="store_true",
+                        help="explicit unauthenticated debug mode; trusted wired network only")
     parser.add_argument("--make-key", type=Path)
     parser.add_argument("--command", action="append", default=[])
     parser.add_argument("--timeout", type=float, default=30,
@@ -257,14 +261,15 @@ def main():
         with stream:
             stream.write(secrets.token_hex(32).encode() + b"\n")
         return 0
-    if not args.target or not args.key_file or not 0 < args.timeout <= 3600 or not 1 <= args.port <= 65535:
-        parser.error("target, --key-file, a valid port and a 0..3600 second timeout are required")
+    if (not args.target or args.plain == bool(args.key_file) or
+            not 0 < args.timeout <= 3600 or not 1 <= args.port <= 65535):
+        parser.error("target, exactly one of --plain/--key-file, a valid port and a 0..3600 second timeout are required")
     output = events = None
     client = None
     try:
         output = private_output(args.output)
         events = private_output(args.events)
-        client = Console(args.target, args.port, read_key(args.key_file), bind=args.bind,
+        client = Console(args.target, args.port, bytes(32) if args.plain else read_key(args.key_file), bind=args.bind,
                          timeout=args.timeout, output=output, events=events)
         client.pair()
         if args.command:
