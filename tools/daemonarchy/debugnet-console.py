@@ -26,7 +26,7 @@ def serve(bind, expected, timeout, capture, *, listener=None, on_admit=None):
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             if pending and time.monotonic() >= pending[2]:
-                if pending[3] >= 5:
+                if pending[3] >= max(5, min(1200, int(timeout / .5))):
                     raise TimeoutError('kernel did not acknowledge input')
                 sock.sendto(pending[1], peer)
                 pending = (pending[0], pending[1], time.monotonic() + .5, pending[3] + 1)
@@ -37,7 +37,8 @@ def serve(bind, expected, timeout, capture, *, listener=None, on_admit=None):
             if sys.stdin in ready:
                 line = sys.stdin.buffer.readline(512)
                 if line:
-                    wire = HEADER.pack(DATA, tx_seq, 0, len(line), 0) + line
+                    payload = ACK.pack(tx_seq) + line
+                    wire = HEADER.pack(DATA, tx_seq, 0, len(payload), 0) + payload
                     sock.sendto(wire, peer)
                     pending = (tx_seq, wire, time.monotonic() + .5, 0)
                 else:

@@ -38,30 +38,30 @@ static bool dnc_busy;
 static int
 dnc_rx(struct mbuf *m)
 {
-	struct debugnet_msg_hdr hdr;
+	uint32_t net_seq, seq;
 	uint32_t len;
 	unsigned int tail;
 	int i;
 
-	if (m->m_pkthdr.len < sizeof(hdr))
+	/* debugnet already consumed its transport header before this callback. */
+	if (m->m_pkthdr.len < sizeof(net_seq))
 		return (EINVAL);
-	m_copydata(m, 0, sizeof(hdr), (void *)&hdr);
-	if (ntohl(hdr.mh_type) != DEBUGNET_DATA)
-		return (EINVAL);
-	if (ntohl(hdr.mh_seqno) <= dnc_input_last_seq)
+	m_copydata(m, 0, sizeof(net_seq), (void *)&net_seq);
+	seq = ntohl(net_seq);
+	if (seq <= dnc_input_last_seq)
 		return (0);
-	len = ntohl(hdr.mh_len);
-	if (len > DNC_BUFSIZE || m->m_pkthdr.len < sizeof(hdr) + len)
+	len = m->m_pkthdr.len - sizeof(net_seq);
+	if (len > DNC_BUFSIZE)
 		return (EINVAL);
 	if (len > (dnc_head + DNC_BUFSIZE - dnc_tail - 1) % DNC_BUFSIZE)
 		return (ENOBUFS);
 	for (i = 0; i < len; i++) {
 		tail = (dnc_tail + 1) % DNC_BUFSIZE;
 		dnc_tail = tail;
-		m_copydata(m, sizeof(hdr) + i, 1,
+		m_copydata(m, sizeof(net_seq) + i, 1,
 		    (void *)&dnc_input[(tail + DNC_BUFSIZE - 1) % DNC_BUFSIZE]);
 	}
-	dnc_input_last_seq = ntohl(hdr.mh_seqno);
+	dnc_input_last_seq = seq;
 	return (0);
 }
 

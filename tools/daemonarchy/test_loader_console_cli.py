@@ -177,7 +177,8 @@ class CLITests(unittest.TestCase):
             self.process.stdin.flush()
             wire, _ = kernel.recvfrom(1024)
             self.assertEqual(DEBUGNET_HEADER.unpack_from(wire)[:2], (3, 1))
-            self.assertEqual(wire[DEBUGNET_HEADER.size:], b"ufs:/dev/test\n")
+            self.assertEqual(wire[DEBUGNET_HEADER.size:],
+                             struct.pack("!I", 1) + b"ufs:/dev/test\n")
             kernel.sendto(DEBUGNET_ACK.pack(1), address)
             kernel.sendto(DEBUGNET_HEADER.pack(2, 3, 0, 0, 0), address)
             self.assertEqual(kernel.recvfrom(1024)[0], DEBUGNET_ACK.pack(3))
