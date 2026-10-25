@@ -38,6 +38,9 @@ class ConsoleTest(unittest.TestCase):
                 wire, _ = sock.recvfrom(1024)
                 self.assertEqual(HDR.unpack_from(wire)[:2], (3, 1))
                 self.assertEqual(wire[HDR.size:], b'ufs:/dev/ada0p2\n')
+                # A lost ACK must retransmit the same input, not advance it.
+                retransmit, _ = sock.recvfrom(1024)
+                self.assertEqual(retransmit, wire)
                 sock.sendto(ACK.pack(1), dest)
                 output = b'\nmountroot> '
                 sock.sendto(HDR.pack(3, 2, 0, len(output), 0) + output, dest)
