@@ -4917,17 +4917,28 @@ vtnet_debugnet_transmit(if_t ifp, struct mbuf *m)
 {
 	struct vtnet_softc *sc;
 	struct vtnet_txq *txq;
+	bool locked;
 	int error;
 
 	sc = if_getsoftc(ifp);
 	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING)
+	    IFF_DRV_RUNNING) {
+		m_freem(m);
 		return (EBUSY);
+	}
 
 	txq = &sc->vtnet_txqs[0];
+	/* A panic caller must never sleep behind a queue owned by another CPU. */
+	locked = !mtx_owned(&txq->vtntx_mtx);
+	if (locked && !VTNET_TXQ_TRYLOCK(txq)) {
+		m_freem(m);
+		return (EBUSY);
+	}
 	error = vtnet_txq_encap(txq, &m, M_NOWAIT | M_USE_RESERVE);
 	if (error == 0)
 		(void)vtnet_txq_notify(txq);
+	if (locked)
+		VTNET_TXQ_UNLOCK(txq);
 	return (error);
 }
 
@@ -4935,6 +4946,9 @@ static int
 vtnet_debugnet_poll(if_t ifp, int count)
 {
 	struct vtnet_softc *sc;
+	struct vtnet_txq *txq;
+	struct vtnet_rxq *rxq;
+	bool locked;
 	int i;
 
 	sc = if_getsoftc(ifp);
@@ -4942,9 +4956,22 @@ vtnet_debugnet_poll(if_t ifp, int count)
 	    IFF_DRV_RUNNING)
 		return (EBUSY);
 
-	(void)vtnet_txq_eof(&sc->vtnet_txqs[0]);
-	for (i = 0; i < sc->vtnet_act_vq_pairs; i++)
-		(void)vtnet_rxq_eof(&sc->vtnet_rxqs[i]);
+	txq = &sc->vtnet_txqs[0];
+	locked = !mtx_owned(&txq->vtntx_mtx);
+	if (locked && !VTNET_TXQ_TRYLOCK(txq))
+		return (EBUSY);
+	(void)vtnet_txq_eof(txq);
+	if (locked)
+		VTNET_TXQ_UNLOCK(txq);
+	for (i = 0; i < sc->vtnet_act_vq_pairs; i++) {
+		rxq = &sc->vtnet_rxqs[i];
+		locked = !mtx_owned(&rxq->vtnrx_mtx);
+		if (locked && !mtx_trylock(&rxq->vtnrx_mtx))
+			return (EBUSY);
+		(void)vtnet_rxq_eof(rxq);
+		if (locked)
+			VTNET_RXQ_UNLOCK(rxq);
+	}
 	return (0);
 }
 #endif /* DEBUGNET */
