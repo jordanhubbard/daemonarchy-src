@@ -2,8 +2,9 @@
 """Approved UDP console for a FreeBSD UEFI loader on a trusted wired network.
 
 Authentication does not encrypt traffic. Capture files retain output/events only.
-Exit 3 means the firmware transport closed before kernel handoff; kernel state
-must be observed independently.
+Exit 3 means the firmware transport closed without an observed kernel session.
+--follow-kernel requires a fresh same-boot kernel response; silence never proves
+a reboot or panic.
 """
 
 import argparse
@@ -196,8 +197,8 @@ class Console:
 
     def send_line(self, line):
         encoded = line.encode("ascii")
-        if not encoded or len(encoded) > 255 or any(c != 9 and not 32 <= c <= 126 for c in encoded):
-            raise ValueError("commands require 1..255 printable ASCII bytes (tabs allowed)")
+        if len(encoded) > 255 or any(c != 9 and not 32 <= c <= 126 for c in encoded):
+            raise ValueError("commands require 0..255 printable ASCII bytes (tabs allowed)")
         sequence = self.input_sequence
         packet = encode(self.key, self.session, INPUT, sequence, encoded + b"\n")
         end = time.monotonic() + self.timeout
@@ -213,9 +214,13 @@ class Console:
                 self.input_sequence += 1
                 return
         self.event("input_ack_timeout", sequence=sequence)
-        raise TimeoutError("loader did not acknowledge command admission")
+        raise TimeoutError(f"{self.phase} console did not acknowledge command admission")
 
     def command(self, line):
+        # Kernel prompts (mountroot/DDB) do not run loader echo commands.
+        if self.phase == "kernel":
+            self.send_line(line)
+            return
         self.send_line(line)
         if self.handoff:
             return
@@ -240,7 +245,10 @@ def main():
     parser.add_argument("--key-file", type=Path)
     parser.add_argument("--make-key", type=Path)
     parser.add_argument("--command", action="append", default=[])
-    parser.add_argument("--timeout", type=float, default=30)
+    parser.add_argument("--timeout", type=float, default=30,
+                        help="operation deadline and --follow-kernel idle deadline in seconds")
+    parser.add_argument("--follow-kernel", action="store_true",
+                        help="keep captures open and admit a fresh same-boot kernel session after firmware closes")
     parser.add_argument("--output", type=Path, help="new private output-only capture")
     parser.add_argument("--events", type=Path, help="new private metadata-only event capture")
     args = parser.parse_args()
@@ -264,7 +272,33 @@ def main():
                 client.command(line)
                 if client.handoff:
                     break
-        else:
+        if args.follow_kernel:
+            # EOF only ends keyboard input; durable network capture continues.
+            stdin_open = True
+            idle_end = time.monotonic() + args.timeout
+            while True:
+                if client.handoff:
+                    if client.phase == "kernel":
+                        break
+                    client.pair(kernel=True)
+                    idle_end = time.monotonic() + args.timeout
+                value = client.receive(min(0.1, max(0, idle_end - time.monotonic())))
+                if value is not None:
+                    idle_end = time.monotonic() + args.timeout
+                if client.handoff:
+                    continue
+                if stdin_open and select.select([sys.stdin], [], [], 0)[0]:
+                    line = sys.stdin.readline()
+                    if line:
+                        client.command(line.rstrip("\r\n"))
+                        idle_end = time.monotonic() + args.timeout
+                    else:
+                        stdin_open = False
+                if time.monotonic() >= idle_end:
+                    client.event("capture_idle_timeout", phase=client.phase,
+                                 kernel_observed=client.phase == "kernel")
+                    raise TimeoutError("network capture idle deadline expired; no reboot is inferred")
+        elif not args.command:
             # Keep receiving output while the operator edits a local input line.
             while not client.handoff:
                 client.receive(0.1)
@@ -273,7 +307,12 @@ def main():
                     if not line:
                         break
                     client.command(line.rstrip("\r\n"))
-        return 3 if client.handoff else 0
+        return 3 if client.handoff and client.phase == "firmware" else 0
+    except KeyboardInterrupt:
+        if client is not None:
+            client.event("controller_stopped", phase=client.phase,
+                         kernel_observed=client.phase == "kernel")
+        return 130
     finally:
         if client is not None:
             client.close()

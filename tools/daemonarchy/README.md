@@ -424,3 +424,50 @@ uses fake zone objects to check absent/partial pools, refused-start retry and fu
 restoration. It does not compile the complete kernel or establish real driver
 readiness. The native [development evidence](../../verification/debugnet-pool-readiness-development.json)
 retains the baseline failure separately from changed-kernel build/runtime gates.
+
+
+## Following the loader console into a kernel session
+
+The controller's opt-in `--follow-kernel` keeps its private output and event
+captures open after the firmware transport closes. It requests a fresh kernel
+session using the existing phase protocol and admits only a kernel response
+with the same boot identity and a new session identity. The target must actually
+implement that kernel transport; this controller option supplies no NIC backend
+or early-kernel coverage by itself.
+
+For the existing authenticated compatibility mode:
+
+```sh
+python3 tools/daemonarchy/loader-console.py TARGET --key-file PRIVATE_KEY \
+  --command boot --follow-kernel --timeout 120 \
+  --output NEW_OUTPUT_FILE --events NEW_EVENTS_FILE
+```
+
+The explicit plain diagnostic mode remains a separate implementation milestone;
+this compatibility example does not impose a key on that approved workflow.
+After kernel admission, keyboard lines go directly to the kernel console without
+loader `echo` completion commands. Empty lines are valid, including the blank
+line used by `mountroot>` to list devices. Input acknowledgement proves admission,
+not command completion. End-of-file stops keyboard input while capture continues.
+Ctrl-C closes the controller and its captures with exit 130.
+
+`--timeout` bounds each operation and, with `--follow-kernel`, the interval without
+accepted traffic or keyboard input. A missing kernel response or expired idle
+deadline exits 1, retaining received output and recording the last observed phase.
+Silence does not establish a reboot or explain a panic. Kernel transport closure
+returns 0 after the admitted kernel session; the default firmware-only flow still
+returns 3 at firmware closure. Capture paths must be new and are created private.
+These captures contain arbitrary target output and should remain private.
+
+Portable controller verification:
+
+```sh
+python3 -m unittest tools/daemonarchy/test_loader_console_cli.py \
+  tools/daemonarchy/test_loader_kernel_handoff.py -v
+```
+
+The CLI checks run the production program as a subprocess against loopback UDP
+peers, covering phase continuation, blank input, command admission, EOF capture,
+wrong-boot refusal, missing-peer and idle deadlines, and default exit behavior.
+These peers supply controller regression evidence, not native kernel transport,
+physical NIC, panic or release acceptance.
