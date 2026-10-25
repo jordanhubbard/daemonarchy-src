@@ -148,7 +148,8 @@ dnc_close(void *arg __unused)
 	if_rele(dnc_ifp);
 	dnc_ifp = NULL;
 	if (dnc_mountroot_tag != NULL) {
-		EVENTHANDLER_DEREGISTER(mountroot, dnc_mountroot_tag);
+		/* Called by mountroot itself: waiting for this invocation deadlocks. */
+		EVENTHANDLER_DEREGISTER_NOWAIT(mountroot, dnc_mountroot_tag);
 		dnc_mountroot_tag = NULL;
 	}
 }
