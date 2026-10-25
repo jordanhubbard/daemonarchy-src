@@ -10,16 +10,18 @@ import time
 HEADER = struct.Struct('!IIQII')
 ACK = struct.Struct('!I')
 HERALD, FINISHED, DATA = 1, 2, 3
+PORT = 26003
 
 
-def serve(bind, expected, timeout, capture):
+def serve(bind, expected, timeout, capture, *, listener=None, on_admit=None):
     peer = None
     rx_last = 0
     tx_seq = 1
     pending = None
     stdin_open = True
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-        sock.bind((bind, 26003))
+    with (listener or socket.socket(socket.AF_INET, socket.SOCK_DGRAM)) as sock:
+        if listener is None:
+            sock.bind((bind, PORT))
         sock.setblocking(False)
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
@@ -63,8 +65,12 @@ def serve(bind, expected, timeout, capture):
                 peer = addr
                 sock.sendto(ACK.pack(seq), addr)
                 rx_last = seq
+                deadline = time.monotonic() + timeout
+                if on_admit is not None:
+                    on_admit(addr)
                 print(f'kernel debugnet session {expected} from {addr}', file=sys.stderr)
                 continue
+            deadline = time.monotonic() + timeout
             if kind == FINISHED:
                 sock.sendto(ACK.pack(seq), addr)
                 return 0

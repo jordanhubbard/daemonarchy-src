@@ -11,6 +11,7 @@ a reboot or panic.
 
 import argparse
 import hmac
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -97,6 +98,14 @@ def private_output(path):
         return None
     descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
     return os.fdopen(descriptor, "wb", buffering=0)
+
+
+def debugnet_backend():
+    path = Path(__file__).with_name("debugnet-console.py")
+    spec = importlib.util.spec_from_file_location("daemonarchy_debugnet_console", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 class Console:
@@ -253,6 +262,8 @@ def main():
                         help="operation deadline and --follow-kernel idle deadline in seconds")
     parser.add_argument("--follow-kernel", action="store_true",
                         help="keep captures open and admit a fresh same-boot kernel session after firmware closes")
+    parser.add_argument("--kernel-transport", choices=("ldnc", "debugnet"), default="ldnc",
+                        help="kernel wire protocol; debugnet needs --plain and --output")
     parser.add_argument("--output", type=Path, help="new private output-only capture")
     parser.add_argument("--events", type=Path, help="new private metadata-only event capture")
     args = parser.parse_args()
@@ -264,11 +275,18 @@ def main():
     if (not args.target or args.plain == bool(args.key_file) or
             not 0 < args.timeout <= 3600 or not 1 <= args.port <= 65535):
         parser.error("target, exactly one of --plain/--key-file, a valid port and a 0..3600 second timeout are required")
+    if args.kernel_transport == "debugnet" and (not args.follow_kernel or
+            not args.plain or args.output is None):
+        parser.error("debugnet continuation needs --follow-kernel, --plain and --output")
     output = events = None
     client = None
+    kernel_listener = None
     try:
         output = private_output(args.output)
         events = private_output(args.events)
+        if args.kernel_transport == "debugnet":
+            kernel_listener = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            kernel_listener.bind((args.bind, debugnet_backend().PORT))
         client = Console(args.target, args.port, bytes(32) if args.plain else read_key(args.key_file), bind=args.bind,
                          timeout=args.timeout, output=output, events=events)
         client.pair()
@@ -284,6 +302,27 @@ def main():
             while True:
                 if client.handoff:
                     if client.phase == "kernel":
+                        break
+                    if args.kernel_transport == "debugnet":
+                        boot = client.boot.hex()
+
+                        def admitted(peer):
+                            client.phase = "kernel"
+                            client.handoff = False
+                            client.event("kernel_connected", boot_id=boot,
+                                         transport="debugnet", kernel_observed=True)
+
+                        try:
+                            debugnet_backend().serve(args.bind, boot, args.timeout,
+                                                     output, listener=kernel_listener,
+                                                     on_admit=admitted)
+                        except TimeoutError:
+                            client.event("capture_idle_timeout", phase=client.phase,
+                                         kernel_observed=client.phase == "kernel")
+                            raise
+                        kernel_listener = None
+                        client.event("kernel_transport_closed", phase="kernel",
+                                     kernel_observed=True)
                         break
                     client.pair(kernel=True)
                     idle_end = time.monotonic() + args.timeout
@@ -319,6 +358,8 @@ def main():
                          kernel_observed=client.phase == "kernel")
         return 130
     finally:
+        if kernel_listener is not None:
+            kernel_listener.close()
         if client is not None:
             client.close()
         if output is not None:

@@ -11,6 +11,8 @@ import tempfile
 import unittest
 
 HEADER = struct.Struct("!4sBBHQ16s")
+DEBUGNET_HEADER = struct.Struct("!IIQII")
+DEBUGNET_ACK = struct.Struct("!I")
 KEY = bytes(range(32))
 BOOT = b"B" * 16
 LOADER = b"L" * 16
@@ -45,7 +47,7 @@ class CLITests(unittest.TestCase):
         self.server.close()
         self.temp.cleanup()
 
-    def start(self, follow=True, plain=False):
+    def start(self, follow=True, plain=False, kernel_transport="ldnc"):
         args = [sys.executable, str(Path(__file__).with_name("loader-console.py")),
                 "127.0.0.1", "--port", str(self.server.getsockname()[1]),
                 "--timeout", "0.6", "--command", "boot",
@@ -54,6 +56,8 @@ class CLITests(unittest.TestCase):
         args += ["--plain"] if plain else ["--key-file", str(self.key)]
         if follow:
             args.append("--follow-kernel")
+        if kernel_transport != "ldnc":
+            args.extend(("--kernel-transport", kernel_transport))
         self.process = subprocess.Popen(args, stdin=subprocess.PIPE,
                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         kind, sequence, session, challenge = self.receive()
@@ -147,6 +151,43 @@ class CLITests(unittest.TestCase):
         self.assertEqual((code, stderr), (3, b""))
         self.assertIn(b"loader handoff", stdout)
         self.assertEqual(events[-1]["event"], "firmware_handoff_started")
+
+    def test_plain_firmware_to_debugnet_mountroot_in_one_controller(self):
+        self.start(plain=True, kernel_transport="debugnet")
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as kernel:
+            kernel.bind(("127.0.0.1", 0))
+            kernel.settimeout(2)
+            address = ("127.0.0.1", 26003)
+            boot = BOOT.hex().encode()
+            wrong = b"0" * len(boot)
+            kernel.sendto(DEBUGNET_HEADER.pack(1, 1, 0, len(wrong), 0) + wrong,
+                          address)
+            kernel.settimeout(0.15)
+            with self.assertRaises(socket.timeout):
+                kernel.recvfrom(1024)
+            kernel.settimeout(2)
+            kernel.sendto(DEBUGNET_HEADER.pack(1, 1, 0, len(boot), 0) + boot,
+                          address)
+            self.assertEqual(kernel.recvfrom(1024)[0], DEBUGNET_ACK.pack(1))
+            output = b"mountroot> "
+            kernel.sendto(DEBUGNET_HEADER.pack(3, 2, 0, len(output), 0) + output,
+                          address)
+            self.assertEqual(kernel.recvfrom(1024)[0], DEBUGNET_ACK.pack(2))
+            self.process.stdin.write(b"ufs:/dev/test\n")
+            self.process.stdin.flush()
+            wire, _ = kernel.recvfrom(1024)
+            self.assertEqual(DEBUGNET_HEADER.unpack_from(wire)[:2], (3, 1))
+            self.assertEqual(wire[DEBUGNET_HEADER.size:], b"ufs:/dev/test\n")
+            kernel.sendto(DEBUGNET_ACK.pack(1), address)
+            kernel.sendto(DEBUGNET_HEADER.pack(2, 3, 0, 0, 0), address)
+            self.assertEqual(kernel.recvfrom(1024)[0], DEBUGNET_ACK.pack(3))
+        code, stdout, stderr, events = self.finish()
+        self.assertEqual(code, 0, stderr)
+        self.assertIn(b"loader handoff\nmountroot> ", stdout)
+        self.assertEqual((self.root / "output").read_bytes(), stdout)
+        self.assertEqual([e["event"] for e in events],
+                         ["paired", "firmware_handoff_started", "kernel_connected",
+                          "kernel_transport_closed"])
 
     def test_keyboard_interrupt_closes_capture_without_traceback(self):
         self.start()
