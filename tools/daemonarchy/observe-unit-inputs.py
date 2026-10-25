@@ -12,9 +12,16 @@ DPADD/LDADD/LIBADD remain actual build/link inputs, never runtime-only by
 assumption. Compiler header traces, generated producers, library resolution,
 sealed ELF runtime/ABI inspection and canonical retained admission are separate
 required gates. No source or existing object/cache/package tree is removed.
+
+The portable `trace --meta-file FILE --sha256 SHA --scope compile|link|generate|package
+--output NEW_DIRECTORY` mode consumes an existing bmake/filemon record through
+this fork's immutable trace capture. It executes no recorded command, hashes
+private environment records, preserves all actual input candidates and leaves
+byte ownership/environment/generated/native admission gates explicitly open.
 """
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -229,7 +236,123 @@ def observe(repo, revision, unit, context, src_conf, make_conf, output, *, ackno
         raise
 
 
+def parse_meta(data, scope):
+    """Read actual bmake/filemon facts; never infer a complete graph from suffixes."""
+    require(scope in {"compile", "link", "generate", "package"}, "explicit traced action scope required")
+    require(len(data) <= 16*1024*1024 and data.startswith(b"# Meta data file "), "bounded bmake metadata required")
+    header, marker, body = data.rpartition(b"\n-- filemon acquired metadata --\n")
+    require(marker, "actual filemon metadata is absent")
+    prefix = header.split(b"\n-- command output --\n", 1)[0].decode()
+    commands, environment = [], []
+    cwd = target = None
+    public_environment = {}
+    for line in prefix.splitlines()[1:]:
+        if line.startswith("CMD "):
+            commands.append(line[4:])
+        elif line.startswith("CWD "):
+            require(cwd is None, "duplicate metadata cwd")
+            cwd = line[4:]
+        elif line.startswith("TARGET "):
+            require(target is None, "duplicate metadata target")
+            target = line[7:]
+        elif line.startswith("ENV "):
+            environment.append(line[4:])
+            name, equals, value = line[4:].partition("=")
+            require(equals, "malformed metadata environment")
+            if name in FLAGS | {"LC_ALL", "TZ", "SOURCE_DATE_EPOCH"}:
+                public_environment[name] = value
+    require(commands and cwd and Path(cwd).is_absolute() and target, "metadata command/cwd/target is incomplete")
+    version, closed = None, False
+    process_cwd, accesses, mutations, exits = {}, [], [], []
+    unresolved = []
+    for line in body.decode().splitlines():
+        if not line:
+            continue
+        require(not closed, "metadata contains records after its closing trailer")
+        if line.startswith("#"):
+            if line.strip() == "# Bye bye":
+                closed = True
+            continue
+        if line.startswith("V "):
+            require(version is None, "duplicate filemon version")
+            version = int(line[2:])
+            require(version in {3,4,5}, "unsupported filemon version")
+            continue
+        require(version is not None, "filemon event precedes its version")
+        fields = line.split(" ",2)
+        require(len(fields) == 3 and fields[0] in set("CEFRWXDLMS") and fields[1].isdigit(), "unknown or malformed filemon event")
+        op, pid, rest = fields[0], int(fields[1]), fields[2]
+        current = process_cwd.get(pid,cwd)
+        if op == "F":
+            require(rest.isdigit(), "malformed fork event")
+            process_cwd[int(rest)] = current
+        elif op == "C":
+            require(Path(rest).is_absolute(), "relative filemon chdir needs native resolution")
+            process_cwd[pid] = rest
+        elif op == "X":
+            status = rest.split()
+            require(len(status) in (1,2) and all(re.fullmatch(r"-?[0-9]+", n) for n in status), "malformed exit event")
+            exits.append({"pid":pid,"status":status})
+        elif op in {"L","M"}:
+            # The raw protocol has no unambiguous separator for two space-bearing paths.
+            paths=rest.split()
+            require(len(paths)==2, "ambiguous filemon link/rename path; do not skip the edge")
+            mutations.append({"operation":op,"pid":pid,"cwd":current,"paths":paths})
+        else:
+            record={"operation":op,"pid":pid,"cwd":current,"path":rest}
+            require(rest and not any(ord(c)<32 for c in rest), "unsupported filemon path")
+            if not Path(rest).is_absolute():
+                unresolved.append({"path":rest,"cwd":current,"reason":"relative-or-dirfd-native-resolution-required"})
+            if op in {"R","E","S"} or op=="W" and version<=3:
+                accesses.append(record)
+            if op in {"W","D"}:
+                mutations.append(record)
+    require(version is not None and closed and accesses, "filemon metadata is truncated or has no actual inputs")
+    return {"schema":"daemonarchy/source-action-trace-observation@1","scope":scope,"meta_sha256":digest(data),
+            "commands":commands,"cwd":cwd,"target":target,"filemon_version":version,
+            "input_accesses":accesses,"mutations":mutations,"process_exits":exits,
+            "environment_identity":digest("\n".join(environment).encode()) if environment else None,
+            "allowlisted_environment":public_environment,"unresolved_inputs":unresolved,
+            "input_bytes_captured":False,"canonical_ownership_registered":False,"native_profile_admitted":False,
+            "cache_admission":False,"recursive_closure_complete":False,
+            "remaining_gates":["join actual accesses to sealed canonical input bytes/owners", "trace ignore/environment policy admission",
+                               "generated and cross-action producer edges", "native output and ABI/receipt admission"]}
+
+
+def trace_main(argv):
+    parser=argparse.ArgumentParser(description="Inspect a retained bmake/filemon record without executing its commands")
+    parser.add_argument("--meta-file",type=Path,required=True)
+    parser.add_argument("--sha256",required=True)
+    parser.add_argument("--scope",choices=("compile","link","generate","package"),required=True)
+    parser.add_argument("--output",type=Path,required=True)
+    args=parser.parse_args(argv)
+    try:
+        require(re.fullmatch(r"[0-9a-f]{64}",args.sha256),"exact metadata digest required")
+        source_root=Path(__file__).resolve().parents[2]
+        output=args.output.absolute()
+        require(output.parent.resolve(strict=True)==output.parent and not output.is_relative_to(source_root),
+                "trace evidence must be direct and outside source")
+        args.output=output
+        args.output.mkdir(mode=0o700)
+        blobs=args.output/"trace-blobs"
+        blobs.mkdir()
+        spec=importlib.util.spec_from_file_location("owned_native_build",Path(__file__).with_name("build.py"))
+        builder=importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(builder)
+        record=builder.capture_trace_record(args.meta_file.absolute(),blobs)
+        require(record is not None and record["sha256"]==args.sha256,"retained metadata digest changed")
+        report=parse_meta((blobs/args.sha256).read_bytes(),args.scope)
+        (args.output/"observation.json").write_text(json.dumps(report,indent=2,sort_keys=True)+"\n")
+        print(json.dumps({"scope":args.scope,"input_accesses":len(report["input_accesses"]),"cache_admission":False}))
+        return 0
+    except (ValueError,OSError) as error:
+        print("source trace observation refused: "+str(error),file=sys.stderr)
+        return 1
+
+
 def main():
+    if sys.argv[1:2] == ["trace"]:
+        return trace_main(sys.argv[2:])
     parser=argparse.ArgumentParser(description=__doc__)
     for argument in ("repo", "context", "src-conf", "make-conf", "output"):
         parser.add_argument("--"+argument,type=Path,required=True)
