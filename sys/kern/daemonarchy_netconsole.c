@@ -205,6 +205,7 @@ dnc_rootconf(void *arg __unused)
 		if_setflagbits(dnc_ifp, IFF_UP, 0);
 		if_init(dnc_ifp, if_getsoftc(dnc_ifp));
 	}
+	debugnet_any_ifnet_update(dnc_ifp);
 	cfg = (struct debugnet_conn_params) {
 		.dc_ifp = dnc_ifp,
 		.dc_client = local.s_addr,
