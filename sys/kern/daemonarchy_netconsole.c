@@ -115,9 +115,13 @@ dnc_putc(struct consdev *cn __unused, int ch)
 {
 	if (dnc_pcb == NULL || dnc_busy)
 		return;
+	/* cnputc may run in a critical section: transmit only from getc. */
+	if (dnc_output_len == sizeof(dnc_output)) {
+		memmove(dnc_output, dnc_output + 1,
+		    sizeof(dnc_output) - 1);
+		dnc_output_len--;
+	}
 	dnc_output[dnc_output_len++] = ch;
-	if (ch == '\n' || dnc_output_len == sizeof(dnc_output))
-		dnc_flush();
 }
 
 static const struct consdev_ops dnc_ops = {
