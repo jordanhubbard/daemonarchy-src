@@ -10,6 +10,9 @@ on:
       - 'sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC'
       - 'sys/kern/kern_mbuf.c'
       - 'sys/net/debugnet.c'
+      - 'sys/net/debugnet_int.h'
+      - 'sys/gdb/netgdb.c'
+      - 'sys/kern/daemonarchy_netconsole.c'
       - 'sys/net/iflib.c'
       - 'sys/sys/mbuf.h'
       - '.github/workflows/daemonarchy-source.yml'
@@ -22,6 +25,9 @@ on:
       - 'sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC'
       - 'sys/kern/kern_mbuf.c'
       - 'sys/net/debugnet.c'
+      - 'sys/net/debugnet_int.h'
+      - 'sys/gdb/netgdb.c'
+      - 'sys/kern/daemonarchy_netconsole.c'
       - 'sys/net/iflib.c'
       - 'sys/sys/mbuf.h'
       - '.github/workflows/daemonarchy-source.yml'
@@ -74,6 +80,12 @@ jobs:
         run: >-
           python3 tools/daemonarchy/tests/run-debugnet-rx-class.py
           --output-directory "${{ runner.temp }}/debugnet-rx-class-${{ github.run_id }}-${{ github.run_attempt }}"
+      - name: Sanitized production debugnet duplicate-input suppression (not kernel acceptance)
+        env:
+          CC: clang
+        run: >-
+          python3 tools/daemonarchy/tests/run-debugnet-rx-duplicate.py
+          --output-directory "${{ runner.temp }}/debugnet-rx-duplicate-${{ github.run_id }}-${{ github.run_attempt }}"
 
   native-loader:
     runs-on: ubuntu-latest

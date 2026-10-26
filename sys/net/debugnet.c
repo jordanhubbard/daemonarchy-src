@@ -374,13 +374,47 @@ retransmit:
  * Just introspect the header enough to fire off a seqno ack and validate
  * length fits.
  */
+/*
+ * FNV-1a over a received payload; identifies an exact retransmission of the
+ * last accepted message, not data integrity.
+ */
+static uint32_t
+debugnet_rx_digest(const struct mbuf *m)
+{
+	uint32_t digest, remaining;
+	int i;
+
+	digest = 2166136261u;
+	remaining = m->m_pkthdr.len;
+	for (; m != NULL && remaining > 0; m = m->m_next) {
+		for (i = 0; i < m->m_len && remaining > 0; i++, remaining--) {
+			digest ^= mtod(m, const uint8_t *)[i];
+			digest *= 16777619u;
+		}
+	}
+	return (digest);
+}
+
+/*
+ * Only the same sequence, length and digest as the last accepted message is
+ * a duplicate.  A restarted peer that reuses a sequence with new bytes is
+ * still delivered.
+ */
+static bool
+debugnet_rx_is_duplicate(const struct debugnet_pcb *pcb, uint32_t seqno,
+    uint32_t len, uint32_t digest)
+{
+	return (pcb->dp_rx_accepted && pcb->dp_rx_last_seqno == seqno &&
+	    pcb->dp_rx_last_len == len && pcb->dp_rx_last_digest == digest);
+}
+
 static void
 debugnet_handle_rx_msg(struct debugnet_pcb *pcb, struct mbuf **mb)
 {
 	const struct debugnet_msg_hdr *dnh;
 	struct mbuf *m;
 	uint32_t hdr_type;
-	uint32_t seqno;
+	uint32_t seqno, digest;
 	int error;
 
 	m = *mb;
@@ -424,13 +458,29 @@ debugnet_handle_rx_msg(struct debugnet_pcb *pcb, struct mbuf **mb)
 	seqno = dnh->mh_seqno; /* net endian */
 	m_adj(m, sizeof(*dnh));
 	dnh = NULL;
+	/*
+	 * A retransmission of the last accepted message means our ACK was
+	 * lost.  Acknowledge it again without delivering it twice: consumers
+	 * such as NetGDB append every payload to their input stream.
+	 */
+	digest = debugnet_rx_digest(m);
+	if (debugnet_rx_is_duplicate(pcb, seqno, m->m_pkthdr.len, digest)) {
+		DNETDEBUG("Re-acknowledging duplicate rx packet %u\n",
+		    ntohl(seqno));
+		goto ack;
+	}
 	error = pcb->dp_rx_handler(m);
 	if (error != 0) {
 		DNETDEBUG("RX handler was not able to accept message, error %d. "
 		    "Skipping ack.\n", error);
 		return;
 	}
+	pcb->dp_rx_accepted = true;
+	pcb->dp_rx_last_seqno = seqno;
+	pcb->dp_rx_last_len = m->m_pkthdr.len;
+	pcb->dp_rx_last_digest = digest;
 
+ack:
 	error = debugnet_ack_output(pcb, seqno);
 	if (error != 0) {
 		DNETDEBUG("Couldn't ACK rx packet %u; %d\n", ntohl(seqno), error);

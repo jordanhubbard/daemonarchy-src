@@ -33,9 +33,11 @@ admitted session starts a new kernel session, for example after DDB re-entry;
 any unacknowledged GDB input from the old session is abandoned and recorded.
 Every exit writes a `proxy_exit` record with its outcome and counters.
 
-Kernel NetGDB does not de-duplicate input: its receive handler appends every
-accepted DATA payload. If the kernel's acknowledgement of GDB input is lost,
-the proxy's retransmission reaches the stub twice. The GDB remote protocol
-then sees a repeated packet. The proxy cannot detect this; `input_retransmit`
-in the exit record shows when it could have happened. Fixing it needs a kernel
-change (sequence-aware receive), which is not part of this prototype.
+Kernel NetGDB appends every accepted DATA payload to its input stream. If the
+kernel's acknowledgement of GDB input was lost, the proxy's retransmission
+used to reach the stub twice. debugnet now remembers the sequence, length and
+FNV-1a digest of the last accepted DATA message. An exact retransmission is
+acknowledged again without being delivered. A restarted peer that reuses the
+sequence with different bytes is still delivered. The fixture
+`tests/run-debugnet-rx-duplicate.py` checks this with the verbatim receive
+path; a native NetGDB lost-ACK run is still required.
