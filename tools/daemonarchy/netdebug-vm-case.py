@@ -407,16 +407,23 @@ def run_loader_case(args, base, serial, results, observations, procs):
     if args.case == "d3-handoff-vtnet":
         check("early_transport_admitted", wait_for(lambda: marker("netdebug-stage: kernel-early "), 180))
         check("early_release", wait_for(lambda: marker("kernel-early-release"), 120))
+        # The mountroot console buffers 512 output bytes before its first poll,
+        # so its own marker can be evicted by the prompt text; the prompt
+        # arriving after the early release is the reherald evidence.
+        released = lambda: out("controller").find(b"kernel-early-release")
         check("mountroot_console_reheralded", wait_for(
-            lambda: marker("netdebug-stage: kernel-rootconf") and marker("mountroot>"), 120))
+            lambda: released() >= 0 and out("controller").find(b"mountroot>", released()) >= 0,
+            120))
+        observations["rootconf_marker_captured"] = marker("netdebug-stage: kernel-rootconf")
         feed(ctl, b"ufs:/dev/vtbd0p2\n")
         check("root_mount_attempt", wait_for(
             lambda: b"Trying to mount root from ufs:/dev/vtbd0p2" in serial.text(), 60))
         observations["controller_exit"] = finished(ctl, 60)
         check("controller_finished", observations["controller_exit"] == 0)
         text = out("controller")
+        serial_text = serial.text()
         check("native_attach_after_release",
-              text.find(b"kernel-early-release") < text.find(b"kernel-rootconf"))
+              0 <= serial_text.find(b"kernel-early-release") < serial_text.find(b"vtnet0: <"))
         return
     # d3-early-*: deliberate panic while earlynet holds the NIC.
     check("early_transport_admitted", wait_for(lambda: marker("netdebug-stage: kernel-early "), 180))
