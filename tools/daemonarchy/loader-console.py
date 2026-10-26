@@ -120,6 +120,17 @@ NAME = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
 VALUE = re.compile(r"^[!#%&'()*+,./0-9:<=>?@A-Z\[\]^_`a-z{|}~-]{1,200}$")
 
 
+def strip_prompts(text):
+    """Remove the loader's interactive "OK " prompts from captured output."""
+    lines = []
+    for line in text.replace("\r", "").split("\n"):
+        while line.startswith("OK "):
+            line = line[3:]
+        if line.strip() not in ("", "OK"):
+            lines.append(line)
+    return "\n".join(lines)
+
+
 def loader_operations(args, target):
     """Compile D1 options into standard loader commands, in a fixed order."""
     ops = []
@@ -333,7 +344,7 @@ class Console:
             return None
         self.event("command_completed")
         text = bytes(self.received[:self.received.find(marker.encode())])
-        return text.decode("ascii", "replace") if capture else None
+        return strip_prompts(text.decode("ascii", "replace")) if capture else None
 
 
 def main():
