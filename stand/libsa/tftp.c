@@ -131,8 +131,28 @@ struct tftp_handle {
 	void		*pkt;
 	struct tftphdr	*tftp_hdr;
 	char		*tftp_cache;
+	bool		tftp_cache_platform;	/* from tftp_cache_alloc */
 	bool		lastacksent;
 };
+
+/*
+ * Optional platform allocator for the whole-file preload cache.  A loader
+ * whose heap cannot hold a kernel (the EFI loader heap is 64 MiB) supplies
+ * one, so a backward seek never restarts the transfer from block 1.
+ */
+void *(*tftp_cache_alloc)(size_t);
+void (*tftp_cache_free)(void *, size_t);
+
+static void
+tftp_cache_release(struct tftp_handle *h)
+{
+	if (h->tftp_cache != NULL && h->tftp_cache_platform)
+		tftp_cache_free(h->tftp_cache, h->tftp_tsize);
+	else
+		free(h->tftp_cache);
+	h->tftp_cache = NULL;
+	h->tftp_cache_platform = false;
+}
 
 struct tftprecv_extra {
 	struct tftp_handle	*tftp_handle;
@@ -575,6 +595,9 @@ tftp_read(struct open_file *f, void *addr, size_t size,
 
 	/* Make sure we will not read past file end */
 	if (tftpfile->tftp_tsize > 0 &&
+	    (unsigned long)tftpfile->off >= tftpfile->tftp_tsize) {
+		size = 0;
+	} else if (tftpfile->tftp_tsize > 0 &&
 	    tftpfile->off + size > tftpfile->tftp_tsize) {
 		size = tftpfile->tftp_tsize - tftpfile->off;
 	}
@@ -671,7 +694,7 @@ tftp_close(struct open_file *f)
 		handles[tftpfile->id] = NULL;
 		free(tftpfile->path);
 		free(tftpfile->pkt);
-		free(tftpfile->tftp_cache);
+		tftp_cache_release(tftpfile);
 		free(tftpfile);
 	}
 	return (0);
@@ -740,13 +763,25 @@ tftp_preload(struct open_file *f)
 {
 	struct tftp_handle *tftpfile;
 	char *cache;
+	size_t offset = 0;
+	bool platform;
 	int rc;
 #ifdef TFTP_DEBUG
 	time_t start, end;
 #endif
 
 	tftpfile = f->f_fsdata;
-	cache = malloc(sizeof(char) * tftpfile->tftp_tsize);
+	/* Without a server-reported size the cache cannot be bounded. */
+	if (tftpfile->tftp_tsize == 0)
+		return (-1);
+	platform = false;
+	cache = NULL;
+	if (tftp_cache_alloc != NULL && tftp_cache_free != NULL) {
+		cache = tftp_cache_alloc(tftpfile->tftp_tsize);
+		platform = cache != NULL;
+	}
+	if (cache == NULL)
+		cache = malloc(sizeof(char) * tftpfile->tftp_tsize);
 	if (cache == NULL) {
 		printf("Couldn't allocate %ju bytes for preload caching"
 		    ", disabling caching\n",
@@ -758,24 +793,34 @@ tftp_preload(struct open_file *f)
 	start = getsecs();
 	printf("Preloading %s ", tftpfile->path);
 #endif
-	if (tftpfile->currblock == 1)
-		bcopy(tftpfile->tftp_hdr->th_data,
-		    cache,
+	/* Start from block 1, restarting the transfer if it has moved on. */
+	if (tftpfile->currblock != 1) {
+		tftp_senderr(tftpfile, 0, "No error: preload restart");
+		rc = tftp_makereq(tftpfile);
+		if (rc != 0)
+			goto failed;
+	}
+	for (;;) {
+		offset = (size_t)tftpfile->tftp_blksize *
+		    (tftpfile->currblock - 1);
+		/* Never write past the size the server announced. */
+		if (tftpfile->validsize < 0 || offset > tftpfile->tftp_tsize ||
+		    (size_t)tftpfile->validsize > tftpfile->tftp_tsize - offset) {
+			rc = EIO;
+			goto failed;
+		}
+		bcopy(tftpfile->tftp_hdr->th_data, cache + offset,
 		    tftpfile->validsize);
-	else
-		tftpfile->currblock = 0;
-
-	while (tftpfile->islastblock == 0) {
+		if (tftpfile->islastblock)
+			break;
 		twiddle(32);
 		rc = tftp_getnextblock(tftpfile);
-		if (rc) {
-			free(cache);
-			printf("Got TFTP error %d, disabling caching\n", rc);
-			return (rc);
-		}
-		bcopy(tftpfile->tftp_hdr->th_data,
-		    cache + (tftpfile->tftp_blksize * (tftpfile->currblock - 1)),
-		    tftpfile->validsize);
+		if (rc)
+			goto failed;
+	}
+	if (offset + tftpfile->validsize != tftpfile->tftp_tsize) {
+		rc = EIO;
+		goto failed;
 	}
 #ifdef TFTP_DEBUG
 	end = getsecs();
@@ -785,7 +830,15 @@ tftp_preload(struct open_file *f)
 #endif
 
 	tftpfile->tftp_cache = cache;
+	tftpfile->tftp_cache_platform = platform;
 	return (0);
+failed:
+	if (platform)
+		tftp_cache_free(cache, tftpfile->tftp_tsize);
+	else
+		free(cache);
+	printf("Got TFTP error %d, disabling caching\n", rc);
+	return (rc);
 }
 
 static int

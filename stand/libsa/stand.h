@@ -126,6 +126,9 @@ struct fs_ops {
  */
 extern struct fs_ops ufs_fsops;
 extern struct fs_ops tftp_fsops;
+/* Optional platform allocator for the TFTP whole-file preload cache. */
+extern void *(*tftp_cache_alloc)(size_t);
+extern void (*tftp_cache_free)(void *, size_t);
 extern struct fs_ops nfs_fsops;
 extern struct fs_ops cd9660_fsops;
 extern struct fs_ops gzipfs_fsops;
