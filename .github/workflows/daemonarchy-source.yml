@@ -114,6 +114,12 @@ jobs:
         run: >-
           python3 tools/daemonarchy/tests/run-tftp-preload.py
           --output-directory "${{ runner.temp }}/tftp-preload-${{ github.run_id }}-${{ github.run_attempt }}"
+      - name: Sanitized production mountroot console output ring (not kernel acceptance)
+        env:
+          CC: clang
+        run: >-
+          python3 tools/daemonarchy/tests/run-netconsole-output.py
+          --output-directory "${{ runner.temp }}/netconsole-output-${{ github.run_id }}-${{ github.run_attempt }}"
       - name: Early transport against simulated em and vtnet devices (not kernel acceptance)
         env:
           CC: clang

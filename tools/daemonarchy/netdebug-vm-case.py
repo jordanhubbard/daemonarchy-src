@@ -453,7 +453,8 @@ def run_loader_case(args, base, serial, results, observations, procs):
         check("mountroot_console_reheralded", wait_for(
             lambda: released() >= 0 and out("controller").find(b"mountroot>", released()) >= 0,
             120))
-        observations["rootconf_marker_captured"] = marker("netdebug-stage: kernel-rootconf")
+        # The console's 16 KiB pre-poll ring must now keep its own marker.
+        check("rootconf_marker_captured", marker("netdebug-stage: kernel-rootconf"))
         feed(ctl, b"ufs:/dev/vtbd0p2\n")
         check("root_mount_attempt", wait_for(
             lambda: b"Trying to mount root from ufs:/dev/vtbd0p2" in serial.text(), 60))
