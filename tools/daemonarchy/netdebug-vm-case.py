@@ -89,6 +89,9 @@ def admission(args):
     if subprocess.run(["pgrep", "-x", "bhyve"], stdout=subprocess.DEVNULL,
                       check=False).returncode == 0:
         failures.append("another bhyve guest is active")
+    for module in ("vmm", "nmdm"):
+        if subprocess.run(["kldstat", "-q", "-m", module], check=False).returncode != 0:
+            failures.append(f"kernel module {module} is not loaded")
     if Path(f"/dev/vmm/{args.vm}").exists():
         failures.append("VM name already exists")
     pages = [int(subprocess.run(["sysctl", "-n", name], stdout=subprocess.PIPE, text=True,
