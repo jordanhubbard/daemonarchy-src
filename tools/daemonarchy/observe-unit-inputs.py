@@ -195,6 +195,9 @@ def observe(repo, revision, unit, context, src_conf, make_conf, output, *, ackno
             require(values["MK_"+option.split("_",1)[1]] == expected, "evaluated native option differs: "+option)
         inputs, unresolved, link_inputs = [], [], []
         config_inputs = [member(repo, revision, src_conf), member(repo, revision, make_conf)]
+        require(config_inputs[0]["sha256"]==context["src_conf_sha256"] and
+                config_inputs[1]["sha256"]==context["make_conf_sha256"],
+                "protected/local configuration changed during evaluation")
         for variable in ("SRCS", "DPSRCS", "GENHDRS", ".MAKE.MAKEFILES"):
             for token in values[variable].split():
                 require(time.monotonic()-started <= timeout+60, "source input inventory exceeded total deadline")

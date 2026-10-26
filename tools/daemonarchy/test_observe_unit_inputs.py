@@ -110,6 +110,17 @@ class SourceObserverTests(unittest.TestCase):
             self.observe()
         self.assertFalse(self.output.exists())
 
+    def test_configuration_mutation_during_evaluation_is_not_admitted(self):
+        original=observer.query
+        def mutate(*args,**kwargs):
+            result=original(*args,**kwargs)
+            self.src_conf.write_bytes(b"mutated while native metadata was evaluated")
+            return result
+        with patch.object(observer,"query",side_effect=mutate):
+            with self.assertRaisesRegex(ValueError,"configuration changed during"):
+                self.observe()
+        self.assertTrue((self.output/"failure.json").exists())
+
     def test_changed_shared_source_refuses_before_evaluation(self):
         (self.repo/"share/mk/bsd.prog.mk").write_text("changed rules")
         with self.assertRaises(subprocess.CalledProcessError):
