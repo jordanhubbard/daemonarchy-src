@@ -349,7 +349,7 @@ def run_loader_case(args, base, serial, results, observations, procs):
             args, base, "ops", "--tftp-root", str(tftp), "--tftp-address", HOST_IP,
             "--set", "daemonarchy.d1=set-ok", "--set", "daemonarchy.temp=x",
             "--unset", "daemonarchy.temp", "--show", "daemonarchy.d1",
-            "--show", "daemonarchy.temp", "--kernel", "net0:/kernel",
+            "--show", "daemonarchy.temp", "--kernel", args.d1_kernel,
             "--lua", "net0:/staged-netdebug.lua", "--command", "show staged.netdebug",
             "--command", "lsmod", "--stop", timeout=90)
         procs.append(ops)
@@ -360,7 +360,12 @@ def run_loader_case(args, base, serial, results, observations, procs):
         check("operations_completed", observations["ops_exit"] == 0)
         check("variable_set_and_shown", shown.get("daemonarchy.d1") == "set-ok")
         check("variable_unset", "not found" in shown.get("daemonarchy.temp", ""))
-        check("kernel_downloaded", tftp_done.get("/kernel") == Path(args.kernel).stat().st_size)
+        if args.d1_kernel.startswith("net0:"):
+            check("kernel_downloaded",
+                  tftp_done.get("/kernel") == Path(args.kernel).stat().st_size)
+        check("kernel_loaded", b"text=0x" in out("ops") and any(
+            e["event"] == "loader_operation" and e["command"] == f"load {args.d1_kernel}"
+            for e in events))
         check("lua_downloaded_and_run", "/staged-netdebug.lua" in tftp_done and
               b"netdebug-stage: staged-lua" in out("ops") and b"ran" in out("ops"))
         check("console_stopped", any(e["event"] == "console_stopped" for e in events))
@@ -620,6 +625,8 @@ def main():
     p.add_argument("--limit", type=int, default=240)
     p.add_argument("--controller-timeout", type=int, default=150)
     p.add_argument("--stop-seconds", type=int, default=40)
+    p.add_argument("--d1-kernel", default="net0:/kernel",
+                   help="d1 kernel path: net0:/kernel over TFTP or a disk path")
     args = p.parse_args()
     if args.case == "d5" and not (args.init and args.kernel_debug):
         p.error("d5 needs --init and --kernel-debug")
