@@ -385,7 +385,7 @@ static int
 net_static_params(int sock)
 {
 	struct iodesc *d;
-	const char *ip, *mask, *path;
+	char *ip, *mask, *path;
 	n_long addr, server, smask;
 
 	ip = getenv("net.static.ip");
