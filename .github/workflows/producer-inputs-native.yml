@@ -1,0 +1,52 @@
+name: Native producer metadata smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/daemonarchy/observe-unit-inputs.py'
+      - 'tools/daemonarchy/test_observe_unit_inputs_native.py'
+      - 'tools/daemonarchy/test_observe_unit_inputs.py'
+      - '.github/workflows/producer-inputs-native.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-metadata:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            tools/daemonarchy
+            usr.bin/truncate
+            share/mk
+            sys/conf
+            sys/sys
+            tools/build/mk
+      - name: Portable producer refusal and preservation controls
+        run: python3 tools/daemonarchy/test_observe_unit_inputs.py -v
+      - name: Emit production metadata command and exact tiny source inputs
+        run: python3 tools/daemonarchy/test_observe_unit_inputs_native.py --emit-probe _build/producer-native
+      - name: Actual hosted FreeBSD metadata only (no package installs or build targets)
+        uses: vmactions/freebsd-vm@c46abacb49f09938ca4e1702d15d836285d694cc
+        with:
+          release: '15.0'
+          arch: x86_64
+          mem: '2048'
+          cpu: '2'
+          run: |
+            result=0
+            /bin/sh _build/producer-native/probe.sh || result=$?
+            printf '%s\n' "$result" > _build/producer-native/private/probe.exit
+      - name: Validate actual native result with production decoder
+        if: always()
+        run: python3 tools/daemonarchy/test_observe_unit_inputs_native.py --verify-report _build/producer-native
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: producer-native-smoke-${{ github.sha }}
+          path: _build/producer-native/summary.json
+          if-no-files-found: warn
