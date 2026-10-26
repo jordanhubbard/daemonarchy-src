@@ -103,7 +103,7 @@ struct earlynet {
 	const struct earlynet_platform	*pf;
 	const struct earlynet_backend	*be;
 	enum earlynet_owner		 owner;
-	uint8_t		mac[6], peer_mac[6];
+	uint8_t		mac[6], peer_mac[6];	/* mac: preset = expected */
 	bool		have_peer_mac, admitted, busy;
 	bool		degraded;	/* last send timed out */
 	uint32_t	local_ip, peer_ip;	/* network order */

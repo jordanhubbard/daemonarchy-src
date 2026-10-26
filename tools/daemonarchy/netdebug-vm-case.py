@@ -30,6 +30,17 @@ CASES = ("d4", "d5", "d7-send-timeout", "d7-restart", "d7-malformed", "d7-link",
 # Cases that boot the branch's EFI loader with its own debug console active.
 LOADER_CASES = CASES[6:]
 HOST_IP, GUEST_IP = "192.0.2.1", "192.0.2.2"
+# d3-early-em: bhyve's UEFI firmware has no e1000 driver, so the loader
+# console runs on virtio-net and the kernel's early transport is pointed at
+# a second, e1000 function on its own tap and subnet with netdebug.early.*.
+EM_HOST_IP, EM_GUEST_IP, EM_SLOT, EM_PCI_ID = "192.0.3.1", "192.0.3.2", 4, "8086:100f"
+
+
+def em_mac(mac):
+    """The e1000 function's address: the case MAC with the top bit of the last octet."""
+    octets = mac.split(":")
+    octets[-1] = f"{int(octets[-1], 16) | 0x80:02x}"
+    return ":".join(octets)
 HDR = struct.Struct("!IIQII")
 ACK = struct.Struct("!I")
 MIN_MEMORY = 3 << 29  # 1.5 GiB of free plus inactive pages
@@ -150,6 +161,12 @@ def prepare(args, base):
             conf += 'netdebug.early="1"\n'
         if args.case.startswith("d3-early-"):
             conf += 'netdebug.early_panic="1"\n'
+        if args.case == "d3-early-em":
+            conf += (f'netdebug.early.pci="0:0:{EM_SLOT}:0"\n'
+                     f'netdebug.early.pci_id="{EM_PCI_ID}"\n'
+                     f'netdebug.early.hwaddr="{em_mac(args.mac)}"\n'
+                     f'netdebug.early.local_ip="{EM_GUEST_IP}"\n'
+                     f'netdebug.early.peer_ip="{EM_HOST_IP}"\n')
         (root / "boot/loader.conf").write_text(conf)
     else:
         (root / "boot/loader.conf").write_text(
@@ -347,9 +364,9 @@ def symbol_address(kernel_debug, symbol):
     raise LookupError(symbol)
 
 
-def loader_console(args, base, name, *extra, stdin=False, timeout=60):
+def loader_console(args, base, name, *extra, stdin=False, timeout=60, bind=HOST_IP):
     cmd = [sys.executable, str(Path(args.tools) / "loader-console.py"), GUEST_IP,
-           "--plain", "--bind", HOST_IP, "--timeout", str(timeout),
+           "--plain", "--bind", bind, "--timeout", str(timeout),
            "--output", str(base / f"{name}.out"), "--events", str(base / f"{name}.events"),
            "--last-stage", str(base / f"{name}.stage"), *extra]
     log = open(base / f"{name}.log", "wb")
@@ -427,7 +444,9 @@ def run_loader_case(args, base, serial, results, observations, procs):
             e["event"] == "variable_shown" and e["output"] == "set-ok" for e in events))
         return
     yield
-    ctl = loader_console(args, base, "controller", *follow, stdin=True, timeout=60)
+    # The em early transport answers on the second subnet: listen on both.
+    ctl = loader_console(args, base, "controller", *follow, stdin=True, timeout=60,
+                         bind="0.0.0.0" if args.case == "d3-early-em" else HOST_IP)
     procs.append(ctl)
     marker = lambda text: text.encode() in out("controller")
     if args.case == "d2-hard-reset":
@@ -695,6 +714,21 @@ def main():
                          text=True, check=True).stdout.strip()
     args.tap = record["tap"] = tap
     subprocess.run(["sudo", "-n", "ifconfig", tap, "inet", f"{HOST_IP}/24", "up"], check=True)
+    taps = [tap]
+    nic = ["-s", f"3:0,virtio-net,{tap},mac={args.mac}"]
+    if args.case == "d3-early-em":
+        em_tap = subprocess.run(["sudo", "-n", "ifconfig", "tap", "create"],
+                                stdout=subprocess.PIPE, text=True, check=True).stdout.strip()
+        taps.append(em_tap)
+        record["em_tap"] = em_tap
+        subprocess.run(["sudo", "-n", "ifconfig", em_tap, "inet", f"{EM_HOST_IP}/24", "up"],
+                       check=True)
+        nic += ["-s", f"{EM_SLOT}:0,e1000,{em_tap},mac={em_mac(args.mac)}"]
+        em_dump = subprocess.Popen(["sudo", "-n", "timeout", "-k", "5", str(args.limit + 30),
+                                    "tcpdump", "-U", "-i", em_tap, "-s0", "-w",
+                                    str(base / "traffic-em.pcap"), "udp or arp"],
+                                   stdout=open(base / "tcpdump-em.log", "wb"),
+                                   stderr=subprocess.STDOUT)
     tcpdump = subprocess.Popen(["sudo", "-n", "timeout", "-k", "5", str(args.limit + 30),
                                 "tcpdump", "-U", "-i", tap, "-s0", "-w",
                                 str(base / "traffic.pcap"), "udp"],
@@ -713,8 +747,7 @@ def main():
             status, destroyed = run_bounded_vm(args.vm, [
                 "-c", "2", "-m", "1G", "-A", "-H", "-P", "-s", "0:0,hostbridge",
                 "-s", "1:0,lpc", "-s", f"2:0,virtio-blk,{base / 'disk.img'}",
-                "-s", f"3:0,{'e1000' if args.case == 'd3-early-em' else 'virtio-net'},"
-                f"{tap},mac={args.mac}",
+                *nic,
                 "-l", "bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI.fd",
                 "-l", f"com1,{args.nmdm}A"], args.limit, log=log)
         vm_result.update(status=status, watchdog_destroyed=destroyed)
@@ -732,14 +765,17 @@ def main():
         record["case_destroy_status"] = destroy_vm(args.vm)
         vm_done.wait(args.limit + 60)
         serial.close()
-        # Stop this case's capture now rather than at its outer bound.
-        subprocess.run(["sudo", "-n", "pkill", "-INT", "-f", f"tcpdump -U -i {tap} "],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        # Stop this case's captures now rather than at their outer bound.
+        for each in taps:
+            subprocess.run(["sudo", "-n", "pkill", "-INT", "-f", f"tcpdump -U -i {each} "],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
         tcpdump.wait()
-        # Remove only the tap this case created.
-        record["tap_destroy_status"] = subprocess.run(
-            ["sudo", "-n", "ifconfig", tap, "destroy"], stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL, check=False).returncode
+        if args.case == "d3-early-em":
+            em_dump.wait()
+        # Remove only the taps this case created.
+        record["tap_destroy_status"] = [subprocess.run(
+            ["sudo", "-n", "ifconfig", each, "destroy"], stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL, check=False).returncode for each in taps]
     if args.case == "d7-malformed" and "probes" in observations:
         acked = {ACK.unpack(p)[0] for p in udp_payloads(base / "traffic.pcap", 26004, 26003)
                  if len(p) == ACK.size}

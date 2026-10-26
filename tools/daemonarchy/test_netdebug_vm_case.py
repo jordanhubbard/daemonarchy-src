@@ -137,6 +137,11 @@ class BoundTest(unittest.TestCase):
         thread.join(3)
         server.close()
 
+    def test_em_function_address_and_layout(self):
+        self.assertEqual(CASE.em_mac("00:be:fa:76:46:07"), "00:be:fa:76:46:87")
+        self.assertEqual((CASE.EM_SLOT, CASE.EM_PCI_ID), (4, "8086:100f"))
+        self.assertNotEqual(CASE.EM_HOST_IP.rsplit(".", 1)[0], CASE.HOST_IP.rsplit(".", 1)[0])
+
     def test_pcap_ack_extraction(self):
         def frame(sport, dport, payload):
             udp = struct.pack("!HHHH", sport, dport, 8 + len(payload), 0) + payload
