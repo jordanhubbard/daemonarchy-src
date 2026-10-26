@@ -372,7 +372,22 @@ earlynet_getc(struct earlynet *en)
 	return (c);
 }
 
-/* Tell the controller this transport ends; the next console reheralds. */
+/*
+ * Send everything buffered, bounded, without ending the session: the
+ * post-attach console reheralds with the same boot ID and one controller
+ * session continues across the handoff.
+ */
+int
+earlynet_drain(struct earlynet *en)
+{
+	int error = 0;
+
+	while (en->oc != 0 && error == 0)
+		error = earlynet_flush(en);
+	return (error);
+}
+
+/* Tell the controller this transport ends (no later console follows). */
 int
 earlynet_finish(struct earlynet *en)
 {

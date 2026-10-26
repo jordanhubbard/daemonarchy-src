@@ -55,7 +55,8 @@ The ownership rules:
    controller is heard again, so a missing controller costs one bounded
    timeout, not one per line.
 6. Handoff runs at `SI_SUB_ROOT_CONF`, `SI_ORDER_FIRST`, in this order:
-   - send `netdebug-stage: kernel-early-release` and FINISHED;
+   - send `netdebug-stage: kernel-early-release` and drain buffered output
+     without FINISHED, so the controller session stays open;
    - remove the console;
    - quiesce: reset the device and clear `RDLEN`/`TDLEN` or the queue PFNs;
    - free DMA and unmap the BAR;

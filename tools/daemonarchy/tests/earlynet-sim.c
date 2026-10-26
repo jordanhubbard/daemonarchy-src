@@ -574,8 +574,10 @@ handoff(int which)
 {
 	started(which);
 	earlynet_putc(&en, '!');
-	assert(earlynet_finish(&en) == 0);
-	assert(ctl.finished == 1 && ctl.outlen == 1);
+	earlynet_putc(&en, '?');
+	assert(earlynet_drain(&en) == 0);
+	assert(ctl.finished == 0 && ctl.outlen == 2 && en.oc == 0);
+	assert(earlynet_finish(&en) == 0 && ctl.finished == 1);
 	assert(earlynet_quiesce(&en) == 0);
 	assert(en.owner == EARLYNET_RELEASED && live_dma == 0);
 	assert(earlynet_driver_may_attach(&en));

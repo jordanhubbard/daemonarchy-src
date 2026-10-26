@@ -24,7 +24,11 @@ import time
 import tty
 from pathlib import Path
 
-CASES = ("d4", "d5", "d7-send-timeout", "d7-restart", "d7-malformed", "d7-link")
+CASES = ("d4", "d5", "d7-send-timeout", "d7-restart", "d7-malformed", "d7-link",
+         "d1-loader-ops", "d2-hard-reset", "d3-handoff-vtnet", "d3-early-vtnet",
+         "d3-early-em")
+# Cases that boot the branch's EFI loader with its own debug console active.
+LOADER_CASES = CASES[6:]
 HOST_IP, GUEST_IP = "192.0.2.1", "192.0.2.2"
 HDR = struct.Struct("!IIQII")
 ACK = struct.Struct("!I")
@@ -70,6 +74,14 @@ def destroy_vm(vm):
                           check=False).returncode
 
 
+def tree_sha256(directory):
+    """Identity of a directory: SHA-256 over its sorted file digests."""
+    root = Path(directory)
+    lines = "".join(f"{sha256(p)}  {p.relative_to(root)}\n" for p in sorted(root.rglob("*"))
+                    if p.is_file() and "__pycache__" not in p.parts)
+    return hashlib.sha256(lines.encode()).hexdigest()
+
+
 def admission(args):
     failures = []
     if Path(args.base).exists():
@@ -86,14 +98,22 @@ def admission(args):
     if memory < MIN_MEMORY:
         failures.append(f"free+inactive memory {memory} below {MIN_MEMORY}")
     identities = {"kernel": (args.kernel, args.kernel_sha256),
-                  "loader": (args.loader, args.loader_sha256),
-                  "console": (Path(args.tools) / "debugnet-console.py", args.console_sha256),
-                  "proxy": (Path(args.tools) / "netgdb-proxy.py", args.proxy_sha256)}
+                  "loader": (args.loader, args.loader_sha256)}
+    if args.case in LOADER_CASES:
+        identities["loader_lua"] = (args.loader_lua, args.loader_lua_sha256)
+        identities["tools"] = (args.tools, args.tools_sha256)
+    else:
+        identities["console"] = (Path(args.tools) / "debugnet-console.py", args.console_sha256)
+        identities["proxy"] = (Path(args.tools) / "netgdb-proxy.py", args.proxy_sha256)
     if args.case == "d5":
         identities["init"] = (args.init, args.init_sha256)
     observed = {}
     for name, (path, expected) in identities.items():
-        observed[name] = {"path": str(path), "sha256": sha256(path)}
+        if path is None:
+            failures.append(f"{name} not supplied")
+            continue
+        digest = tree_sha256(path) if Path(path).is_dir() else sha256(path)
+        observed[name] = {"path": str(path), "sha256": digest}
         if expected and observed[name]["sha256"] != expected:
             failures.append(f"{name} identity mismatch")
         if not expected:
@@ -108,18 +128,32 @@ def prepare(args, base):
     (root / "boot/defaults").mkdir(parents=True)
     subprocess.run(["cp", args.loader, str(esp / "EFI/BOOT/BOOTX64.EFI")], check=True)
     subprocess.run(["cp", args.kernel, str(root / "boot/kernel/kernel")], check=True)
-    subprocess.run(["cp", "-R", "/boot/lua", str(root / "boot/lua")], check=True)
+    lua = args.loader_lua if args.case in LOADER_CASES else "/boot/lua"
+    subprocess.run(["cp", "-R", lua, str(root / "boot/lua")], check=True)
     subprocess.run(["cp", "/boot/defaults/loader.conf", str(root / "boot/defaults/")],
                    check=True)
     if args.case == "d5":
         (root / "dev").mkdir()
         (root / "sbin").mkdir()
         subprocess.run(["cp", args.init, str(root / "sbin/init")], check=True)
-    (root / "boot/loader.conf").write_text(
-        'autoboot_delay="0"\nconsole="comconsole"\ncomconsole_speed="115200"\n'
-        'vfs.root.mountfrom="ufs:/dev/nonexistent"\nnetdebug.plain="1"\n'
-        f'netdebug.hwaddr="{args.mac}"\nnetdebug.local_ip="{GUEST_IP}"\n'
-        f'netdebug.peer_ip="{HOST_IP}"\nnetdebug.boot_id="{args.boot_id}"\n')
+    if args.case in LOADER_CASES:
+        # The loader's own console starts (netdebug auto), exports the
+        # identity and waits for the controller's commands.
+        conf = ('autoboot_delay="NO"\nconsole="comconsole"\ncomconsole_speed="115200"\n'
+                'vfs.root.mountfrom="ufs:/dev/nonexistent"\nnetdebug_enable="YES"\n'
+                'netdebug.plain="1"\nnetdebug.interface="0"\n'
+                f'netdebug.ip="{GUEST_IP}"\nnetdebug.peer="{HOST_IP}"\n')
+        if args.case.startswith("d3-"):
+            conf += 'netdebug.early="1"\n'
+        if args.case.startswith("d3-early-"):
+            conf += 'netdebug.early_panic="1"\n'
+        (root / "boot/loader.conf").write_text(conf)
+    else:
+        (root / "boot/loader.conf").write_text(
+            'autoboot_delay="0"\nconsole="comconsole"\ncomconsole_speed="115200"\n'
+            'vfs.root.mountfrom="ufs:/dev/nonexistent"\nnetdebug.plain="1"\n'
+            f'netdebug.hwaddr="{args.mac}"\nnetdebug.local_ip="{GUEST_IP}"\n'
+            f'netdebug.peer_ip="{HOST_IP}"\nnetdebug.boot_id="{args.boot_id}"\n')
     for cmd, log in (
             (["makefs", "-t", "msdos", "-s", "64m", str(base / "esp.img"), str(esp)],
              "makefs-esp.log"),
@@ -262,7 +296,130 @@ def symbol_address(kernel_debug, symbol):
     raise LookupError(symbol)
 
 
+def loader_console(args, base, name, *extra, stdin=False, timeout=60):
+    cmd = [sys.executable, str(Path(args.tools) / "loader-console.py"), GUEST_IP,
+           "--plain", "--bind", HOST_IP, "--timeout", str(timeout),
+           "--output", str(base / f"{name}.out"), "--events", str(base / f"{name}.events"),
+           "--last-stage", str(base / f"{name}.stage"), *extra]
+    log = open(base / f"{name}.log", "wb")
+    return subprocess.Popen(cmd, stdin=subprocess.PIPE if stdin else subprocess.DEVNULL,
+                            stdout=log, stderr=subprocess.STDOUT)
+
+
+def stage_record(base, name):
+    try:
+        return json.loads((base / f"{name}.stage").read_text())
+    except (OSError, ValueError):
+        return None
+
+
+def run_loader_case(args, base, serial, results, observations, procs):
+    """D1-D3 cases driven through the branch's loader console."""
+    def check(name, value):
+        results[name] = "pass" if value else "fail"
+
+    def finished(proc, seconds):
+        try:
+            return proc.wait(timeout=seconds)
+        except subprocess.TimeoutExpired:
+            return None
+
+    out = lambda name: (base / f"{name}.out").read_bytes() if (base / f"{name}.out").exists() else b""
+    follow = ["--follow-kernel", "--kernel-transport", "debugnet", "--command", "boot"]
+    if args.case == "d1-loader-ops":
+        tftp = base / "tftp"
+        tftp.mkdir()
+        subprocess.run(["cp", args.kernel, str(tftp / "kernel")], check=True)
+        subprocess.run(["cp", str(Path(args.tools) / "examples/staged-netdebug.lua"),
+                        str(tftp / "staged-netdebug.lua")], check=True)
+        yield
+        ops = loader_console(
+            args, base, "ops", "--tftp-root", str(tftp), "--tftp-address", HOST_IP,
+            "--set", "daemonarchy.d1=set-ok", "--set", "daemonarchy.temp=x",
+            "--unset", "daemonarchy.temp", "--show", "daemonarchy.d1",
+            "--show", "daemonarchy.temp", "--kernel", "net0:/kernel",
+            "--lua", "net0:/staged-netdebug.lua", "--command", "show staged.netdebug",
+            "--command", "lsmod", "--stop", timeout=90)
+        procs.append(ops)
+        observations["ops_exit"] = finished(ops, 240)
+        events = [json.loads(line) for line in (base / "ops.events").read_text().splitlines()]
+        shown = {e["name"]: e["output"] for e in events if e["event"] == "variable_shown"}
+        tftp_done = {e["file"]: e["bytes"] for e in events if e["event"] == "tftp_complete"}
+        check("operations_completed", observations["ops_exit"] == 0)
+        check("variable_set_and_shown", shown.get("daemonarchy.d1") == "set-ok")
+        check("variable_unset", "not found" in shown.get("daemonarchy.temp", ""))
+        check("kernel_downloaded", tftp_done.get("/kernel") == Path(args.kernel).stat().st_size)
+        check("lua_downloaded_and_run", "/staged-netdebug.lua" in tftp_done and
+              b"netdebug-stage: staged-lua" in out("ops") and b"ran" in out("ops"))
+        check("console_stopped", any(e["event"] == "console_stopped" for e in events))
+        record = stage_record(base, "ops")
+        check("earliest_stage_loader", record is not None and
+              record["earliest_stage"] == "efi-loader")
+        # Stop: a new controller cannot pair until the console is restarted.
+        refused = loader_console(args, base, "after-stop", "--show", "daemonarchy.d1",
+                                 timeout=8)
+        procs.append(refused)
+        check("stop_refuses_pairing", finished(refused, 60) == 1)
+        serial.write(b"netdebug auto\r")
+        restarted = loader_console(args, base, "restart", "--show", "daemonarchy.d1",
+                                   "--stop", timeout=30)
+        procs.append(restarted)
+        observations["restart_exit"] = finished(restarted, 90)
+        events = [json.loads(line) for line in
+                  (base / "restart.events").read_text().splitlines()]
+        check("restart_pairs_with_state", observations["restart_exit"] == 0 and any(
+            e["event"] == "variable_shown" and e["output"] == "set-ok" for e in events))
+        return
+    yield
+    ctl = loader_console(args, base, "controller", *follow, stdin=True, timeout=60)
+    procs.append(ctl)
+    marker = lambda text: text.encode() in out("controller")
+    if args.case == "d2-hard-reset":
+        check("kernel_reached", wait_for(lambda: marker("mountroot>"), 180))
+        reset = subprocess.run(["sudo", "-n", "bhyvectl", f"--vm={args.vm}", "--force-reset"],
+                               capture_output=True, check=False)
+        observations["force_reset_status"] = reset.returncode
+        observations["controller_exit"] = finished(ctl, 120)
+        record = stage_record(base, "controller")
+        observations["last_stage"] = record
+        check("controller_reports_silence", observations["controller_exit"] == 1)
+        check("last_stage_retained", record is not None and record["stage"] in (
+            "mountroot_prompt", "kernel-rootconf") and record["outcome"] == "idle_timeout")
+        check("no_fabricated_panic", record is not None and record["panic_text"] is None)
+        return
+    if args.case == "d3-handoff-vtnet":
+        check("early_transport_admitted", wait_for(lambda: marker("netdebug-stage: kernel-early "), 180))
+        check("early_release", wait_for(lambda: marker("kernel-early-release"), 120))
+        check("mountroot_console_reheralded", wait_for(
+            lambda: marker("netdebug-stage: kernel-rootconf") and marker("mountroot>"), 120))
+        feed(ctl, b"ufs:/dev/vtbd0p2\n")
+        check("root_mount_attempt", wait_for(
+            lambda: b"Trying to mount root from ufs:/dev/vtbd0p2" in serial.text(), 60))
+        observations["controller_exit"] = finished(ctl, 60)
+        check("controller_finished", observations["controller_exit"] == 0)
+        text = out("controller")
+        check("native_attach_after_release",
+              text.find(b"kernel-early-release") < text.find(b"kernel-rootconf"))
+        return
+    # d3-early-*: deliberate panic while earlynet holds the NIC.
+    check("early_transport_admitted", wait_for(lambda: marker("netdebug-stage: kernel-early "), 180))
+    check("pre_driver_panic_received", wait_for(
+        lambda: marker("deliberate pre-driver panic") and marker("db>"), 120))
+    text = out("controller")
+    driver = b"em0:" if args.case == "d3-early-em" else b"vtnet0:"
+    check("native_driver_not_attached", driver not in text)
+    feed(ctl, b"show pcpu\n")
+    check("ddb_command_over_early_transport", wait_for(lambda: marker("cpuid"), 60))
+    record = stage_record(base, "controller")
+    observations["last_stage"] = record
+    check("panic_text_recorded", record is not None and record["panic_text"] is not None and
+          "deliberate pre-driver panic" in record["panic_text"])
+
+
 def run_case(args, base, serial, results, observations, procs):
+    if args.case in LOADER_CASES:
+        yield from run_loader_case(args, base, serial, results, observations, procs)
+        return
     capture = base / "kernel-capture.bin"
     ev = base / "controller-events.jsonl"
     mounted = lambda: b"Trying to mount root from ufs:/dev/vtbd0p2" in serial.text()
@@ -437,8 +594,11 @@ def main():
     p.add_argument("--loader", default="/boot/loader.efi")
     p.add_argument("--loader-sha256", required=True)
     p.add_argument("--tools", default=str(Path(__file__).parent))
-    p.add_argument("--console-sha256", required=True)
-    p.add_argument("--proxy-sha256", required=True)
+    p.add_argument("--console-sha256", help="required for d4, d5 and d7 cases")
+    p.add_argument("--proxy-sha256", help="required for d4, d5 and d7 cases")
+    p.add_argument("--loader-lua", help="loader Lua directory built with --loader (D1-D3)")
+    p.add_argument("--loader-lua-sha256", help="tree identity of --loader-lua")
+    p.add_argument("--tools-sha256", help="tree identity of --tools (D1-D3)")
     p.add_argument("--init", help="static init for d5")
     p.add_argument("--init-sha256")
     p.add_argument("--vm", required=True)
@@ -484,7 +644,8 @@ def main():
             status, destroyed = run_bounded_vm(args.vm, [
                 "-c", "2", "-m", "1G", "-A", "-H", "-P", "-s", "0:0,hostbridge",
                 "-s", "1:0,lpc", "-s", f"2:0,virtio-blk,{base / 'disk.img'}",
-                "-s", f"3:0,virtio-net,{tap},mac={args.mac}",
+                "-s", f"3:0,{'e1000' if args.case == 'd3-early-em' else 'virtio-net'},"
+                f"{tap},mac={args.mac}",
                 "-l", "bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI.fd",
                 "-l", f"com1,{args.nmdm}A"], args.limit, log=log)
         vm_result.update(status=status, watchdog_destroyed=destroyed)

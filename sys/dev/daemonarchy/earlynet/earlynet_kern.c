@@ -372,7 +372,8 @@ earlynet_release(void *arg __unused)
 	if (en.owner != EARLYNET_OWNED)
 		return;
 	printf("netdebug-stage: kernel-early-release boot_id=%s\n", en.boot_id);
-	(void)earlynet_finish(&en);
+	/* No FINISHED: the mountroot console reheralds into the same session. */
+	(void)earlynet_drain(&en);
 	cnremove(&en_console);
 	if (earlynet_quiesce(&en) != 0) {
 		printf("earlynet: quiesce failed; the NIC stays held\n");

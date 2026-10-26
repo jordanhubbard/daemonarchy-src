@@ -80,6 +80,21 @@ class BoundTest(unittest.TestCase):
         self.assertLess(elapsed, 10)
         self.assertIn("--destroy --vm=vm-b", (self.dir / "bhyvectl.log").read_text())
 
+    def test_tree_identity_and_loader_cases(self):
+        tree = self.dir / "tree"
+        (tree / "sub").mkdir(parents=True)
+        (tree / "a.lua").write_text("a")
+        (tree / "sub" / "b.lua").write_text("b")
+        first = CASE.tree_sha256(tree)
+        (tree / "__pycache__").mkdir()
+        (tree / "__pycache__" / "x.pyc").write_text("cache")
+        self.assertEqual(CASE.tree_sha256(tree), first)
+        (tree / "a.lua").write_text("changed")
+        self.assertNotEqual(CASE.tree_sha256(tree), first)
+        self.assertEqual(set(CASE.LOADER_CASES), {
+            "d1-loader-ops", "d2-hard-reset", "d3-handoff-vtnet", "d3-early-vtnet",
+            "d3-early-em"})
+
     def test_pcap_ack_extraction(self):
         def frame(sport, dport, payload):
             udp = struct.pack("!HHHH", sport, dport, 8 + len(payload), 0) + payload

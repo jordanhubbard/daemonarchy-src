@@ -136,6 +136,7 @@ int	earlynet_flush(struct earlynet *);
 int	earlynet_flush_line(struct earlynet *);
 int	earlynet_getc(struct earlynet *);
 void	earlynet_putc(struct earlynet *, int);
+int	earlynet_drain(struct earlynet *);
 int	earlynet_finish(struct earlynet *);
 int	earlynet_quiesce(struct earlynet *);
 bool	earlynet_driver_may_attach(const struct earlynet *);
