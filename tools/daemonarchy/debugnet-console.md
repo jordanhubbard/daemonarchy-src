@@ -53,6 +53,8 @@ This is an isolated mountroot implementation slice. The default
 On October 25, a native bhyve VM passed firmware pairing, remote loader
 `boot`, same-boot kernel debugnet admission and remote forced-mountroot input.
 The minimal VM root has no init; its later panic does not qualify remote
-panic control. Earlier boot blocks, predriver panic, post-mount panic,
-normal userspace networking after NIC handoff, hard-reset capture, other
-native NICs and physical laptop operation remain unqualified.
+panic control. A separate static-init VM mounted root and answered 3/3 host
+ICMP requests on the ordinary `vtnet` MAC after debugnet FINISHED. Its init
+console markers were absent, so full userspace boot/logging remains open.
+Earlier boot blocks, predriver panic, post-mount panic, hard-reset capture,
+other native NICs and physical laptop operation remain unqualified.
