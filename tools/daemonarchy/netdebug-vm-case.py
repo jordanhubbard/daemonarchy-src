@@ -168,7 +168,9 @@ def prepare(args, base):
 
 class Serial:
     def __init__(self, path, log):
-        self.fd = os.open(path, os.O_RDWR | os.O_NOCTTY)
+        # nmdm(4): opening one side blocks until the other side is open, and
+        # bhyve opens the A side only after this reader exists.
+        self.fd = os.open(path, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
         tty.setraw(self.fd)
         self.log = open(log, "wb", buffering=0)
         self.data = bytearray()
@@ -183,6 +185,8 @@ class Serial:
             if select.select([self.fd], [], [], .2)[0]:
                 try:
                     chunk = os.read(self.fd, 4096)
+                except BlockingIOError:
+                    continue
                 except OSError:
                     return
                 with self.lock:
@@ -195,7 +199,12 @@ class Serial:
 
     def write(self, data):
         for byte in data:  # DDB polls one character at a time
-            os.write(self.fd, bytes([byte]))
+            for _ in range(50):
+                try:
+                    os.write(self.fd, bytes([byte]))
+                    break
+                except BlockingIOError:
+                    time.sleep(.02)
             time.sleep(.02)
 
     def close(self):
@@ -663,7 +672,14 @@ def main():
         record["case_destroy_status"] = destroy_vm(args.vm)
         vm_done.wait(args.limit + 60)
         serial.close()
+        # Stop this case's capture now rather than at its outer bound.
+        subprocess.run(["sudo", "-n", "pkill", "-INT", "-f", f"tcpdump -U -i {tap} "],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
         tcpdump.wait()
+        # Remove only the tap this case created.
+        record["tap_destroy_status"] = subprocess.run(
+            ["sudo", "-n", "ifconfig", tap, "destroy"], stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL, check=False).returncode
     if args.case == "d7-malformed" and "probes" in observations:
         acked = {ACK.unpack(p)[0] for p in udp_payloads(base / "traffic.pcap", 26004, 26003)
                  if len(p) == ACK.size}
