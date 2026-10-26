@@ -91,7 +91,7 @@ def validate_context(context):
 def git(repo, *args):
     return subprocess.run(["git", "-C", str(repo), *args], check=True, timeout=20,
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                          env={**os.environ, "GIT_NO_LAZY_FETCH": "1", "GIT_TERMINAL_PROMPT": "0"}).stdout
+                          env={**os.environ, "GIT_NO_LAZY_FETCH": "1", "GIT_TERMINAL_PROMPT": "0", "GIT_OPTIONAL_LOCKS":"0"}).stdout
 
 
 def file_bytes(path):
@@ -123,6 +123,13 @@ def member(repo, revision, path):
     return record
 
 
+def decode_values(raw,variables):
+    require(len(raw)<=16*1024*1024,"source metadata exceeds byte bound")
+    lines=raw.decode().splitlines()
+    require(len(lines)==len(variables),"source metadata variable inventory is incomplete or multiline")
+    return dict(zip(variables,lines))
+
+
 def limit_output():
     resource.setrlimit(resource.RLIMIT_FSIZE, (16 * 1024 * 1024, 16 * 1024 * 1024))
 
@@ -147,9 +154,23 @@ def query(args, env, output, timeout, variables):
     with (output/"make.stdout").open("rb") as stream:
         raw = stream.read(16*1024*1024+1)
     require(len(raw) <= 16*1024*1024, "source metadata exceeds byte bound")
-    lines = raw.decode().splitlines()
-    require(len(lines) == len(variables), "source metadata variable inventory is incomplete or multiline")
-    return dict(zip(variables, lines))
+    return decode_values(raw,variables)
+
+
+def native_invocation(repo,unit,context,src_conf,make_conf,output):
+    args = [MAKE, "-C", str(repo/unit), "SRCTOP="+str(repo), "OBJTOP="+str(output/"objtop"),
+            "TARGET="+context["target"], "TARGET_ARCH="+context["target_arch"],
+            "SRCCONF="+str(src_conf.resolve()), "__MAKE_CONF="+str(make_conf.resolve()), "SRC_ENV_CONF=/dev/null",
+            "UPDATE_DEPENDFILE=NO", "ERROR_LOGDIR="+str(output/"error"), "SB="+str(output/"workspace")]
+    args += [k+"="+v for k,v in sorted({**context["options"], **context["flags"]}.items())]
+    option_variables = sorted({"MK_"+k.split("_",1)[1] for k in context["options"]})
+    variables = VARIABLES + tuple(option_variables)
+    for variable in variables:
+        args.extend(("-V", variable))
+    env = {"PATH":"/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin", "HOME":str(output/"home"),
+           "TMPDIR":str(output/"tmp"), "LC_ALL":"C", "TZ":"UTC", "MAKEOBJDIR":str(output/"obj"),
+           "MAKESYSPATH":str(repo/"share/mk")}
+    return args,variables,env
 
 
 def observe(repo, revision, unit, context, src_conf, make_conf, output, *, acknowledged, timeout=20):
@@ -170,18 +191,7 @@ def observe(repo, revision, unit, context, src_conf, make_conf, output, *, ackno
     output.mkdir(mode=0o700)
     for name in ("home", "tmp", "obj", "objtop", "error", "workspace"):
         (output/name).mkdir()
-    args = [MAKE, "-C", str(repo/unit), "SRCTOP="+str(repo), "OBJTOP="+str(output/"objtop"),
-            "TARGET="+context["target"], "TARGET_ARCH="+context["target_arch"],
-            "SRCCONF="+str(src_conf.resolve()), "__MAKE_CONF="+str(make_conf.resolve()), "SRC_ENV_CONF=/dev/null",
-            "UPDATE_DEPENDFILE=NO", "ERROR_LOGDIR="+str(output/"error"), "SB="+str(output/"workspace")]
-    args += [k+"="+v for k,v in sorted({**context["options"], **context["flags"]}.items())]
-    option_variables = sorted({"MK_"+k.split("_",1)[1] for k in context["options"]})
-    variables = VARIABLES + tuple(option_variables)
-    for variable in variables:
-        args.extend(("-V", variable))
-    env = {"PATH":"/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin", "HOME":str(output/"home"),
-           "TMPDIR":str(output/"tmp"), "LC_ALL":"C", "TZ":"UTC", "MAKEOBJDIR":str(output/"obj"),
-           "MAKESYSPATH":str(repo/"share/mk")}
+    args,variables,env=native_invocation(repo,unit,context,src_conf,make_conf,output)
     (output/"request.json").write_text(json.dumps({"revision":revision,"unit":unit,"context":context,"argv":args},sort_keys=True)+"\n")
     started = time.monotonic()
     try:
