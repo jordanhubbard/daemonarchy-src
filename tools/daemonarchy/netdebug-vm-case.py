@@ -550,7 +550,9 @@ def run_case(args, base, serial, results, observations, procs):
             for _, wire in probes:
                 probe.sendto(wire, (GUEST_IP, 26004))
                 time.sleep(.5)
-        observations["probes"] = {name: 900 + i for i, (name, _) in enumerate(probes)}
+        # Record each probe's own debugnet sequence (the short probe has none).
+        observations["probes"] = {name: int.from_bytes(wire[4:8], "big")
+                                  for name, wire in probes if len(wire) >= HDR.size}
         time.sleep(2)
         # If the foreign input was accepted it consumed input sequence 2.
         feed(ctl, b"?\nufs:/dev/vtbd0p2\n")
