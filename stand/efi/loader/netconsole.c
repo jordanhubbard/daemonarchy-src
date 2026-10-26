@@ -466,7 +466,7 @@ nc_cleanup(void)
 static int
 nc_export_identity(void)
 {
-	char mac[18], hex[33];
+	char mac[18], hex[33], pci[64], pci_id[16];
 
 	snprintf(mac, sizeof(mac), "%02x:%02x:%02x:%02x:%02x:%02x",
 	    nc.io.myea[0], nc.io.myea[1], nc.io.myea[2],
@@ -482,6 +482,13 @@ nc_export_identity(void)
 		unsetenv("netdebug.peer_ip");
 		unsetenv("netdebug.boot_id");
 		return (ENOMEM);
+	}
+	/* Optional: the early kernel transport needs the PCI function. */
+	if (netconsole_pci_location(nc.dev.d_unit, pci, sizeof(pci), pci_id,
+	    sizeof(pci_id)) != 0 || setenv("netdebug.pci", pci, 1) != 0 ||
+	    setenv("netdebug.pci_id", pci_id, 1) != 0) {
+		unsetenv("netdebug.pci");
+		unsetenv("netdebug.pci_id");
 	}
 	return (0);
 }
@@ -553,6 +560,14 @@ nc_start(const char *unit, const char *local, const char *peer, const char *keyf
 	printf("Wired debug console enabled on net%lu; "
 	    "waiting for %s controller.\n",
 	    number, keyfile == NULL ? "plain" : "authenticated");
+	/*
+	 * Phase identity marker, buffered until a controller pairs.  This is
+	 * the earliest instrumented stage: firmware and any boot block that
+	 * loaded this loader carry no transport.
+	 */
+	printf("netdebug-stage: efi-loader boot_id=%s nic=net%lu pci=%s "
+	    "earlier=uninstrumented\n", getenv("netdebug.boot_id"), number,
+	    getenv("netdebug.pci") != NULL ? getenv("netdebug.pci") : "unknown");
 	return (CMD_OK);
 failed:
 	nc_close_socket();

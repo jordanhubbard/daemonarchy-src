@@ -6,6 +6,8 @@ on:
       - 'stand/lua/**'
       - 'stand/efi/loader/netconsole*'
       - 'stand/efi/loader/Makefile'
+      - 'stand/common/dev_net.c'
+      - 'stand/libsa/tftp.c'
       - 'tools/daemonarchy/**'
       - 'sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC'
       - 'sys/kern/kern_mbuf.c'
@@ -21,6 +23,8 @@ on:
       - 'stand/lua/**'
       - 'stand/efi/loader/netconsole*'
       - 'stand/efi/loader/Makefile'
+      - 'stand/common/dev_net.c'
+      - 'stand/libsa/tftp.c'
       - 'tools/daemonarchy/**'
       - 'sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC'
       - 'sys/kern/kern_mbuf.c'
@@ -86,6 +90,12 @@ jobs:
         run: >-
           python3 tools/daemonarchy/tests/run-debugnet-rx-duplicate.py
           --output-directory "${{ runner.temp }}/debugnet-rx-duplicate-${{ github.run_id }}-${{ github.run_attempt }}"
+      - name: Sanitized production loader static network and TFTP port (not EFI acceptance)
+        env:
+          CC: clang
+        run: >-
+          python3 tools/daemonarchy/tests/run-loader-static-net.py
+          --output-directory "${{ runner.temp }}/loader-static-net-${{ github.run_id }}-${{ github.run_attempt }}"
 
   native-loader:
     runs-on: ubuntu-latest
@@ -100,6 +110,7 @@ jobs:
           git rev-parse 'HEAD^{tree}' > _build/earlynet-native/source-tree.txt
           sha256sum stand/efi/loader/netconsole*.c stand/efi/loader/netconsole*.h \
             stand/lua/netdebug.lua stand/lua/loader.lua stand/lua/menu.lua \
+            stand/common/dev_net.c stand/libsa/tftp.c \
             tools/daemonarchy/tests/firmware-inventory.lua \
             > _build/earlynet-native/feature-inputs.sha256
       - name: Native FreeBSD EFI build and admission controls

@@ -11,6 +11,7 @@ a reboot or panic.
 
 import argparse
 import hmac
+import re
 import importlib.util
 import json
 import os
@@ -21,7 +22,12 @@ import socket
 import stat
 import struct
 import sys
+import threading
 import time
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from netdebug_stage import StageRecorder  # noqa: E402
+from tftp_server import TftpServer  # noqa: E402
 
 HEADER = struct.Struct("!4sBBHQ16s")
 HELLO, INPUT, OUTPUT, INPUT_ACK, FINISH, CHALLENGE, WELCOME, OUTPUT_ACK = range(1, 9)
@@ -108,9 +114,60 @@ def debugnet_backend():
     return module
 
 
+NAME = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
+# The loader tokenizer expands $ and honours quotes and backslashes; refuse
+# them, and whitespace, so a value can never become another command.
+VALUE = re.compile(r"^[!#%&'()*+,./0-9:<=>?@A-Z\[\]^_`a-z{|}~-]{1,200}$")
+
+
+def loader_operations(args, target):
+    """Compile D1 options into standard loader commands, in a fixed order."""
+    ops = []
+
+    def value(text, what):
+        if not VALUE.match(text) or '"' in text:
+            raise ValueError(f"{what} contains characters the loader would reinterpret")
+        return text
+
+    if args.tftp_root is not None:
+        server = args.tftp_address or args.bind
+        if server in ("0.0.0.0", ""):
+            raise ValueError("--tftp-root needs --tftp-address or a specific --bind address")
+        ops += [("set", f"set net.static.ip={value(args.static_ip or target, 'static IP')}"),
+                ("set", f"set net.static.rootpath=tftp://{server}:{args.tftp_port}/")]
+        if args.static_netmask:
+            ops.append(("set", f"set net.static.netmask={value(args.static_netmask, 'netmask')}"))
+    for item in args.set:
+        name, sep, text = item.partition("=")
+        if not sep or not NAME.match(name):
+            raise ValueError("--set needs NAME=VALUE with a plain variable name")
+        ops.append(("set", f"set {name}={value(text, '--set value')}"))
+    for name in args.unset:
+        if not NAME.match(name):
+            raise ValueError("--unset needs a plain variable name")
+        ops.append(("unset", f"unset {name}"))
+    for name in args.show:
+        if not NAME.match(name):
+            raise ValueError("--show needs a plain variable name")
+        ops.append(("show", f"show {name}"))
+    if args.kernel:
+        ops += [("unload", "unload"), ("load", f"load {value(args.kernel, 'kernel path')}")]
+    for module in args.module:
+        ops.append(("load", f"load {value(module, 'module path')}"))
+    for script in args.lua:
+        ops.append(("include", f"include {value(script, 'Lua path')}"))
+    ops += [("command", line) for line in args.command]
+    if args.stop:
+        ops.append(("stop", "netdebug stop"))
+    return ops
+
+
 class Console:
-    def __init__(self, target, port, key, *, bind="0.0.0.0", timeout=30, output=None, events=None):
+    def __init__(self, target, port, key, *, bind="0.0.0.0", timeout=30, output=None, events=None,
+                 stage=None):
         self.key = key
+        self.stage = stage
+        self.event_lock = threading.Lock()
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind((bind, 0))
         self.socket.connect((target, port))
@@ -131,6 +188,11 @@ class Console:
         self.socket.close()
 
     def event(self, kind, **fields):
+        # The TFTP server reports from its own threads.
+        with self.event_lock:
+            self._event(kind, **fields)
+
+    def _event(self, kind, **fields):
         if self.events is not None:
             self.events.write((json.dumps({"event": kind, "monotonic": time.monotonic(), **fields}, sort_keys=True) + "\n").encode())
 
@@ -149,6 +211,8 @@ class Console:
                 sys.stdout.buffer.flush()
                 if self.output is not None:
                     self.output.write(payload)
+                if self.stage is not None:
+                    self.stage.output(payload)
                 self.received.extend(payload)
                 if len(self.received) > 65536:
                     del self.received[:-65536]
@@ -160,6 +224,9 @@ class Console:
             self.socket.send(encode(self.key, self.session, OUTPUT_ACK, sequence))
         elif kind == FINISH:
             self.handoff = True
+            if self.stage is not None:
+                self.stage.stage("firmware_handoff" if self.phase == "firmware"
+                                 else "kernel_transport_closed")
             self.event("firmware_handoff_started" if self.phase == "firmware" else "kernel_transport_closed",
                        sequence=sequence, output_gap=sequence != self.output_sequence,
                        kernel_observed=self.phase == "kernel")
@@ -198,6 +265,9 @@ class Console:
             self.received.clear()
             self.handoff = False
             self.phase = "kernel" if kernel else "firmware"
+            if self.stage is not None:
+                self.stage.state["boot_id"] = self.boot.hex()
+                self.stage.stage("kernel_admitted" if kernel else "firmware_paired")
             self.event("kernel_connected" if kernel else "paired", session=self.session.hex(),
                        boot_id=self.boot.hex(), kernel_observed=kernel)
             return
@@ -227,25 +297,43 @@ class Console:
         self.event("input_ack_timeout", sequence=sequence)
         raise TimeoutError(f"{self.phase} console did not acknowledge command admission")
 
-    def command(self, line):
-        # Kernel prompts (mountroot/DDB) do not run loader echo commands.
-        if self.phase == "kernel":
-            self.send_line(line)
-            return
-        self.send_line(line)
-        if self.handoff:
-            return
-        marker = "LDNC-DONE-" + secrets.token_hex(16)
-        self.received.clear()
-        self.send_line("echo " + marker)
+    def _await_marker(self, marker):
         end = time.monotonic() + self.timeout
         while marker.encode() not in self.received and not self.handoff:
             if time.monotonic() >= end:
                 self.event("command_completion_unobserved")
                 raise TimeoutError("command completion was not observed; no reboot is inferred")
             self.receive(min(0.1, end - time.monotonic()))
-        if not self.handoff:
-            self.event("command_completed")
+
+    def command(self, line, *, capture=False):
+        """Run one loader line; with capture, return exactly its output."""
+        # Kernel prompts (mountroot/DDB) do not run loader echo commands.
+        if self.phase == "kernel":
+            self.send_line(line)
+            return None
+        if capture:
+            # Bracket the command: output queued earlier ends at this marker.
+            start = "LDNC-SYNC-" + secrets.token_hex(16)
+            self.received.clear()
+            self.send_line("echo " + start)
+            self._await_marker(start)
+            if self.handoff:
+                return None
+            del self.received[:self.received.find(start.encode()) + len(start)]
+            del self.received[:1 if self.received[:1] == b"\n" else 0]
+        else:
+            self.received.clear()
+        self.send_line(line)
+        if self.handoff:
+            return None
+        marker = "LDNC-DONE-" + secrets.token_hex(16)
+        self.send_line("echo " + marker)
+        self._await_marker(marker)
+        if self.handoff:
+            return None
+        self.event("command_completed")
+        text = bytes(self.received[:self.received.find(marker.encode())])
+        return text.decode("ascii", "replace") if capture else None
 
 
 def main():
@@ -266,6 +354,27 @@ def main():
                         help="kernel wire protocol; debugnet needs --plain and --output")
     parser.add_argument("--output", type=Path, help="new private output-only capture")
     parser.add_argument("--events", type=Path, help="new private metadata-only event capture")
+    parser.add_argument("--last-stage", type=Path,
+                        help="last received stage record; retained after silence or reset")
+    loader = parser.add_argument_group("standard loader operations, run before --command")
+    loader.add_argument("--set", action="append", default=[], metavar="NAME=VALUE")
+    loader.add_argument("--unset", action="append", default=[], metavar="NAME")
+    loader.add_argument("--show", action="append", default=[], metavar="NAME",
+                        help="record the value in a variable_shown event")
+    loader.add_argument("--kernel", metavar="PATH",
+                        help="unload, then load this kernel (disk path or net0:/name)")
+    loader.add_argument("--module", action="append", default=[], metavar="PATH")
+    loader.add_argument("--lua", action="append", default=[], metavar="PATH",
+                        help="run a script with the loader's own Lua include")
+    loader.add_argument("--tftp-root", type=Path,
+                        help="serve this directory read-only over TFTP and point the loader's "
+                             "net device at it with static net.static.* settings")
+    loader.add_argument("--tftp-port", type=int, default=6969)
+    loader.add_argument("--tftp-address", help="controller address the loader reaches")
+    loader.add_argument("--static-ip", help="loader address for net.static.ip (default: target)")
+    loader.add_argument("--static-netmask")
+    loader.add_argument("--stop", action="store_true",
+                        help="finish with netdebug stop; the console is revoked")
     args = parser.parse_args()
     if args.make_key:
         stream = private_output(args.make_key)
@@ -281,20 +390,41 @@ def main():
     output = events = None
     client = None
     kernel_listener = None
+    tftp = None
+    stage = None
+    outcome = "error"
     try:
+        operations = loader_operations(args, args.target)
         output = private_output(args.output)
         events = private_output(args.events)
+        if args.last_stage is not None:
+            if args.last_stage.exists():
+                raise ValueError("--last-stage must name a new file")
+            stage = StageRecorder(str(args.last_stage))
         if args.kernel_transport == "debugnet":
             kernel_listener = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             kernel_listener.bind((args.bind, debugnet_backend().PORT))
         client = Console(args.target, args.port, bytes(32) if args.plain else read_key(args.key_file), bind=args.bind,
-                         timeout=args.timeout, output=output, events=events)
+                         timeout=args.timeout, output=output, events=events, stage=stage)
+        if args.tftp_root is not None:
+            tftp = TftpServer(args.tftp_root, args.tftp_address or args.bind, args.tftp_port,
+                              event=client.event).start()
         client.pair()
-        if args.command:
-            for line in args.command:
-                client.command(line)
-                if client.handoff:
-                    break
+        for kind, line in operations:
+            if kind == "stop":
+                # Admission is acknowledged before the loader revokes the console.
+                client.send_line(line)
+                client.event("console_stopped")
+                outcome = "stopped"
+                return 0
+            text = client.command(line, capture=kind != "command")
+            if kind == "show" and text is not None:
+                client.event("variable_shown", name=line.split()[1], output=text.strip())
+            elif text is not None:
+                client.event("loader_operation", operation=kind, command=line,
+                             output=text.strip()[-1024:])
+            if client.handoff:
+                break
         if args.follow_kernel:
             # EOF only ends keyboard input; durable network capture continues.
             stdin_open = True
@@ -315,7 +445,8 @@ def main():
                         try:
                             debugnet_backend().serve(args.bind, boot, args.timeout,
                                                      output, listener=kernel_listener,
-                                                     on_admit=admitted)
+                                                     on_admit=admitted, stage=stage,
+                                                     finish_stage=False)
                         except TimeoutError:
                             client.event("capture_idle_timeout", phase=client.phase,
                                          kernel_observed=client.phase == "kernel")
@@ -323,6 +454,7 @@ def main():
                         kernel_listener = None
                         client.event("kernel_transport_closed", phase="kernel",
                                      kernel_observed=True)
+                        outcome = "finished"
                         break
                     client.pair(kernel=True)
                     idle_end = time.monotonic() + args.timeout
@@ -351,13 +483,25 @@ def main():
                     if not line:
                         break
                     client.command(line.rstrip("\r\n"))
-        return 3 if client.handoff and client.phase == "firmware" else 0
+        if client.handoff and client.phase == "firmware":
+            outcome = "firmware_handoff"
+            return 3
+        outcome = "finished" if client.handoff else "operator_closed"
+        return 0
+    except TimeoutError:
+        outcome = "idle_timeout"
+        raise
     except KeyboardInterrupt:
+        outcome = "interrupted"
         if client is not None:
             client.event("controller_stopped", phase=client.phase,
                          kernel_observed=client.phase == "kernel")
         return 130
     finally:
+        if stage is not None:
+            stage.finish(outcome)
+        if tftp is not None:
+            tftp.stop()
         if kernel_listener is not None:
             kernel_listener.close()
         if client is not None:

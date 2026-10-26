@@ -10,6 +10,9 @@ import struct
 import sys
 import time
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from netdebug_stage import StageRecorder  # noqa: E402
+
 HEADER = struct.Struct('!IIQII')
 ACK = struct.Struct('!I')
 HERALD, FINISHED, DATA = 1, 2, 3
@@ -50,7 +53,7 @@ def save_state(path, state):
 
 
 def serve(bind, expected, timeout, capture, *, listener=None, on_admit=None,
-          events=None, state_path=None, resume=False):
+          events=None, state_path=None, resume=False, stage=None, finish_stage=True):
     stats = dict.fromkeys(COUNTERS, 0)
     peer = None
     rx_last = 0
@@ -155,6 +158,8 @@ def serve(bind, expected, timeout, capture, *, listener=None, on_admit=None,
                     rx_last, rx_digest = seq, None
                     deadline = time.monotonic() + timeout
                     persist()
+                    if stage is not None:
+                        stage.stage('kernel_admitted', boot_id=expected, transport='debugnet')
                     event('kernel_connected', peer=addr[0], sequence=seq,
                           reherald=stats['reherald'] > 0)
                     if stats['reherald'] == 0 and on_admit is not None:
@@ -168,6 +173,8 @@ def serve(bind, expected, timeout, capture, *, listener=None, on_admit=None,
                 if kind == FINISHED:
                     sock.sendto(ACK.pack(seq), addr)
                     outcome = 'finished'
+                    if stage is not None:
+                        stage.stage('kernel_transport_closed')
                     return 0
                 if kind != DATA:
                     stats['unexpected'] += 1
@@ -185,6 +192,8 @@ def serve(bind, expected, timeout, capture, *, listener=None, on_admit=None,
                         event('output_sequence_reuse', sequence=seq)
                     capture.write(payload)
                     capture.flush()
+                    if stage is not None:
+                        stage.output(payload)
                     sys.stdout.buffer.write(payload)
                     sys.stdout.buffer.flush()
                     stats['output_bytes'] += len(payload)
@@ -196,6 +205,8 @@ def serve(bind, expected, timeout, capture, *, listener=None, on_admit=None,
             outcome = 'idle_timeout'
             raise TimeoutError('kernel session idle or missing')
         finally:
+            if stage is not None and finish_stage:
+                stage.finish(outcome)
             event('controller_exit', outcome=outcome, admitted=peer is not None,
                   rx_last=rx_last, tx_next=tx_seq, queued_input_bytes=len(inbuf),
                   unconfirmed_input=pending[0] if pending else None, **stats)
@@ -211,6 +222,7 @@ def main():
     p.add_argument('--state', help='private session state for --resume')
     p.add_argument('--resume', action='store_true',
                    help='continue an admitted session after a controller restart')
+    p.add_argument('--last-stage', help='last received stage record, kept after silence')
     a = p.parse_args()
     if a.timeout <= 0:
         p.error('timeout must be positive')
@@ -220,8 +232,10 @@ def main():
         with open(a.capture, 'ab', buffering=0) as capture:
             events = open(a.events, 'x', encoding='utf-8') if a.events else None
             try:
+                stage = (StageRecorder(a.last_stage, a.boot_id, resume=a.resume)
+                         if a.last_stage else None)
                 return serve(a.bind, a.boot_id, a.timeout, capture, events=events,
-                             state_path=a.state, resume=a.resume)
+                             state_path=a.state, resume=a.resume, stage=stage)
             finally:
                 if events is not None:
                     events.close()

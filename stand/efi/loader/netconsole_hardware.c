@@ -340,3 +340,32 @@ netconsole_save_report(void)
 	printf("You can now remove the USB and bring it back for analysis.\n");
 	return (CMD_OK);
 }
+
+/*
+ * PCI location ("domain:bus:slot:function", decimal) and vendor:device
+ * identity of a firmware NIC, exported so the kernel's early transport
+ * can find the same device before ordinary driver attach.
+ */
+int
+netconsole_pci_location(unsigned unit, char *location, size_t location_size,
+    char *identity, size_t identity_size)
+{
+	EFI_PCI_IO_PROTOCOL *pci;
+	EFI_HANDLE handle;
+	UINTN segment, bus, device, function;
+	UINT32 id;
+
+	handle = efi_find_handle(&efinet_dev, unit);
+	if (handle == NULL)
+		return (ENXIO);
+	pci = ancestor_protocol(handle, &pci_guid);
+	if (pci == NULL || pci->GetLocation(pci, &segment, &bus, &device,
+	    &function) != EFI_SUCCESS ||
+	    pci->Pci.Read(pci, EfiPciIoWidthUint32, 0, 1, &id) != EFI_SUCCESS)
+		return (ENXIO);
+	snprintf(location, location_size, "%lu:%lu:%lu:%lu",
+	    (unsigned long)segment, (unsigned long)bus,
+	    (unsigned long)device, (unsigned long)function);
+	snprintf(identity, identity_size, "%04x:%04x", id & 0xffff, id >> 16);
+	return (0);
+}

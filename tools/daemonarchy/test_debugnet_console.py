@@ -315,6 +315,27 @@ class FaultTest(unittest.TestCase):
         self.assertEqual(records[0]['unconfirmed_input'], 2)
         self.assertEqual(records[-1]['duplicate_output'], 1)
 
+    def test_last_stage_survives_silence_without_a_panic(self):
+        stage_path = self.dir / 'last-stage.json'
+        proc = subprocess.Popen([sys.executable, str(SCRIPT), '--bind', '127.0.0.1',
+            '--boot-id', BOOT.decode(), '--timeout', '1', '--capture', str(self.capture),
+            '--last-stage', str(stage_path)], stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.procs.append(proc)
+        time.sleep(.15)
+        self.admit()
+        self.send(3, 2, b'netdebug-stage: kernel-rootconf boot_id=0123456789abcdef if=vtnet0\n')
+        self.expect_ack(2)
+        self.send(3, 3, b'\nmountroot> ')
+        self.expect_ack(3)
+        proc.wait(timeout=5)  # the target goes silent: a hard reset looks like this
+        self.assertEqual(proc.returncode, 1)
+        record = json.loads(stage_path.read_text())
+        self.assertEqual((record['earliest_stage'], record['stage'], record['outcome']),
+                         ('kernel-rootconf', 'mountroot_prompt', 'idle_timeout'))
+        self.assertIsNone(record['panic_text'])
+        self.assertIn('silence does not establish', record['conclusion'])
+
     def test_resume_refuses_mismatched_or_missing_state(self):
         self.state.write_text(json.dumps({'schema': 'daemonarchy-debugnet-console-state@1',
                                           'boot_id': 'another-boot', 'peer': ['127.0.0.1', 1],

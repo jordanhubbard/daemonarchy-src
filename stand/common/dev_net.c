@@ -83,6 +83,7 @@ static int	net_strategy(void *, int, daddr_t, size_t, char *, size_t *);
 static int	net_print(int);
 
 static int net_getparams(int sock);
+static int net_static_params(int sock);
 static void net_setparams(int sock);
 
 struct devsw netdev = {
@@ -161,7 +162,15 @@ net_open(struct open_file *f, ...)
 		 * If network params were not set by netif_open(), try to get
 		 * them via bootp, rarp, etc.
 		 */
-		if (rootip.s_addr == 0) {
+		if (rootip.s_addr == 0 &&
+		    (error = net_static_params(netdev_sock)) != ENOENT) {
+			if (error) {
+				printf("%s: invalid net.static settings\n",
+				    __func__);
+				net_cleanup();
+				return (error);
+			}
+		} else if (rootip.s_addr == 0) {
 			/* Get root IP address, and path, etc. */
 			error = net_getparams(netdev_sock);
 			if (error) {
@@ -363,6 +372,53 @@ exit:
 	DEBUG_PRINTF(1,("%s: server port: %d\n", __func__, rootport));
 	DEBUG_PRINTF(1,("%s: server path: %s\n", __func__, rootpath));
 
+	return (0);
+}
+
+/*
+ * Static parameters for a link without DHCP, such as a point-to-point
+ * debug link: net.static.ip, optional net.static.netmask and
+ * net.static.rootpath in <scheme>://server[:port]/path form.  Returns
+ * ENOENT when not configured so the caller falls back to BOOTP/DHCP.
+ */
+static int
+net_static_params(int sock)
+{
+	struct iodesc *d;
+	const char *ip, *mask, *path;
+	n_long addr, server, smask;
+
+	ip = getenv("net.static.ip");
+	path = getenv("net.static.rootpath");
+	if (ip == NULL && path == NULL)
+		return (ENOENT);
+	if (ip == NULL || path == NULL)
+		return (EINVAL);
+	addr = inet_addr(ip);
+	if (addr == 0 || addr == htonl(INADDR_NONE))
+		return (EINVAL);
+	smask = htonl(0xffffff00);
+	mask = getenv("net.static.netmask");
+	if (mask != NULL) {
+		smask = inet_addr(mask);
+		if (smask == 0 || smask == htonl(INADDR_NONE))
+			return (EINVAL);
+	}
+	if (strlcpy(rootpath, path, sizeof(rootpath)) >= sizeof(rootpath))
+		return (EINVAL);
+	server = net_parse_rootpath();
+	if (server == htonl(INADDR_NONE) || server == 0 ||
+	    (server & smask) != (addr & smask)) {
+		rootpath[0] = '\0';
+		netproto = NET_NONE;
+		return (EINVAL);
+	}
+	myip.s_addr = addr;
+	netmask = smask;
+	gateip.s_addr = 0;
+	rootip.s_addr = server;
+	if ((d = socktodesc(sock)) != NULL)
+		d->myip = myip;
 	return (0);
 }
 

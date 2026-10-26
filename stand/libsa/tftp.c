@@ -91,6 +91,16 @@ struct fs_ops tftp_fsops = {
 static int	tftpport = 2000;
 
 /*
+ * A root path of the form tftp://server:port/ selects a non-standard
+ * server port, for example an unprivileged debug controller.
+ */
+static unsigned short
+tftp_server_port(void)
+{
+	return (rootport > 0 && rootport <= 65535 ? rootport : IPPORT_TFTP);
+}
+
+/*
  * The legacy TFTP_BLKSIZE value was SEGSIZE(512).
  * TFTP_REQUESTED_BLKSIZE of 1428 is (Ethernet MTU, less the TFTP, UDP and
  * IP header lengths).
@@ -355,7 +365,7 @@ tftp_makereq(struct tftp_handle *h)
 	wtail += 2;
 
 	h->iodesc->myport = htons(h->port +  (getsecs() & 0x3ff));
-	h->iodesc->destport = htons(IPPORT_TFTP);
+	h->iodesc->destport = htons(tftp_server_port());
 	h->iodesc->xid = 1;	/* expected block */
 
 	h->currblock = 0;

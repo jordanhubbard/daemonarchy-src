@@ -32,6 +32,8 @@ ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 \
     UBSAN_OPTIONS=halt_on_error=1 /var/tmp/earlynet-usb-report > "$out/report.stdout"
 /usr/libexec/flua tools/daemonarchy/tests/loader-debug-setup.lua "$PWD" \
     > "$out/setup.stdout"
+/usr/libexec/flua tools/daemonarchy/tests/loader-staged-lua.lua "$PWD" \
+    > "$out/staged-lua.stdout"
 MAKEOBJDIRPREFIX=$(mktemp -d /var/tmp/earlynet-loader-objects.XXXXXXXX)
 export MAKEOBJDIRPREFIX
 make -C stand -j2 NO_ROOT=yes WITHOUT_LOADER_BIOS=yes LOADER_NET_SUPPORT=yes obj \

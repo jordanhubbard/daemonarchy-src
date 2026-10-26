@@ -229,6 +229,10 @@ dnc_rootconf(void *arg __unused)
 	    EVENTHANDLER_PRI_LAST);
 	if (cnadd(&dnc_console) != 0)
 		dnc_close(NULL);
+	else
+		/* Phase identity marker; the controller retains the last one. */
+		printf("netdebug-stage: kernel-rootconf boot_id=%s if=%s\n",
+		    boot_id, if_name(dnc_ifp));
 done:
 	if (dnc_pcb == NULL && dnc_ifp != NULL) {
 		if_rele(dnc_ifp);
