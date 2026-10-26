@@ -168,11 +168,12 @@ def observe(repo, revision, unit, context, src_conf, make_conf, output, *, ackno
         require(digest(file_bytes(path)) == context[key], "protected/local configuration digest changed")
     git(repo, "diff", "--quiet", "--no-ext-diff", "--no-textconv", revision, "--", unit, "share/mk")
     output.mkdir(mode=0o700)
-    for name in ("home", "tmp", "obj", "objtop"):
+    for name in ("home", "tmp", "obj", "objtop", "error", "workspace"):
         (output/name).mkdir()
     args = [MAKE, "-C", str(repo/unit), "SRCTOP="+str(repo), "OBJTOP="+str(output/"objtop"),
             "TARGET="+context["target"], "TARGET_ARCH="+context["target_arch"],
-            "SRCCONF="+str(src_conf.resolve()), "__MAKE_CONF="+str(make_conf.resolve()), "SRC_ENV_CONF=/dev/null"]
+            "SRCCONF="+str(src_conf.resolve()), "__MAKE_CONF="+str(make_conf.resolve()), "SRC_ENV_CONF=/dev/null",
+            "UPDATE_DEPENDFILE=NO", "ERROR_LOGDIR="+str(output/"error"), "SB="+str(output/"workspace")]
     args += [k+"="+v for k,v in sorted({**context["options"], **context["flags"]}.items())]
     option_variables = sorted({"MK_"+k.split("_",1)[1] for k in context["options"]})
     variables = VARIABLES + tuple(option_variables)

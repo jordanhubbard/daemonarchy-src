@@ -81,6 +81,9 @@ class SourceObserverTests(unittest.TestCase):
         self.assertFalse(report["native_profile_admitted"])
         self.assertFalse(report["cache_admission"])
         self.assertEqual(Path(report["variables"][".OBJDIR"]),self.output/"obj")
+        request=json.loads((self.output/"request.json").read_bytes())
+        self.assertIn("UPDATE_DEPENDFILE=NO",request["argv"])
+        self.assertIn("ERROR_LOGDIR="+str(self.output/"error"),request["argv"])
         self.assertEqual(self.sentinel.read_bytes(),b"keep existing object bytes")
         self.assertEqual(self.git("status","--porcelain"),"")
 
