@@ -294,7 +294,7 @@ struct ifnet {
 enum debugnet_ev { DEBUGNET_START, DEBUGNET_END };
 int bootverbose;
 struct mtx { int mtx_unused; };
-#define	MTX_SYSINIT(name, mtx, desc, opts) extern int name##_fixture_sysinit
+#define	MTX_SYSINIT(name, mtx, desc, opts) _Static_assert(1, #name)
 #define	mtx_lock(m) ((void)(m))
 #define	mtx_unlock(m) ((void)(m))
 
