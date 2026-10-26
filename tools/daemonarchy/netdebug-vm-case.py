@@ -433,7 +433,8 @@ def run_loader_case(args, base, serial, results, observations, procs):
     driver = b"em0:" if args.case == "d3-early-em" else b"vtnet0:"
     check("native_driver_not_attached", driver not in text)
     feed(ctl, b"show pcpu\n")
-    check("ddb_command_over_early_transport", wait_for(lambda: marker("cpuid"), 60))
+    # "cpuid" is already in the panic text; only show pcpu prints curthread.
+    check("ddb_command_over_early_transport", wait_for(lambda: marker("curthread"), 60))
     record = stage_record(base, "controller")
     observations["last_stage"] = record
     check("panic_text_recorded", record is not None and record["panic_text"] is not None and
