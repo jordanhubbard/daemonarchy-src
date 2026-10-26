@@ -47,11 +47,12 @@ explicit plain mode. The firmware controller uses
 protocol key and provides no authentication. This does not auto-start the
 kernel controller.
 
-This is an isolated mountroot implementation slice, not a complete network
-bring-up claim. The default `loader-console.py --follow-kernel` path expects
-LDNC kernel frames; `--kernel-transport debugnet` selects the native debugnet
-wire framing. The combined controller has loopback proof only; native VM
-handoff and mountroot acceptance remain pending. Predriver
-panic, post-mount panic, native NIC
-support outside debugnet capable devices, VM mountroot interaction, hard reset
-capture, and physical laptop operation remain unqualified.
+This is an isolated mountroot implementation slice. The default
+`loader-console.py --follow-kernel` path expects LDNC kernel frames;
+`--kernel-transport debugnet` selects the native debugnet wire framing.
+On October 25, a native bhyve VM passed firmware pairing, remote loader
+`boot`, same-boot kernel debugnet admission and remote forced-mountroot input.
+The minimal VM root has no init; its later panic does not qualify remote
+panic control. Earlier boot blocks, predriver panic, post-mount panic,
+normal userspace networking after NIC handoff, hard-reset capture, other
+native NICs and physical laptop operation remain unqualified.
