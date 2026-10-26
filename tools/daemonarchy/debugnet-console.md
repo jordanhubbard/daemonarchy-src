@@ -9,6 +9,13 @@ to the controller on UDP 26003. The controller must be on the same link. The
 NIC is exclusively owned by debugnet until root mounts, when the handler
 removes the console and releases the NIC to normal networking.
 
+For controller-to-kernel `DEBUGNET_DATA`, the four-byte network-order input
+sequence precedes console bytes inside the debugnet payload. FreeBSD debugnet
+removes its own packet header before invoking the kernel receive callback.
+The kernel uses the inner sequence to discard retransmitted input after a
+lost acknowledgement. Console output is buffered in `putc` and sent when
+`getc` polls, because `putc` can run inside a critical section.
+
 Run the controller on a trusted, isolated debug network:
 
 ```
