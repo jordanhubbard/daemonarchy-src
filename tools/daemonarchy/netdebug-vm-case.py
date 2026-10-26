@@ -30,6 +30,17 @@ CASES = ("d4", "d5", "d7-send-timeout", "d7-restart", "d7-malformed", "d7-link",
 # Cases that boot the branch's EFI loader with its own debug console active.
 LOADER_CASES = CASES[6:]
 HOST_IP, GUEST_IP = "192.0.2.1", "192.0.2.2"
+# d3-early-em: bhyve's UEFI firmware has no e1000 driver, so the loader
+# console runs on virtio-net and the kernel's early transport is pointed at
+# a second, e1000 function on its own tap and subnet with netdebug.early.*.
+EM_HOST_IP, EM_GUEST_IP, EM_SLOT, EM_PCI_ID = "192.0.3.1", "192.0.3.2", 4, "8086:100f"
+
+
+def em_mac(mac):
+    """The e1000 function's address: the case MAC with the top bit of the last octet."""
+    octets = mac.split(":")
+    octets[-1] = f"{int(octets[-1], 16) | 0x80:02x}"
+    return ":".join(octets)
 HDR = struct.Struct("!IIQII")
 ACK = struct.Struct("!I")
 MIN_MEMORY = 3 << 29  # 1.5 GiB of free plus inactive pages
@@ -89,6 +100,9 @@ def admission(args):
     if subprocess.run(["pgrep", "-x", "bhyve"], stdout=subprocess.DEVNULL,
                       check=False).returncode == 0:
         failures.append("another bhyve guest is active")
+    for module in ("vmm", "nmdm"):
+        if subprocess.run(["kldstat", "-q", "-m", module], check=False).returncode != 0:
+            failures.append(f"kernel module {module} is not loaded")
     if Path(f"/dev/vmm/{args.vm}").exists():
         failures.append("VM name already exists")
     pages = [int(subprocess.run(["sysctl", "-n", name], stdout=subprocess.PIPE, text=True,
@@ -147,6 +161,12 @@ def prepare(args, base):
             conf += 'netdebug.early="1"\n'
         if args.case.startswith("d3-early-"):
             conf += 'netdebug.early_panic="1"\n'
+        if args.case == "d3-early-em":
+            conf += (f'netdebug.early.pci="0:0:{EM_SLOT}:0"\n'
+                     f'netdebug.early.pci_id="{EM_PCI_ID}"\n'
+                     f'netdebug.early.hwaddr="{em_mac(args.mac)}"\n'
+                     f'netdebug.early.local_ip="{EM_GUEST_IP}"\n'
+                     f'netdebug.early.peer_ip="{EM_HOST_IP}"\n')
         (root / "boot/loader.conf").write_text(conf)
     else:
         (root / "boot/loader.conf").write_text(
@@ -168,7 +188,9 @@ def prepare(args, base):
 
 class Serial:
     def __init__(self, path, log):
-        self.fd = os.open(path, os.O_RDWR | os.O_NOCTTY)
+        # nmdm(4): opening one side blocks until the other side is open, and
+        # bhyve opens the A side only after this reader exists.
+        self.fd = os.open(path, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
         tty.setraw(self.fd)
         self.log = open(log, "wb", buffering=0)
         self.data = bytearray()
@@ -183,6 +205,8 @@ class Serial:
             if select.select([self.fd], [], [], .2)[0]:
                 try:
                     chunk = os.read(self.fd, 4096)
+                except BlockingIOError:
+                    continue
                 except OSError:
                     return
                 with self.lock:
@@ -195,7 +219,12 @@ class Serial:
 
     def write(self, data):
         for byte in data:  # DDB polls one character at a time
-            os.write(self.fd, bytes([byte]))
+            for _ in range(50):
+                try:
+                    os.write(self.fd, bytes([byte]))
+                    break
+                except BlockingIOError:
+                    time.sleep(.02)
             time.sleep(.02)
 
     def close(self):
@@ -257,30 +286,69 @@ def feed(proc, data):
 
 
 class Rsp:
-    """Minimal GDB remote serial protocol client for raw stub checks."""
+    """Minimal GDB remote serial protocol client for raw stub checks.
+
+    The stub sends an unsolicited stop reply on connection and resends any
+    packet until it sees "+", so every packet is acknowledged and each
+    request waits for the stub's "+" before taking the next packet as its
+    reply.
+    """
+
+    PACKET = re.compile(rb"\$([^#]*)#([0-9a-fA-F]{2})")
 
     def __init__(self, address, timeout=20):
         self.sock = socket.create_connection(address, timeout)
         self.sock.settimeout(timeout)
         self.buf = b""
         self.transcript = []
+        # Acknowledge the stop reply queued when the stub attached.
+        self.sock.settimeout(3)
+        try:
+            self.initial = self._next_packet()
+        except socket.timeout:
+            self.initial = None
+        self.sock.settimeout(timeout)
+
+    def _fill(self):
+        chunk = self.sock.recv(4096)
+        if not chunk:
+            raise ConnectionError("GDB stub closed the connection")
+        self.buf += chunk
+
+    def _next_packet(self):
+        while True:
+            match = self.PACKET.search(self.buf)
+            if match:
+                self.buf = self.buf[match.end():]
+                self.sock.sendall(b"+")
+                return match.group(1).decode("latin-1")
+            self._fill()
 
     def packet(self, body):
         checksum = sum(body.encode()) % 256
         wire = f"${body}#{checksum:02x}".encode()
-        self.sock.sendall(wire)
-        while True:
-            match = re.search(rb"\$([^#]*)#([0-9a-fA-F]{2})", self.buf)
-            if match:
-                self.buf = self.buf[match.end():]
-                self.sock.sendall(b"+")
-                reply = match.group(1).decode("latin-1")
-                self.transcript.append({"request": body, "reply": reply})
-                return reply
-            chunk = self.sock.recv(4096)
-            if not chunk:
-                raise ConnectionError("GDB stub closed the connection")
-            self.buf += chunk
+        for _ in range(5):
+            self.sock.sendall(wire)
+            # Wait for the stub's acknowledgement; acknowledge and drop any
+            # stale resend that arrives before it.
+            acked = None
+            while acked is None:
+                while not self.buf:
+                    self._fill()
+                head = self.buf[:1]
+                if head in (b"+", b"-"):
+                    self.buf = self.buf[1:]
+                    acked = head == b"+"
+                elif head == b"$":
+                    self.transcript.append({"stale": self._next_packet()})
+                else:
+                    self.buf = self.buf[1:]
+            if not acked:
+                continue
+            reply = self._next_packet()
+            self.transcript.append({"request": body, "reply": reply})
+            return reply
+        raise ConnectionError("GDB stub did not acknowledge " + body)
 
     def close(self):
         self.sock.close()
@@ -296,9 +364,9 @@ def symbol_address(kernel_debug, symbol):
     raise LookupError(symbol)
 
 
-def loader_console(args, base, name, *extra, stdin=False, timeout=60):
+def loader_console(args, base, name, *extra, stdin=False, timeout=60, bind=HOST_IP):
     cmd = [sys.executable, str(Path(args.tools) / "loader-console.py"), GUEST_IP,
-           "--plain", "--bind", HOST_IP, "--timeout", str(timeout),
+           "--plain", "--bind", bind, "--timeout", str(timeout),
            "--output", str(base / f"{name}.out"), "--events", str(base / f"{name}.events"),
            "--last-stage", str(base / f"{name}.stage"), *extra]
     log = open(base / f"{name}.log", "wb")
@@ -337,7 +405,7 @@ def run_loader_case(args, base, serial, results, observations, procs):
             args, base, "ops", "--tftp-root", str(tftp), "--tftp-address", HOST_IP,
             "--set", "daemonarchy.d1=set-ok", "--set", "daemonarchy.temp=x",
             "--unset", "daemonarchy.temp", "--show", "daemonarchy.d1",
-            "--show", "daemonarchy.temp", "--kernel", "net0:/kernel",
+            "--show", "daemonarchy.temp", "--kernel", args.d1_kernel,
             "--lua", "net0:/staged-netdebug.lua", "--command", "show staged.netdebug",
             "--command", "lsmod", "--stop", timeout=90)
         procs.append(ops)
@@ -348,7 +416,12 @@ def run_loader_case(args, base, serial, results, observations, procs):
         check("operations_completed", observations["ops_exit"] == 0)
         check("variable_set_and_shown", shown.get("daemonarchy.d1") == "set-ok")
         check("variable_unset", "not found" in shown.get("daemonarchy.temp", ""))
-        check("kernel_downloaded", tftp_done.get("/kernel") == Path(args.kernel).stat().st_size)
+        if args.d1_kernel.startswith("net0:"):
+            check("kernel_downloaded",
+                  tftp_done.get("/kernel") == Path(args.kernel).stat().st_size)
+        check("kernel_loaded", b"text=0x" in out("ops") and any(
+            e["event"] == "loader_operation" and e["command"] == f"load {args.d1_kernel}"
+            for e in events))
         check("lua_downloaded_and_run", "/staged-netdebug.lua" in tftp_done and
               b"netdebug-stage: staged-lua" in out("ops") and b"ran" in out("ops"))
         check("console_stopped", any(e["event"] == "console_stopped" for e in events))
@@ -371,7 +444,9 @@ def run_loader_case(args, base, serial, results, observations, procs):
             e["event"] == "variable_shown" and e["output"] == "set-ok" for e in events))
         return
     yield
-    ctl = loader_console(args, base, "controller", *follow, stdin=True, timeout=60)
+    # The em early transport answers on the second subnet: listen on both.
+    ctl = loader_console(args, base, "controller", *follow, stdin=True, timeout=60,
+                         bind="0.0.0.0" if args.case == "d3-early-em" else HOST_IP)
     procs.append(ctl)
     marker = lambda text: text.encode() in out("controller")
     if args.case == "d2-hard-reset":
@@ -390,16 +465,24 @@ def run_loader_case(args, base, serial, results, observations, procs):
     if args.case == "d3-handoff-vtnet":
         check("early_transport_admitted", wait_for(lambda: marker("netdebug-stage: kernel-early "), 180))
         check("early_release", wait_for(lambda: marker("kernel-early-release"), 120))
+        # The mountroot console buffers 512 output bytes before its first poll,
+        # so its own marker can be evicted by the prompt text; the prompt
+        # arriving after the early release is the reherald evidence.
+        released = lambda: out("controller").find(b"kernel-early-release")
         check("mountroot_console_reheralded", wait_for(
-            lambda: marker("netdebug-stage: kernel-rootconf") and marker("mountroot>"), 120))
+            lambda: released() >= 0 and out("controller").find(b"mountroot>", released()) >= 0,
+            120))
+        # The console's 16 KiB pre-poll ring must now keep its own marker.
+        check("rootconf_marker_captured", marker("netdebug-stage: kernel-rootconf"))
         feed(ctl, b"ufs:/dev/vtbd0p2\n")
         check("root_mount_attempt", wait_for(
             lambda: b"Trying to mount root from ufs:/dev/vtbd0p2" in serial.text(), 60))
         observations["controller_exit"] = finished(ctl, 60)
         check("controller_finished", observations["controller_exit"] == 0)
         text = out("controller")
+        serial_text = serial.text()
         check("native_attach_after_release",
-              text.find(b"kernel-early-release") < text.find(b"kernel-rootconf"))
+              0 <= serial_text.find(b"kernel-early-release") < serial_text.find(b"vtnet0: <"))
         return
     # d3-early-*: deliberate panic while earlynet holds the NIC.
     check("early_transport_admitted", wait_for(lambda: marker("netdebug-stage: kernel-early "), 180))
@@ -409,7 +492,8 @@ def run_loader_case(args, base, serial, results, observations, procs):
     driver = b"em0:" if args.case == "d3-early-em" else b"vtnet0:"
     check("native_driver_not_attached", driver not in text)
     feed(ctl, b"show pcpu\n")
-    check("ddb_command_over_early_transport", wait_for(lambda: marker("cpuid"), 60))
+    # "cpuid" is already in the panic text; only show pcpu prints curthread.
+    check("ddb_command_over_early_transport", wait_for(lambda: marker("curthread"), 60))
     record = stage_record(base, "controller")
     observations["last_stage"] = record
     check("panic_text_recorded", record is not None and record["panic_text"] is not None and
@@ -486,7 +570,9 @@ def run_case(args, base, serial, results, observations, procs):
             for _, wire in probes:
                 probe.sendto(wire, (GUEST_IP, 26004))
                 time.sleep(.5)
-        observations["probes"] = {name: 900 + i for i, (name, _) in enumerate(probes)}
+        # Record each probe's own debugnet sequence (the short probe has none).
+        observations["probes"] = {name: int.from_bytes(wire[4:8], "big")
+                                  for name, wire in probes if len(wire) >= HDR.size}
         time.sleep(2)
         # If the foreign input was accepted it consumed input sequence 2.
         feed(ctl, b"?\nufs:/dev/vtbd0p2\n")
@@ -608,6 +694,8 @@ def main():
     p.add_argument("--limit", type=int, default=240)
     p.add_argument("--controller-timeout", type=int, default=150)
     p.add_argument("--stop-seconds", type=int, default=40)
+    p.add_argument("--d1-kernel", default="net0:/kernel",
+                   help="d1 kernel path: net0:/kernel over TFTP or a disk path")
     args = p.parse_args()
     if args.case == "d5" and not (args.init and args.kernel_debug):
         p.error("d5 needs --init and --kernel-debug")
@@ -626,6 +714,21 @@ def main():
                          text=True, check=True).stdout.strip()
     args.tap = record["tap"] = tap
     subprocess.run(["sudo", "-n", "ifconfig", tap, "inet", f"{HOST_IP}/24", "up"], check=True)
+    taps = [tap]
+    nic = ["-s", f"3:0,virtio-net,{tap},mac={args.mac}"]
+    if args.case == "d3-early-em":
+        em_tap = subprocess.run(["sudo", "-n", "ifconfig", "tap", "create"],
+                                stdout=subprocess.PIPE, text=True, check=True).stdout.strip()
+        taps.append(em_tap)
+        record["em_tap"] = em_tap
+        subprocess.run(["sudo", "-n", "ifconfig", em_tap, "inet", f"{EM_HOST_IP}/24", "up"],
+                       check=True)
+        nic += ["-s", f"{EM_SLOT}:0,e1000,{em_tap},mac={em_mac(args.mac)}"]
+        em_dump = subprocess.Popen(["sudo", "-n", "timeout", "-k", "5", str(args.limit + 30),
+                                    "tcpdump", "-U", "-i", em_tap, "-s0", "-w",
+                                    str(base / "traffic-em.pcap"), "udp or arp"],
+                                   stdout=open(base / "tcpdump-em.log", "wb"),
+                                   stderr=subprocess.STDOUT)
     tcpdump = subprocess.Popen(["sudo", "-n", "timeout", "-k", "5", str(args.limit + 30),
                                 "tcpdump", "-U", "-i", tap, "-s0", "-w",
                                 str(base / "traffic.pcap"), "udp"],
@@ -644,8 +747,7 @@ def main():
             status, destroyed = run_bounded_vm(args.vm, [
                 "-c", "2", "-m", "1G", "-A", "-H", "-P", "-s", "0:0,hostbridge",
                 "-s", "1:0,lpc", "-s", f"2:0,virtio-blk,{base / 'disk.img'}",
-                "-s", f"3:0,{'e1000' if args.case == 'd3-early-em' else 'virtio-net'},"
-                f"{tap},mac={args.mac}",
+                *nic,
                 "-l", "bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI.fd",
                 "-l", f"com1,{args.nmdm}A"], args.limit, log=log)
         vm_result.update(status=status, watchdog_destroyed=destroyed)
@@ -663,7 +765,17 @@ def main():
         record["case_destroy_status"] = destroy_vm(args.vm)
         vm_done.wait(args.limit + 60)
         serial.close()
+        # Stop this case's captures now rather than at their outer bound.
+        for each in taps:
+            subprocess.run(["sudo", "-n", "pkill", "-INT", "-f", f"tcpdump -U -i {each} "],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
         tcpdump.wait()
+        if args.case == "d3-early-em":
+            em_dump.wait()
+        # Remove only the taps this case created.
+        record["tap_destroy_status"] = [subprocess.run(
+            ["sudo", "-n", "ifconfig", each, "destroy"], stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL, check=False).returncode for each in taps]
     if args.case == "d7-malformed" and "probes" in observations:
         acked = {ACK.unpack(p)[0] for p in udp_payloads(base / "traffic.pcap", 26004, 26003)
                  if len(p) == ACK.size}

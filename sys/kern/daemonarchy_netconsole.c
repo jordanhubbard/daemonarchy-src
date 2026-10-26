@@ -24,6 +24,13 @@
 #define DNC_PORT 26003
 #define DNC_CLIENT_PORT 26004
 #define DNC_BUFSIZE 512
+/*
+ * Output written before the first console poll (boot messages, the stage
+ * marker and the mountroot help text) is kept in a bounded ring and sent in
+ * chunks.  512 bytes evicted the stage marker natively.
+ */
+#define DNC_OUTSIZE 16384
+#define DNC_SENDMAX 1024
 
 static struct debugnet_pcb *dnc_pcb;
 static if_t dnc_ifp;
@@ -31,8 +38,9 @@ static eventhandler_tag dnc_mountroot_tag;
 static unsigned char dnc_input[DNC_BUFSIZE];
 static unsigned int dnc_head, dnc_tail;
 static uint32_t dnc_input_last_seq;
-static char dnc_output[DNC_BUFSIZE];
-static size_t dnc_output_len;
+static char dnc_output[DNC_OUTSIZE];
+static size_t dnc_out_head, dnc_output_len;
+static uint64_t dnc_output_lost;
 static bool dnc_busy;
 
 static int
@@ -68,14 +76,24 @@ dnc_rx(struct mbuf *m)
 static void
 dnc_flush(void)
 {
-	size_t len;
+	char chunk[DNC_SENDMAX];
+	size_t len, i;
 
 	if (dnc_pcb == NULL || dnc_busy || dnc_output_len == 0)
 		return;
 	dnc_busy = true;
-	len = dnc_output_len;
-	dnc_output_len = 0;
-	(void)debugnet_send(dnc_pcb, DEBUGNET_DATA, dnc_output, len, NULL);
+	while (dnc_output_len != 0) {
+		len = MIN(dnc_output_len, sizeof(chunk));
+		for (i = 0; i < len; i++)
+			chunk[i] = dnc_output[(dnc_out_head + i) % DNC_OUTSIZE];
+		dnc_out_head = (dnc_out_head + len) % DNC_OUTSIZE;
+		dnc_output_len -= len;
+		if (debugnet_send(dnc_pcb, DEBUGNET_DATA, chunk, len, NULL) != 0) {
+			/* Keep the rest for the next poll; one timeout per poll. */
+			dnc_output_lost += len;
+			break;
+		}
+	}
 	dnc_busy = false;
 }
 
@@ -116,12 +134,12 @@ dnc_putc(struct consdev *cn __unused, int ch)
 	if (dnc_pcb == NULL || dnc_busy)
 		return;
 	/* cnputc may run in a critical section: transmit only from getc. */
-	if (dnc_output_len == sizeof(dnc_output)) {
-		memmove(dnc_output, dnc_output + 1,
-		    sizeof(dnc_output) - 1);
+	if (dnc_output_len == DNC_OUTSIZE) {
+		dnc_out_head = (dnc_out_head + 1) % DNC_OUTSIZE;
 		dnc_output_len--;
+		dnc_output_lost++;
 	}
-	dnc_output[dnc_output_len++] = ch;
+	dnc_output[(dnc_out_head + dnc_output_len++) % DNC_OUTSIZE] = ch;
 }
 
 static const struct consdev_ops dnc_ops = {
@@ -146,6 +164,9 @@ dnc_close(void *arg __unused)
 		return;
 	dnc_flush();
 	cnremove(&dnc_console);
+	if (dnc_output_lost != 0)
+		printf("netdebug: %ju console output bytes were dropped\n",
+		    (uintmax_t)dnc_output_lost);
 	(void)debugnet_sendempty(dnc_pcb, DEBUGNET_FINISHED);
 	debugnet_free(dnc_pcb);
 	dnc_pcb = NULL;

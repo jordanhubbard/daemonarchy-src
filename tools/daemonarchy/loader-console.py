@@ -10,6 +10,7 @@ a reboot or panic.
 """
 
 import argparse
+import errno
 import hmac
 import re
 import importlib.util
@@ -120,6 +121,17 @@ NAME = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
 VALUE = re.compile(r"^[!#%&'()*+,./0-9:<=>?@A-Z\[\]^_`a-z{|}~-]{1,200}$")
 
 
+def strip_prompts(text):
+    """Remove the loader's interactive "OK " prompts from captured output."""
+    lines = []
+    for line in text.replace("\r", "").split("\n"):
+        while line.startswith("OK "):
+            line = line[3:]
+        if line.strip() not in ("", "OK"):
+            lines.append(line)
+    return "\n".join(lines)
+
+
 def loader_operations(args, target):
     """Compile D1 options into standard loader commands, in a fixed order."""
     ops = []
@@ -196,6 +208,20 @@ class Console:
         if self.events is not None:
             self.events.write((json.dumps({"event": kind, "monotonic": time.monotonic(), **fields}, sort_keys=True) + "\n").encode())
 
+    def _send_retryable(self, data):
+        """Send, treating an unreachable target as a lost packet.
+
+        Before the target answers ARP the host reports EHOSTDOWN or
+        EHOSTUNREACH; the caller's retry and deadline already bound this.
+        """
+        try:
+            self.socket.send(data)
+        except (ConnectionRefusedError, OSError) as error:
+            if not isinstance(error, ConnectionRefusedError) and error.errno not in (
+                    errno.EHOSTDOWN, errno.EHOSTUNREACH, errno.ENETDOWN):
+                raise
+            self.event("send_deferred", errno=error.errno)
+
     def receive(self, seconds):
         if not select.select([self.socket], [], [], max(0, seconds))[0]:
             return None
@@ -243,7 +269,7 @@ class Console:
         retry = 0
         while time.monotonic() < end:
             if time.monotonic() >= retry:
-                self.socket.send(request)
+                self._send_retryable(request)
                 retry = time.monotonic() + 0.5
             if not select.select([self.socket], [], [], max(0, min(0.1, end - time.monotonic())))[0]:
                 continue
@@ -286,7 +312,7 @@ class Console:
         retry = 0
         while time.monotonic() < end:
             if time.monotonic() >= retry:
-                self.socket.send(packet)
+                self._send_retryable(packet)
                 retry = time.monotonic() + 0.5
             value = self.receive(min(0.1, end - time.monotonic()))
             if self.handoff:
@@ -333,7 +359,7 @@ class Console:
             return None
         self.event("command_completed")
         text = bytes(self.received[:self.received.find(marker.encode())])
-        return text.decode("ascii", "replace") if capture else None
+        return strip_prompts(text.decode("ascii", "replace")) if capture else None
 
 
 def main():

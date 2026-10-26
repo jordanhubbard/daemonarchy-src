@@ -180,6 +180,23 @@ env_is(const char *name, const char *value)
 	    strcmp(buf, value) == 0);
 }
 
+/*
+ * netdebug.early.<name> overrides netdebug.<name>.  It selects a NIC the
+ * loader cannot use, such as an e1000 function with no firmware driver,
+ * while the loader console runs on another NIC.
+ */
+static int
+early_env(const char *name, char *buf, int size)
+{
+	char key[48];
+
+	snprintf(key, sizeof(key), "netdebug.early.%s", name);
+	if (getenv_string(key, buf, size) != 0)
+		return (1);
+	snprintf(key, sizeof(key), "netdebug.%s", name);
+	return (getenv_string(key, buf, size));
+}
+
 static int
 parse_mac(const char *text, uint8_t mac[6])
 {
@@ -206,7 +223,7 @@ locate(void)
 	uint16_t vendor, device;
 	int i;
 
-	if (getenv_string("netdebug.pci", text, sizeof(text)) == 0)
+	if (early_env("pci", text, sizeof(text)) == 0)
 		return (ENOENT);
 	for (i = 0, p = text; i < 4; i++) {
 		part[i] = strtoul(p, &end, 10);
@@ -223,7 +240,7 @@ locate(void)
 	id = pci_cfgregread(loc.domain, loc.bus, loc.slot, loc.func, PCIR_DEVVENDOR, 4);
 	vendor = id & 0xffff;
 	device = id >> 16;
-	if (getenv_string("netdebug.pci_id", text, sizeof(text)) == 0 ||
+	if (early_env("pci_id", text, sizeof(text)) == 0 ||
 	    strtoul(text, &end, 16) != vendor || *end != ':' ||
 	    strtoul(end + 1, NULL, 16) != device)
 		return (ENODEV);	/* not the function the loader used */
@@ -271,11 +288,11 @@ earlynet_sysinit(void *arg __unused)
 
 	if (!env_is("netdebug.plain", "1") || !env_is("netdebug.early", "1"))
 		return;
-	if (getenv_string("netdebug.local_ip", text, sizeof(text)) == 0 ||
+	if (early_env("local_ip", text, sizeof(text)) == 0 ||
 	    inet_aton(text, &local) == 0 ||
-	    getenv_string("netdebug.peer_ip", text, sizeof(text)) == 0 ||
+	    early_env("peer_ip", text, sizeof(text)) == 0 ||
 	    inet_aton(text, &peer) == 0 ||
-	    getenv_string("netdebug.hwaddr", text, sizeof(text)) == 0 ||
+	    early_env("hwaddr", text, sizeof(text)) == 0 ||
 	    parse_mac(text, mac) != 0 ||
 	    getenv_string("netdebug.boot_id", en.boot_id, sizeof(en.boot_id)) == 0) {
 		printf("earlynet: incomplete netdebug identity; not started\n");
@@ -287,6 +304,8 @@ earlynet_sysinit(void *arg __unused)
 		return;
 	}
 	en.pf = &en_platform;
+	/* Expected address; an unprogrammed em function adopts it. */
+	memcpy(en.mac, mac, sizeof(en.mac));
 	en.local_ip = local.s_addr;
 	en.peer_ip = peer.s_addr;
 	error = earlynet_start(&en);

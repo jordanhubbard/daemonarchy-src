@@ -126,15 +126,28 @@ em_attach(struct earlynet *en)
 	int error;
 
 	memset(em, 0, sizeof(*em));
-	/* The firmware or loader left the receive address; keep that MAC. */
 	low = rd(en, EM_RAL0);
 	high = rd(en, EM_RAH0);
-	if ((high & EM_RAH_AV) == 0)
-		return (ENXIO);
-	for (i = 0; i < 4; i++)
-		en->mac[i] = (uint8_t)(low >> (8 * i));
-	en->mac[4] = (uint8_t)high;
-	en->mac[5] = (uint8_t)(high >> 8);
+	if ((high & EM_RAH_AV) != 0) {
+		/* Firmware or the loader left the receive address: keep it. */
+		for (i = 0; i < 4; i++)
+			en->mac[i] = (uint8_t)(low >> (8 * i));
+		en->mac[4] = (uint8_t)high;
+		en->mac[5] = (uint8_t)(high >> 8);
+	} else {
+		/*
+		 * No firmware driver programmed this function (bhyve's UEFI has
+		 * none for e1000): use the explicitly configured address.
+		 */
+		for (i = 0; i < 6 && en->mac[i] == 0; i++)
+			;
+		if (i == 6 || (en->mac[0] & 1) != 0)
+			return (ENXIO);
+		low = (uint32_t)en->mac[0] | (uint32_t)en->mac[1] << 8 |
+		    (uint32_t)en->mac[2] << 16 | (uint32_t)en->mac[3] << 24;
+		high = (uint32_t)en->mac[4] | (uint32_t)en->mac[5] << 8 |
+		    EM_RAH_AV;
+	}
 	if ((error = em_reset(en)) != 0)
 		return (error);
 	if ((error = en->pf->dma_alloc(en->pf->ctx, EARLYNET_RX_SLOTS * EM_DESC, 128,

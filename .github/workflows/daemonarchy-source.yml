@@ -8,6 +8,8 @@ on:
       - 'stand/efi/loader/Makefile'
       - 'stand/common/dev_net.c'
       - 'stand/libsa/tftp.c'
+      - 'stand/libsa/stand.h'
+      - 'stand/efi/loader/main.c'
       - 'sys/dev/daemonarchy/**'
       - 'sys/modules/daemonarchy_earlynet/**'
       - 'sys/conf/files.amd64'
@@ -29,6 +31,8 @@ on:
       - 'stand/efi/loader/Makefile'
       - 'stand/common/dev_net.c'
       - 'stand/libsa/tftp.c'
+      - 'stand/libsa/stand.h'
+      - 'stand/efi/loader/main.c'
       - 'sys/dev/daemonarchy/**'
       - 'sys/modules/daemonarchy_earlynet/**'
       - 'sys/conf/files.amd64'
@@ -104,6 +108,18 @@ jobs:
         run: >-
           python3 tools/daemonarchy/tests/run-loader-static-net.py
           --output-directory "${{ runner.temp }}/loader-static-net-${{ github.run_id }}-${{ github.run_attempt }}"
+      - name: Sanitized production TFTP whole-file preload (not EFI acceptance)
+        env:
+          CC: clang
+        run: >-
+          python3 tools/daemonarchy/tests/run-tftp-preload.py
+          --output-directory "${{ runner.temp }}/tftp-preload-${{ github.run_id }}-${{ github.run_attempt }}"
+      - name: Sanitized production mountroot console output ring (not kernel acceptance)
+        env:
+          CC: clang
+        run: >-
+          python3 tools/daemonarchy/tests/run-netconsole-output.py
+          --output-directory "${{ runner.temp }}/netconsole-output-${{ github.run_id }}-${{ github.run_attempt }}"
       - name: Early transport against simulated em and vtnet devices (not kernel acceptance)
         env:
           CC: clang
@@ -124,7 +140,8 @@ jobs:
           git rev-parse 'HEAD^{tree}' > _build/earlynet-native/source-tree.txt
           sha256sum stand/efi/loader/netconsole*.c stand/efi/loader/netconsole*.h \
             stand/lua/netdebug.lua stand/lua/loader.lua stand/lua/menu.lua \
-            stand/common/dev_net.c stand/libsa/tftp.c \
+            stand/common/dev_net.c stand/libsa/tftp.c stand/libsa/stand.h \
+            stand/efi/loader/main.c \
             sys/dev/daemonarchy/earlynet/*.c sys/dev/daemonarchy/earlynet/*.h \
             sys/modules/daemonarchy_earlynet/Makefile \
             tools/daemonarchy/tests/firmware-inventory.lua \

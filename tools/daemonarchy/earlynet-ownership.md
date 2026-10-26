@@ -22,6 +22,26 @@ The PCI function must still report the exported vendor:device and the
 network class, and the backend must read back the exported MAC. If any check
 fails, the transport stops and releases the device.
 
+### Selecting a NIC the loader cannot use
+
+`netdebug.early.pci`, `netdebug.early.pci_id`, `netdebug.early.hwaddr`,
+`netdebug.early.local_ip` and `netdebug.early.peer_ip` override the
+matching `netdebug.*` values for the early transport only. The loader
+console can then run on one NIC while the kernel's early transport uses
+another, for example an e1000 function for which the firmware has no
+driver. An em function that no firmware programmed has no valid receive
+address, so the em backend adopts the configured `hwaddr` (unicast,
+non-zero). The mountroot console still uses the loader's NIC and
+addresses.
+
+The native `d3-early-em` case uses this. bhyve's UEFI firmware has no
+e1000 driver, so the guest gets virtio-net on slot 3 for the loader
+console and e1000 (8086:100f) on slot 4 with its own tap and
+192.0.3.0/24 subnet. The controller listens on all addresses. This
+needs no new packages on the worker. QEMU with OVMF would exercise
+firmware-initialized e1000, but needs qemu and edk2-qemu packages on an
+amd64 worker; it is not used.
+
 ## Owners and states
 
 | State | Who owns the function | Native driver may attach |

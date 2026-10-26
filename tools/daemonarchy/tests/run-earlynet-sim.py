@@ -14,7 +14,7 @@ SOURCES = ["sys/dev/daemonarchy/earlynet/earlynet_core.c",
            "sys/dev/daemonarchy/earlynet/earlynet_em.c",
            "sys/dev/daemonarchy/earlynet/earlynet_vtnet.c"]
 CASES = ["em-roundtrip", "vtnet-roundtrip", "lost-ack-bounded", "degraded-line-flush", "no-controller",
-         "em-handoff", "vtnet-handoff", "failed-quiesce", "malformed", "vtnet-bad-queue"]
+         "em-handoff", "vtnet-handoff", "failed-quiesce", "malformed", "vtnet-bad-queue", "em-unprogrammed"]
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--output-directory", type=Path, required=True)

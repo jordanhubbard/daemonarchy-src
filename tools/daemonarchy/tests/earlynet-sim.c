@@ -636,6 +636,27 @@ malformed_frames_ignored(void)
 }
 
 static void
+em_unprogrammed_uses_configured_mac(void)
+{
+	static const uint8_t configured[6] = { 0x00, 0xbe, 0xfa, 0x76, 0x46, 0x87 };
+
+	setup(DEV_EM);
+	R(0x5400) = 0;
+	R(0x5404) = 0;	/* no firmware driver programmed the address */
+	assert(earlynet_start(&en) == ENXIO);
+	assert(en.owner == EARLYNET_RELEASED && live_dma == 0);
+	setup(DEV_EM);
+	R(0x5400) = 0;
+	R(0x5404) = 0;
+	memcpy(en.mac, configured, 6);
+	target_mac = configured;
+	assert(earlynet_start(&en) == 0 && ctl.heralds == 1);
+	assert(R(0x5400) == 0x76fabe00u && R(0x5404) == (0x8746u | 0x80000000u));
+	assert(memcmp(en.mac, configured, 6) == 0);
+	assert(earlynet_quiesce(&en) == 0 && live_dma == 0);
+}
+
+static void
 vt_bad_queue(void)
 {
 	setup(DEV_VT);
@@ -662,6 +683,7 @@ main(int argc, char **argv)
 		{ "failed-quiesce", failed_quiesce_keeps_ownership },
 		{ "malformed", malformed_frames_ignored },
 		{ "vtnet-bad-queue", vt_bad_queue },
+		{ "em-unprogrammed", em_unprogrammed_uses_configured_mac },
 	};
 	if (argc != 2)
 		return (2);

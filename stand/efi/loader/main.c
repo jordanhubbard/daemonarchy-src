@@ -1294,6 +1294,33 @@ is_efi_netboot(void)
 	return (efi_devpath_get_mac(devpath, mac));
 }
 
+/*
+ * The TFTP whole-file preload cache comes from firmware pages, because the
+ * 64 MiB loader heap cannot hold a kernel.  Bounded to 512 MiB; freed on
+ * close, before the kernel is started.
+ */
+#define	EFI_TFTP_CACHE_MAX	(512UL * 1024 * 1024)
+
+static void *
+efi_tftp_cache_alloc(size_t size)
+{
+	EFI_PHYSICAL_ADDRESS addr;
+
+	if (size == 0 || size > EFI_TFTP_CACHE_MAX)
+		return (NULL);
+	if (BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
+	    EFI_SIZE_TO_PAGES(size), &addr) != EFI_SUCCESS)
+		return (NULL);
+	return ((void *)(uintptr_t)addr);
+}
+
+static void
+efi_tftp_cache_free(void *p, size_t size)
+{
+	(void)BS->FreePages((EFI_PHYSICAL_ADDRESS)(uintptr_t)p,
+	    EFI_SIZE_TO_PAGES(size));
+}
+
 EFI_STATUS
 main(int argc, CHAR16 *argv[])
 {
@@ -1342,6 +1369,9 @@ main(int argc, CHAR16 *argv[])
 		setenv("console", "comconsole", 1);
 #endif
 	cons_probe();
+
+	tftp_cache_alloc = efi_tftp_cache_alloc;
+	tftp_cache_free = efi_tftp_cache_free;
 
 	/* Set print_delay variable to have hooks in place. */
 	env_setenv("print_delay", EV_VOLATILE, "", setprint_delay, env_nounset);

@@ -96,7 +96,10 @@ class TftpServer:
             tid.settimeout(self.retry_seconds)
 
             def error(code, text):
-                tid.sendto(struct.pack("!HH", ERROR, code) + text.encode() + b"\0", peer)
+                try:
+                    tid.sendto(struct.pack("!HH", ERROR, code) + text.encode() + b"\0", peer)
+                except OSError:
+                    pass
                 self.event("tftp_refused", peer=peer[0], code=code, reason=text)
 
             if len(packet) < 4:
@@ -126,7 +129,14 @@ class TftpServer:
     def _exchange(self, tid, peer, packet, expect_block):
         """Send `packet` until the peer ACKs `expect_block`; return success."""
         for _ in range(self.retries + 1):
-            tid.sendto(packet, peer)
+            try:
+                tid.sendto(packet, peer)
+            except OSError as error:
+                # A transient host error (EHOSTDOWN while the loader is busy
+                # and ARP lapses) is a lost packet: retry within the bound.
+                self.event("tftp_send_error", peer=peer[0], errno=error.errno)
+                time.sleep(self.retry_seconds)
+                continue
             end = time.monotonic() + self.retry_seconds
             while time.monotonic() < end:
                 try:
@@ -134,7 +144,11 @@ class TftpServer:
                 except socket.timeout:
                     break
                 if source != peer:
-                    tid.sendto(struct.pack("!HH", ERROR, 5) + b"unknown transfer ID\0", source)
+                    try:
+                        tid.sendto(struct.pack("!HH", ERROR, 5) + b"unknown transfer ID\0",
+                                   source)
+                    except OSError:
+                        pass
                     continue
                 if len(reply) >= 4:
                     opcode, block = struct.unpack_from("!HH", reply)

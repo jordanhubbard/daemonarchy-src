@@ -106,6 +106,7 @@ class LoaderEmulator(threading.Thread):
         if not words:
             return
         self.commands.append(line)
+        self.say("OK ")  # the real loader prompt precedes each command's output
         if self.silent_after is not None and len(self.commands) > self.silent_after:
             if self.panic_after:
                 self.say("panic: emulated loader fault\n")
@@ -251,6 +252,17 @@ class OperationTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertEqual(stage["panic_text"], "emulated loader fault")
         self.assertEqual(stage["conclusion"], "panic text received: emulated loader fault")
+
+
+class PromptTests(unittest.TestCase):
+    def test_loader_prompts_are_removed_from_captured_output(self):
+        spec = __import__("importlib.util").util.spec_from_file_location("lc", SCRIPT)
+        module = __import__("importlib.util").util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertEqual(module.strip_prompts("OK set-ok\r\nOK"), "set-ok")
+        self.assertEqual(module.strip_prompts("OK variable 'x' not found\r\nOK"),
+                         "variable 'x' not found")
+        self.assertEqual(module.strip_prompts("OK OK "), "")
 
 
 class TftpTests(unittest.TestCase):

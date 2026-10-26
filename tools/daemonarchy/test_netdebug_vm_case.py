@@ -95,6 +95,53 @@ class BoundTest(unittest.TestCase):
             "d1-loader-ops", "d2-hard-reset", "d3-handoff-vtnet", "d3-early-vtnet",
             "d3-early-em"})
 
+    def test_rsp_client_acknowledges_and_skips_stale_stop_replies(self):
+        import socket
+        import threading
+
+        def pkt(body):
+            return b"$" + body + b"#%02x" % (sum(body) % 256)
+
+        server = socket.socket()
+        server.bind(("127.0.0.1", 0))
+        server.listen(1)
+
+        def stub():
+            conn, _ = server.accept()
+            buf = b""
+
+            def need(token):
+                nonlocal buf
+                while token not in buf:
+                    buf += conn.recv(100)
+                index = buf.index(token)
+                buf = buf[index + len(token):]
+
+            conn.sendall(pkt(b"T05thread:1;"))  # unsolicited on attach
+            need(b"+")
+            for reply in (b"S05", b"00112233", b"OK"):
+                need(b"#")
+                buf = buf[2:]
+                conn.sendall(pkt(b"T05thread:1;"))  # stale resend before the ack
+                conn.sendall(b"+" + pkt(reply))
+                need(b"+")
+            conn.close()
+
+        thread = threading.Thread(target=stub)
+        thread.start()
+        rsp = CASE.Rsp(server.getsockname(), timeout=3)
+        self.assertEqual(rsp.initial, "T05thread:1;")
+        self.assertEqual([rsp.packet("?"), rsp.packet("g"), rsp.packet("D")],
+                         ["S05", "00112233", "OK"])
+        rsp.close()
+        thread.join(3)
+        server.close()
+
+    def test_em_function_address_and_layout(self):
+        self.assertEqual(CASE.em_mac("00:be:fa:76:46:07"), "00:be:fa:76:46:87")
+        self.assertEqual((CASE.EM_SLOT, CASE.EM_PCI_ID), (4, "8086:100f"))
+        self.assertNotEqual(CASE.EM_HOST_IP.rsplit(".", 1)[0], CASE.HOST_IP.rsplit(".", 1)[0])
+
     def test_pcap_ack_extraction(self):
         def frame(sport, dport, payload):
             udp = struct.pack("!HHHH", sport, dport, 8 + len(payload), 0) + payload
