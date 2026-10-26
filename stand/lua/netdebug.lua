@@ -53,21 +53,29 @@ function netdebug.setup()
 	loader.setenv("autoboot_delay", "NO")
 	print("Daemonarchy wired network debugging")
 	print("Connect Ethernet to a trusted network; Wi-Fi is not supported here.")
-	print("This console ends at kernel handoff; it cannot capture early kernel resets.")
+	print("Kernel continuation requires a compatible diagnostic kernel and controller.")
 	print("Use distinct static IPv4 addresses on the same link. Esc cancels.")
 	loader.command("netdebug", "devices")
 	print("If no interfaces were listed, press Esc; firmware must expose the NIC.")
-	print("The shared key file must already be on the boot medium (not typed here).")
+	local plain = loader.getenv("netdebug.plain") == "1"
+	if plain then
+		print("Plain mode is enabled: use only on a trusted wired debug network.")
+	else
+		print("The shared key file must already be on the boot medium (not typed here).")
+		print("Set netdebug.plain=1 before setup to use explicit plain mode.")
+	end
 	local fields = {
 		{"Firmware NIC number", "netdebug.interface", "0", function(v)
 			return v:match("^%d+$") ~= nil and #v <= 3
 		end},
 		{"This machine's IPv4 address", "netdebug.ip", "", ipv4},
 		{"Controller's IPv4 address", "netdebug.peer", "", ipv4},
-		{"Shared key file", "netdebug.keyfile", "/boot/debug.key", function(v)
-			return v:sub(1, 1) == "/" and #v <= 255
-		end},
 	}
+	if not plain then
+		table.insert(fields, {"Shared key file", "netdebug.keyfile", "/boot/debug.key", function(v)
+			return v:sub(1, 1) == "/" and #v <= 255
+		end})
+	end
 	local values = {}
 	for i, field in ipairs(fields) do
 		values[i] = prompt(field[1], loader.getenv(field[2]) or field[3], function(v)
@@ -79,11 +87,11 @@ function netdebug.setup()
 		end
 	end
 	-- Pass parsed arguments directly: paths must never become loader commands.
-	local result = loader.command("netdebug", "start", table.unpack(values))
+	local result = loader.command("netdebug", plain and "start-plain" or "start", table.unpack(values))
 	if result ~= 0 then
 		print("Network debugging could not start: " ..
 		    (loader.command_error() or "loader refused activation"))
-		print("Check the wired NIC, addresses and shared key file; retry with netdebug setup.")
+		print("Check the wired NIC and addresses; retry with netdebug setup.")
 		return result
 	end
 	for i, field in ipairs(fields) do loader.setenv(field[2], values[i]) end

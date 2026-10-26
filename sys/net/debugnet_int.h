@@ -75,6 +75,12 @@ struct debugnet_pcb {
 	enum dnet_pcb_st	dp_state;
 	uint16_t		dp_client_port;
 	bool			dp_event_started;
+
+	/* Last accepted inbound DATA message, for duplicate suppression. */
+	bool			dp_rx_accepted;
+	uint32_t		dp_rx_last_seqno;	/* network order */
+	uint32_t		dp_rx_last_len;
+	uint32_t		dp_rx_last_digest;
 };
 
 /* TODO(CEM): Obviate this assertion by using a BITSET(9) for acks. */

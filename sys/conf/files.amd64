@@ -470,3 +470,7 @@ subr_clockcalib.o		standard				\
 	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} -mmmx -msse -msse2 ${.IMPSRC}" \
 	no-implicit-rule						\
 	clean		"subr_clockcalib.o"
+dev/daemonarchy/earlynet/earlynet_core.c	optional daemonarchy_earlynet pci
+dev/daemonarchy/earlynet/earlynet_em.c	optional daemonarchy_earlynet pci
+dev/daemonarchy/earlynet/earlynet_vtnet.c	optional daemonarchy_earlynet pci
+dev/daemonarchy/earlynet/earlynet_kern.c	optional daemonarchy_earlynet pci inet

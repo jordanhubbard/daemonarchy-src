@@ -5440,3 +5440,5 @@ xdr/xdr_mbuf.c			optional xdr | krpc | nfslockd | nfscl | nfsd | zfs
 xdr/xdr_mem.c			optional xdr | krpc | nfslockd | nfscl | nfsd | zfs
 xdr/xdr_reference.c		optional xdr | krpc | nfslockd | nfscl | nfsd | zfs
 xdr/xdr_sizeof.c		optional xdr | krpc | nfslockd | nfscl | nfsd | zfs
+
+kern/daemonarchy_netconsole.c	optional daemonarchy_netconsole debugnet inet

@@ -1022,3 +1022,6 @@ QAT_DISABLE_SAFE_DC_MODE	opt_qat.h
 # EARLY_PRINTF specific options fo NS8250 uart
 UART_NS8250_EARLY_REG_IO_WIDTH	opt_uart.h
 UART_NS8250_EARLY_REG_SHIFT	opt_uart.h
+
+DAEMONARCHY_NETCONSOLE	opt_daemonarchy_netconsole.h
+DAEMONARCHY_EARLYNET	opt_daemonarchy_earlynet.h

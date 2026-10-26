@@ -6,10 +6,19 @@ on:
       - 'stand/lua/**'
       - 'stand/efi/loader/netconsole*'
       - 'stand/efi/loader/Makefile'
+      - 'stand/common/dev_net.c'
+      - 'stand/libsa/tftp.c'
+      - 'sys/dev/daemonarchy/**'
+      - 'sys/modules/daemonarchy_earlynet/**'
+      - 'sys/conf/files.amd64'
+      - 'sys/conf/options'
       - 'tools/daemonarchy/**'
       - 'sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC'
       - 'sys/kern/kern_mbuf.c'
       - 'sys/net/debugnet.c'
+      - 'sys/net/debugnet_int.h'
+      - 'sys/gdb/netgdb.c'
+      - 'sys/kern/daemonarchy_netconsole.c'
       - 'sys/net/iflib.c'
       - 'sys/sys/mbuf.h'
       - '.github/workflows/daemonarchy-source.yml'
@@ -18,10 +27,19 @@ on:
       - 'stand/lua/**'
       - 'stand/efi/loader/netconsole*'
       - 'stand/efi/loader/Makefile'
+      - 'stand/common/dev_net.c'
+      - 'stand/libsa/tftp.c'
+      - 'sys/dev/daemonarchy/**'
+      - 'sys/modules/daemonarchy_earlynet/**'
+      - 'sys/conf/files.amd64'
+      - 'sys/conf/options'
       - 'tools/daemonarchy/**'
       - 'sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC'
       - 'sys/kern/kern_mbuf.c'
       - 'sys/net/debugnet.c'
+      - 'sys/net/debugnet_int.h'
+      - 'sys/gdb/netgdb.c'
+      - 'sys/kern/daemonarchy_netconsole.c'
       - 'sys/net/iflib.c'
       - 'sys/sys/mbuf.h'
       - '.github/workflows/daemonarchy-source.yml'
@@ -74,6 +92,24 @@ jobs:
         run: >-
           python3 tools/daemonarchy/tests/run-debugnet-rx-class.py
           --output-directory "${{ runner.temp }}/debugnet-rx-class-${{ github.run_id }}-${{ github.run_attempt }}"
+      - name: Sanitized production debugnet duplicate-input suppression (not kernel acceptance)
+        env:
+          CC: clang
+        run: >-
+          python3 tools/daemonarchy/tests/run-debugnet-rx-duplicate.py
+          --output-directory "${{ runner.temp }}/debugnet-rx-duplicate-${{ github.run_id }}-${{ github.run_attempt }}"
+      - name: Sanitized production loader static network and TFTP port (not EFI acceptance)
+        env:
+          CC: clang
+        run: >-
+          python3 tools/daemonarchy/tests/run-loader-static-net.py
+          --output-directory "${{ runner.temp }}/loader-static-net-${{ github.run_id }}-${{ github.run_attempt }}"
+      - name: Early transport against simulated em and vtnet devices (not kernel acceptance)
+        env:
+          CC: clang
+        run: >-
+          python3 tools/daemonarchy/tests/run-earlynet-sim.py
+          --output-directory "${{ runner.temp }}/earlynet-sim-${{ github.run_id }}-${{ github.run_attempt }}"
 
   native-loader:
     runs-on: ubuntu-latest
@@ -88,6 +124,9 @@ jobs:
           git rev-parse 'HEAD^{tree}' > _build/earlynet-native/source-tree.txt
           sha256sum stand/efi/loader/netconsole*.c stand/efi/loader/netconsole*.h \
             stand/lua/netdebug.lua stand/lua/loader.lua stand/lua/menu.lua \
+            stand/common/dev_net.c stand/libsa/tftp.c \
+            sys/dev/daemonarchy/earlynet/*.c sys/dev/daemonarchy/earlynet/*.h \
+            sys/modules/daemonarchy_earlynet/Makefile \
             tools/daemonarchy/tests/firmware-inventory.lua \
             > _build/earlynet-native/feature-inputs.sha256
       - name: Native FreeBSD EFI build and admission controls

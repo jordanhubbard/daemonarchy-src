@@ -34,5 +34,6 @@ enum nc_undi_status nc_undi_inspect(const void *, size_t, uint64_t,
     uint16_t, const struct nc_undi_region *, size_t, struct nc_undi_info *);
 const char *nc_undi_status_string(enum nc_undi_status);
 void netconsole_hardware(void);
+int netconsole_pci_location(unsigned, char *, size_t, char *, size_t);
 
 #endif
