@@ -34,6 +34,18 @@ ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 \
     > "$out/setup.stdout"
 /usr/libexec/flua tools/daemonarchy/tests/loader-staged-lua.lua "$PWD" \
     > "$out/staged-lua.stdout"
+# The early kernel transport builds as a module with the same sources the
+# DAEMONARCHY_DIAGNOSTIC kernel compiles; this is a compile check, not a boot.
+module_objects=$(mktemp -d /var/tmp/earlynet-module-objects.XXXXXXXX)
+if MAKEOBJDIRPREFIX=$module_objects make -C sys/modules/daemonarchy_earlynet \
+    SYSDIR="$PWD/sys" obj all > "$out/module.log" 2>&1; then
+    module_obj=$(MAKEOBJDIRPREFIX=$module_objects make -C sys/modules/daemonarchy_earlynet \
+        SYSDIR="$PWD/sys" -V .OBJDIR)
+    sha256 "$module_obj/daemonarchy_earlynet.ko" > "$out/module.sha256"
+else
+    tail -80 "$out/module.log"
+    exit 1
+fi
 MAKEOBJDIRPREFIX=$(mktemp -d /var/tmp/earlynet-loader-objects.XXXXXXXX)
 export MAKEOBJDIRPREFIX
 make -C stand -j2 NO_ROOT=yes WITHOUT_LOADER_BIOS=yes LOADER_NET_SUPPORT=yes obj \

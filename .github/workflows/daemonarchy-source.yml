@@ -8,6 +8,10 @@ on:
       - 'stand/efi/loader/Makefile'
       - 'stand/common/dev_net.c'
       - 'stand/libsa/tftp.c'
+      - 'sys/dev/daemonarchy/**'
+      - 'sys/modules/daemonarchy_earlynet/**'
+      - 'sys/conf/files.amd64'
+      - 'sys/conf/options'
       - 'tools/daemonarchy/**'
       - 'sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC'
       - 'sys/kern/kern_mbuf.c'
@@ -25,6 +29,10 @@ on:
       - 'stand/efi/loader/Makefile'
       - 'stand/common/dev_net.c'
       - 'stand/libsa/tftp.c'
+      - 'sys/dev/daemonarchy/**'
+      - 'sys/modules/daemonarchy_earlynet/**'
+      - 'sys/conf/files.amd64'
+      - 'sys/conf/options'
       - 'tools/daemonarchy/**'
       - 'sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC'
       - 'sys/kern/kern_mbuf.c'
@@ -96,6 +104,12 @@ jobs:
         run: >-
           python3 tools/daemonarchy/tests/run-loader-static-net.py
           --output-directory "${{ runner.temp }}/loader-static-net-${{ github.run_id }}-${{ github.run_attempt }}"
+      - name: Early transport against simulated em and vtnet devices (not kernel acceptance)
+        env:
+          CC: clang
+        run: >-
+          python3 tools/daemonarchy/tests/run-earlynet-sim.py
+          --output-directory "${{ runner.temp }}/earlynet-sim-${{ github.run_id }}-${{ github.run_attempt }}"
 
   native-loader:
     runs-on: ubuntu-latest
@@ -111,6 +125,8 @@ jobs:
           sha256sum stand/efi/loader/netconsole*.c stand/efi/loader/netconsole*.h \
             stand/lua/netdebug.lua stand/lua/loader.lua stand/lua/menu.lua \
             stand/common/dev_net.c stand/libsa/tftp.c \
+            sys/dev/daemonarchy/earlynet/*.c sys/dev/daemonarchy/earlynet/*.h \
+            sys/modules/daemonarchy_earlynet/Makefile \
             tools/daemonarchy/tests/firmware-inventory.lua \
             > _build/earlynet-native/feature-inputs.sha256
       - name: Native FreeBSD EFI build and admission controls

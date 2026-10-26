@@ -1024,3 +1024,4 @@ UART_NS8250_EARLY_REG_IO_WIDTH	opt_uart.h
 UART_NS8250_EARLY_REG_SHIFT	opt_uart.h
 
 DAEMONARCHY_NETCONSOLE	opt_daemonarchy_netconsole.h
+DAEMONARCHY_EARLYNET	opt_daemonarchy_earlynet.h

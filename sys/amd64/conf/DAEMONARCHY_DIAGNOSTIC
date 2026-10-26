@@ -7,3 +7,7 @@ options VERBOSE_SYSINIT=0
 
 # Explicit opt-in still requires netdebug.plain=1 and static network settings.
 options DAEMONARCHY_NETCONSOLE
+
+# Kernel-owned polled transport before ordinary NIC attach (em, vtnet).
+# Inert unless netdebug.plain=1 and netdebug.early=1 are set in the loader.
+options DAEMONARCHY_EARLYNET
