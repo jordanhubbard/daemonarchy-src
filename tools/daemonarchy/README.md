@@ -471,3 +471,22 @@ peers, covering phase continuation, blank input, command admission, EOF capture,
 wrong-boot refusal, missing-peer and idle deadlines, and default exit behavior.
 These peers supply controller regression evidence, not native kernel transport,
 physical NIC, panic or release acceptance.
+
+## Debugnet receive-buffer class fixture
+
+Check that reserved receive buffers keep their ordinary allocation class
+([#18](https://github.com/jordanhubbard/daemonarchy-src/issues/18)):
+
+```sh
+python3 tools/daemonarchy/tests/run-debugnet-rx-class.py \
+  --output-directory /var/tmp/debugnet-rx-class-check
+```
+
+The fixture extracts the current `m_getzone`, the complete debugnet reserve
+block of `kern_mbuf.c`, debugnet reserve sizing and the iflib debugnet
+init/event and free-list cleanup functions. Fake UMA zones record the origin
+of every ordinary buffer and abort when one is freed through another zone.
+Cases cover a matching 2048-byte reserve, a 9216-byte reserve beside a
+2048-byte ring, mixed 2048/9216-byte sessions and repeated sessions after a
+refused start. UMA, DMA and ring refill are fixture objects; this is not a
+linked kernel, live driver or jumbo-NIC qualification.
