@@ -22,3 +22,20 @@ provides neither authentication nor confidentiality. It does not activate
 itself at panic, cover a pre-driver panic, or inherit the earlier firmware
 boot ID. Native VM panic and GDB tests are required before claiming those
 stages; the TCP/UDP loopback test covers only proxy packet handling.
+
+Fault handling mirrors `debugnet-console.py`. Short, length-mismatched,
+unknown-kind and foreign packets are counted and ignored. Kernel output ahead
+of the next sequence is not acknowledged, so debugnet retransmits it in order.
+Retransmitted output is acknowledged and forwarded once. Different bytes under
+the last sequence are forwarded as new output (`sequence_reuse`), because
+debugnet keeps its sequence after a timed-out send. A NetGDB herald on an
+admitted session starts a new kernel session, for example after DDB re-entry;
+any unacknowledged GDB input from the old session is abandoned and recorded.
+Every exit writes a `proxy_exit` record with its outcome and counters.
+
+Kernel NetGDB does not de-duplicate input: its receive handler appends every
+accepted DATA payload. If the kernel's acknowledgement of GDB input is lost,
+the proxy's retransmission reaches the stub twice. The GDB remote protocol
+then sees a repeated packet. The proxy cannot detect this; `input_retransmit`
+in the exit record shows when it could have happened. Fixing it needs a kernel
+change (sequence-aware receive), which is not part of this prototype.
