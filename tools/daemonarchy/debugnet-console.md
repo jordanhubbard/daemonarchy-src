@@ -23,6 +23,38 @@ python3.12 tools/daemonarchy/debugnet-console.py --bind CONTROLLER_IP \
   --boot-id EXACT_LOADER_BOOT_ID --capture /path/to/new-capture.bin
 ```
 
+Add `--events NEW_EVENTS.jsonl` to keep a session/fault record and
+`--state PRIVATE_STATE.json` to allow a restart. Controller fault handling:
+
+- Short, length-mismatched, unknown-kind, foreign-source and pre-admission
+  packets are ignored without ACK and counted.
+- Retransmitted kernel output is ACKed but captured once. FreeBSD debugnet
+  does not advance its sequence after a timed-out send, so different bytes
+  under the last sequence are captured as new output (`sequence_reuse`);
+  identical bytes in that case cannot be distinguished from a retransmission.
+  A skipped sequence is captured and recorded as `sequence_gap`.
+- Input is sent in chunks of at most 255 bytes, because the kernel ring
+  refuses anything larger than its 511 free bytes indefinitely. All bytes
+  already read from a pipe are queued; each chunk waits for the prior ACK.
+- Unacknowledged input is retransmitted every 0.5 seconds up to a bound
+  derived from `--timeout`, then the controller exits 1 with
+  `input_unacknowledged`. An idle or missing kernel exits 1 with
+  `idle_timeout`. A herald with the expected boot ID on an admitted session
+  starts a fresh kernel sequence (`reherald`).
+- After a controller crash, run it again with the same `--state` and
+  `--resume`. The kernel does not reherald, so the state supplies the admitted
+  peer, the last captured output sequence and digest, and the next input
+  sequence. The state is written before each input is sent, so a resumed
+  controller never reuses a sequence the kernel may have consumed. An input
+  outstanding at the crash is reported as `unconfirmed_input` and is not
+  replayed. The capture is opened for append. Without the state file a
+  restarted controller cannot rejoin the session.
+
+Every exit writes a final `controller_exit` record with its outcome and the
+fault, duplicate, gap and byte counters. These are loopback controller checks
+(`test_debugnet_console.py`); native link loss, kernel send timeout and
+restart behavior on the VM NIC remain separate evidence.
+
 For one controller across the firmware and kernel phases, start it before
 issuing the loader `boot` command:
 
