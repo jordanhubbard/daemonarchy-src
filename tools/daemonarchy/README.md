@@ -424,3 +424,22 @@ uses fake zone objects to check absent/partial pools, refused-start retry and fu
 restoration. It does not compile the complete kernel or establish real driver
 readiness. The native [development evidence](../../verification/debugnet-pool-readiness-development.json)
 retains the baseline failure separately from changed-kernel build/runtime gates.
+
+## Debugnet receive-buffer class fixture
+
+Check that reserved receive buffers keep their ordinary allocation class
+([#18](https://github.com/jordanhubbard/daemonarchy-src/issues/18)):
+
+```sh
+python3 tools/daemonarchy/tests/run-debugnet-rx-class.py \
+  --output-directory /var/tmp/debugnet-rx-class-check
+```
+
+The fixture extracts the current `m_getzone`, the complete debugnet reserve
+block of `kern_mbuf.c`, debugnet reserve sizing and the iflib debugnet
+init/event and free-list cleanup functions. Fake UMA zones record the origin
+of every ordinary buffer and abort when one is freed through another zone.
+Cases cover a matching 2048-byte reserve, a 9216-byte reserve beside a
+2048-byte ring, mixed 2048/9216-byte sessions and repeated sessions after a
+refused start. UMA, DMA and ring refill are fixture objects; this is not a
+linked kernel, live driver or jumbo-NIC qualification.
