@@ -269,30 +269,69 @@ def feed(proc, data):
 
 
 class Rsp:
-    """Minimal GDB remote serial protocol client for raw stub checks."""
+    """Minimal GDB remote serial protocol client for raw stub checks.
+
+    The stub sends an unsolicited stop reply on connection and resends any
+    packet until it sees "+", so every packet is acknowledged and each
+    request waits for the stub's "+" before taking the next packet as its
+    reply.
+    """
+
+    PACKET = re.compile(rb"\$([^#]*)#([0-9a-fA-F]{2})")
 
     def __init__(self, address, timeout=20):
         self.sock = socket.create_connection(address, timeout)
         self.sock.settimeout(timeout)
         self.buf = b""
         self.transcript = []
+        # Acknowledge the stop reply queued when the stub attached.
+        self.sock.settimeout(3)
+        try:
+            self.initial = self._next_packet()
+        except socket.timeout:
+            self.initial = None
+        self.sock.settimeout(timeout)
+
+    def _fill(self):
+        chunk = self.sock.recv(4096)
+        if not chunk:
+            raise ConnectionError("GDB stub closed the connection")
+        self.buf += chunk
+
+    def _next_packet(self):
+        while True:
+            match = self.PACKET.search(self.buf)
+            if match:
+                self.buf = self.buf[match.end():]
+                self.sock.sendall(b"+")
+                return match.group(1).decode("latin-1")
+            self._fill()
 
     def packet(self, body):
         checksum = sum(body.encode()) % 256
         wire = f"${body}#{checksum:02x}".encode()
-        self.sock.sendall(wire)
-        while True:
-            match = re.search(rb"\$([^#]*)#([0-9a-fA-F]{2})", self.buf)
-            if match:
-                self.buf = self.buf[match.end():]
-                self.sock.sendall(b"+")
-                reply = match.group(1).decode("latin-1")
-                self.transcript.append({"request": body, "reply": reply})
-                return reply
-            chunk = self.sock.recv(4096)
-            if not chunk:
-                raise ConnectionError("GDB stub closed the connection")
-            self.buf += chunk
+        for _ in range(5):
+            self.sock.sendall(wire)
+            # Wait for the stub's acknowledgement; acknowledge and drop any
+            # stale resend that arrives before it.
+            acked = None
+            while acked is None:
+                while not self.buf:
+                    self._fill()
+                head = self.buf[:1]
+                if head in (b"+", b"-"):
+                    self.buf = self.buf[1:]
+                    acked = head == b"+"
+                elif head == b"$":
+                    self.transcript.append({"stale": self._next_packet()})
+                else:
+                    self.buf = self.buf[1:]
+            if not acked:
+                continue
+            reply = self._next_packet()
+            self.transcript.append({"request": body, "reply": reply})
+            return reply
+        raise ConnectionError("GDB stub did not acknowledge " + body)
 
     def close(self):
         self.sock.close()
