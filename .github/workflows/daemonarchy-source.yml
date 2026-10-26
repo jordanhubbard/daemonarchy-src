@@ -68,6 +68,12 @@ jobs:
         run: >-
           python3 tools/daemonarchy/tests/run-iflib-debugnet-ownership.py
           --output-directory "${{ runner.temp }}/iflib-debugnet-${{ github.run_id }}-${{ github.run_attempt }}"
+      - name: Sanitized production receive-buffer class ownership (not kernel acceptance)
+        env:
+          CC: clang
+        run: >-
+          python3 tools/daemonarchy/tests/run-debugnet-rx-class.py
+          --output-directory "${{ runner.temp }}/debugnet-rx-class-${{ github.run_id }}-${{ github.run_attempt }}"
 
   native-loader:
     runs-on: ubuntu-latest

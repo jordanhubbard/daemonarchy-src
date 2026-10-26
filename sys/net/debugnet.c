@@ -809,20 +809,48 @@ cleanup:
  * Pre-allocated dump-time mbuf tracking.
  *
  * We just track the high water mark we've ever seen and allocate appropriately
- * for that iface/mtu combo.
+ * for that iface/mtu combo.  Clusters are tracked per ordinary cluster size, so
+ * that each interface receives buffers of the allocation class it asked for.
  */
+#define	DN_NCLSIZES	4
 static struct {
 	int nmbuf;
-	int ncl;
-	int clsize;
+	int ncl[DN_NCLSIZES];
 } dn_hwm;
 static struct mtx dn_hwm_lk;
 MTX_SYSINIT(debugnet_hwm_lock, &dn_hwm_lk, "Debugnet HWM lock", MTX_DEF);
+
+static int
+dn_clsize_index(int clsize)
+{
+	switch (clsize) {
+	case MCLBYTES:
+		return (0);
+#if MJUMPAGESIZE != MCLBYTES
+	case MJUMPAGESIZE:
+		return (1);
+#endif
+	case MJUM9BYTES:
+		return (2);
+	case MJUM16BYTES:
+		return (3);
+	default:
+		return (-1);
+	}
+}
 
 static void
 dn_maybe_reinit_mbufs(int nmbuf, int ncl, int clsize)
 {
 	bool any;
+	int idx;
+
+	idx = dn_clsize_index(clsize);
+	if (idx < 0) {
+		printf("%s: unsupported cluster size %d, ignoring.\n",
+		    __func__, clsize);
+		return;
+	}
 
 	any = false;
 	mtx_lock(&dn_hwm_lk);
@@ -833,17 +861,11 @@ dn_maybe_reinit_mbufs(int nmbuf, int ncl, int clsize)
 	} else
 		nmbuf = dn_hwm.nmbuf;
 
-	if (ncl > dn_hwm.ncl) {
+	if (ncl > dn_hwm.ncl[idx]) {
 		any = true;
-		dn_hwm.ncl = ncl;
+		dn_hwm.ncl[idx] = ncl;
 	} else
-		ncl = dn_hwm.ncl;
-
-	if (clsize > dn_hwm.clsize) {
-		any = true;
-		dn_hwm.clsize = clsize;
-	} else
-		clsize = dn_hwm.clsize;
+		ncl = dn_hwm.ncl[idx];
 
 	mtx_unlock(&dn_hwm_lk);
 
