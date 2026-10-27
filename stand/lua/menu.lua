@@ -278,8 +278,10 @@ menu.welcome = {
 		boottrace = {
 			entry_type = core.MENU_ENTRY,
 			name = function()
-				return "Boot " .. color.highlight("T") ..
-				    "race: " .. require("boottrace").label()
+				-- "t" belongs to the live image's "Try Daemonarchy"
+				-- entry; every letter of "Boot Trace" is taken.
+				return "Boot trace (" .. color.highlight("i") ..
+				    "nstrumented): " .. require("boottrace").label()
 			end,
 			visible = function()
 				return require("boottrace").available()
@@ -287,7 +289,7 @@ menu.welcome = {
 			func = function()
 				require("boottrace").boot()
 			end,
-			alias = {"t", "T"},
+			alias = {"i", "I"},
 		},
 		hwtrace = {
 			entry_type = core.MENU_ENTRY,
