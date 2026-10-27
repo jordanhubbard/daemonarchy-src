@@ -1,0 +1,57 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd October 27, 2026
+.Dt SPLASH.LUA 8
+.Os
+.Sh NAME
+.Nm splash.lua
+.Nd Daemonarchy boot splash
+.Sh DESCRIPTION
+.Nm
+draws a short animated Daemonarchy wordmark and mascot once, before the boot
+menu, when
+.Va loader_brand
+is
+.Dq daemonarchy .
+The splash is visual only and silent.
+The animation spends at most 0.75 seconds; any key ends it at once and is
+left for the menu's autoboot countdown.
+.Pp
+The splash draws nothing on serial
+.Pq Dq comconsole ,
+.Dq userboot ,
+null or spinner consoles, when
+.Va loader_color
+disables color, when
+.Va beastie_disable
+skips the menu, when
+.Va autoboot_delay
+is
+.Dq -1 ,
+or on a known text screen smaller than 80 by 24.
+Errors in the splash are contained and never stop the boot.
+.Pp
+The following
+.Xr loader.conf 5
+variables control it:
+.Bl -tag -width daemonarchy_splash
+.It Va daemonarchy_splash
+.Dq YES
+(the default) animates,
+.Dq static
+draws the final frame without motion, and
+.Dq NO
+disables the splash.
+.It Va daemonarchy.sound
+Not read by the loader itself beyond display: when set to
+.Dq on ,
+.Dq quiet
+or
+.Dq off ,
+the splash shows the value that the installer and installed system will
+use for their event sounds.
+.El
+.Sh SEE ALSO
+.Xr loader.conf 5 ,
+.Xr loader.lua 8
