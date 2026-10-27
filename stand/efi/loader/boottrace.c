@@ -675,6 +675,34 @@ bt_reclaim(uint64_t free_estimate)
 	printf("Hardware trace: %s", bt_nvdiag);
 }
 
+static bool
+bt_compact_enabled(void)
+{
+	const char *v = getenv("boottrace_compact");
+
+	return (v != NULL && strcasecmp(v, "YES") == 0);
+}
+
+/* Record the boot-time store figures without changing anything. */
+static void
+bt_nvinfo(void)
+{
+	UINT32 attr = EFI_VARIABLE_NON_VOLATILE |
+	    EFI_VARIABLE_BOOTSERVICE_ACCESS;
+	UINT64 maxstore, left, maxvar;
+
+	if (RS->Hdr.Revision < EFI_2_00_SYSTEM_TABLE_REVISION ||
+	    RS->QueryVariableInfo(attr, &maxstore, &left, &maxvar) !=
+	    EFI_SUCCESS)
+		snprintf(bt_nvdiag, sizeof(bt_nvdiag), "loader nvram: "
+		    "QueryVariableInfo unavailable\n");
+	else
+		snprintf(bt_nvdiag, sizeof(bt_nvdiag), "loader nvram: store "
+		    "%ju KiB, %ju KiB free at boot time, max variable %ju; "
+		    "compaction off\n", (uintmax_t)maxstore / 1024,
+		    (uintmax_t)left / 1024, (uintmax_t)maxvar);
+}
+
 static void
 bt_stop(const char *why)
 {
@@ -717,10 +745,21 @@ bt_cycle(void)
 	(void)bt_state_get(state, "pending", pending, sizeof(pending));
 
 	/* 1-3: file the previous boot's trace, then clear the variable. */
+	bt_nvdiag[0] = '\0';
 	error = bt_load();
 	/* A boot that ran the store low leaves stale copies behind. */
+	/*
+	 * Compaction is opt-in (boottrace_compact="YES"): on OVMF it can
+	 * reclaim early and then refill the store with scratch copies.
+	 * Without it, each trace still records the store figures so the
+	 * next boot's "NVRAM free at start" shows whether firmware reclaims.
+	 */
 	reclaim = error == 0 && (h->nv_left_kb < 192 ||
 	    (h->flags & (DBT_FLAG_BUDGET | DBT_FLAG_WRITE_ERROR)) != 0);
+	if (!bt_compact_enabled()) {
+		bt_nvinfo();
+		reclaim = false;
+	}
 	/*
 	 * Runtime free space when the boot ended: what the full record had
 	 * counted, less the breadcrumbs written after it (~160 bytes each).
@@ -734,7 +773,6 @@ bt_cycle(void)
 		if ((uint64_t)h->nv_left_kb * 1024 > spent)
 			nv_free = (uint64_t)h->nv_left_kb * 1024 - spent;
 	}
-	bt_nvdiag[0] = '\0';
 	if (error != ENOENT || pending[0] != '\0') {
 		len = 0;
 		bt_out_append(&len, "Daemonarchy hardware trace %04u\n",
@@ -770,6 +808,10 @@ bt_cycle(void)
 		traces++;
 		snprintf(path, sizeof(path), "\\TRACES\\%04u.TXT", traces);
 		status = bt_write(root, path, bt_out, len);
+		if (status == EFI_SUCCESS && !reclaim && bt_nvdiag[0] != '\0') {
+			bt_out_append(&len, "\n%s", bt_nvdiag);
+			status = bt_write(root, path, bt_out, len);
+		}
 		if (status == EFI_SUCCESS && reclaim) {
 			/* Only now is it safe to drop the variables and compact. */
 			(void)efi_delenv(&bt_guid, DBT_VARNAME);
