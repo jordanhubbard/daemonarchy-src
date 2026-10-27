@@ -642,7 +642,8 @@ bt_reclaim(uint64_t free_estimate)
 		    (uintmax_t)before / 1024, (uintmax_t)maxvar);
 		return;
 	}
-	size = MIN(16384, maxvar - 512);
+	/* Small scratch writes keep the garbage left after the reclaim small. */
+	size = MIN(4096, maxvar - 512);
 	/*
 	 * Boot-time QueryVariableInfo ignores stale copies, so the kernel's
 	 * runtime figure says how full the store really is.  Write just past
@@ -720,8 +721,19 @@ bt_cycle(void)
 	/* A boot that ran the store low leaves stale copies behind. */
 	reclaim = error == 0 && (h->nv_left_kb < 192 ||
 	    (h->flags & (DBT_FLAG_BUDGET | DBT_FLAG_WRITE_ERROR)) != 0);
-	nv_free = error == 0 && h->nv_left_kb > h->nv_used_kb ?
-	    (uint64_t)(h->nv_left_kb - h->nv_used_kb) * 1024 : 1;
+	/*
+	 * Runtime free space when the boot ended: what the full record had
+	 * counted, less the breadcrumbs written after it (~160 bytes each).
+	 */
+	nv_free = 1;
+	if (error == 0) {
+		uint64_t spent = (uint64_t)h->nv_used_kb * 1024;
+
+		if (bt_step_ok && bt_stepv.seq > h->step_writes)
+			spent += (uint64_t)(bt_stepv.seq - h->step_writes) * 160;
+		if ((uint64_t)h->nv_left_kb * 1024 > spent)
+			nv_free = (uint64_t)h->nv_left_kb * 1024 - spent;
+	}
 	bt_nvdiag[0] = '\0';
 	if (error != ENOENT || pending[0] != '\0') {
 		len = 0;
