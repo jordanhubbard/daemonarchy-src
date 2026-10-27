@@ -45,6 +45,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/daemonarchy_boottrace.h>
 #include <sys/bio.h>
 #include <sys/boottrace.h>
 #include <sys/buf.h>
@@ -945,6 +946,7 @@ vpanic(const char *fmt, va_list ap)
 		panicstr = buf;
 		cngrab();
 		printf("panic: %s\n", buf);
+		dbt_panic(buf);
 	} else {
 		printf("panic: ");
 		vprintf(fmt, ap);

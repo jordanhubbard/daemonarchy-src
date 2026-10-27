@@ -76,7 +76,8 @@ nc_undi_inspect(const void *data, size_t available, uint64_t address,
 		checksum += p[i];
 	if (checksum != 0)
 		return (NC_UNDI_CHECKSUM);
-	if (p[6] != 2 || p[8] != 3 || p[9] != 1)
+	/* UNDI 3.1: MinorVer is PXE_ROMID_MINORVER_31 (0x10); older ROMs report 0x01. */
+	if (p[6] != 2 || p[8] != 3 || (p[9] != 0x01 && p[9] != 0x10))
 		return (NC_UNDI_VERSION);
 	if (interface > ((uint16_t)p[7] | (uint16_t)p[10] << 8))
 		return (NC_UNDI_INTERFACE);

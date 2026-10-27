@@ -57,6 +57,13 @@ EFI_STATUS
 nc_report_write(EFI_FILE_PROTOCOL *root, const char *data, size_t length,
     unsigned *saved_slot)
 {
+	return (nc_report_write_named(root, "BOOT", data, length, saved_slot));
+}
+
+EFI_STATUS
+nc_report_write_named(EFI_FILE_PROTOCOL *root, const char *prefix,
+    const char *data, size_t length, unsigned *saved_slot)
+{
 	EFI_FILE_PROTOCOL *directory = NULL, *file = NULL;
 	EFI_STATUS status, closed;
 	CHAR16 path[64];
@@ -68,7 +75,8 @@ nc_report_write(EFI_FILE_PROTOCOL *root, const char *data, size_t length,
 	if (saved_slot == NULL)
 		return (EFI_INVALID_PARAMETER);
 	*saved_slot = 0;
-	if (root == NULL || data == NULL || length == 0 || length > NC_REPORT_LIMIT)
+	if (root == NULL || prefix == NULL || strlen(prefix) > 5 ||
+	    data == NULL || length == 0 || length > NC_REPORT_LIMIT)
 		return (EFI_INVALID_PARAMETER);
 	/* Require the purpose-built medium's existing marker before any write. */
 	report_path(path, "\\DAEMDBG\\PROBE.TAG");
@@ -88,7 +96,7 @@ nc_report_write(EFI_FILE_PROTOCOL *root, const char *data, size_t length,
 	if (status != EFI_SUCCESS)
 		return (status);
 	for (slot = 1; slot <= NC_REPORT_SLOTS; slot++) {
-		snprintf(name, sizeof(name), "BOOT%04u.TXT", slot);
+		snprintf(name, sizeof(name), "%s%04u.TXT", prefix, slot);
 		report_path(path, name);
 		status = report_open(directory, &file, path, EFI_FILE_MODE_READ);
 		if (status == EFI_NOT_FOUND)

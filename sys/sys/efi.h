@@ -209,6 +209,12 @@ struct efi_rt {
 	efi_status	(*rt_gethicnt)(uint32_t *) EFIABI_ATTR;
 	efi_status	(*rt_reset)(enum efi_reset, efi_status, u_long,
 	    efi_char *) EFIABI_ATTR;
+	/* UEFI 2.0 and later. */
+	efi_status	(*rt_updcap)(void *, u_long, uint64_t) EFIABI_ATTR;
+	efi_status	(*rt_qcapcap)(void *, u_long, uint64_t *, int *)
+	    EFIABI_ATTR;
+	efi_status	(*rt_qvarinfo)(uint32_t, uint64_t *, uint64_t *,
+	    uint64_t *) EFIABI_ATTR;
 };
 #endif
 
@@ -290,6 +296,7 @@ struct efi_ops {
     void *);
 	int 	(*var_nextname)(size_t *, uint16_t *, efi_guid_t *);
 	int 	(*var_set)(uint16_t *, efi_guid_t *, uint32_t, size_t, void *);
+	int	(*var_query)(uint32_t, uint64_t *, uint64_t *, uint64_t *);
 };
 extern const struct efi_ops *active_efi_ops;
 
@@ -390,6 +397,15 @@ efi_var_set(uint16_t *name, efi_guid_t *vendor, uint32_t attrib,
 	if (active_efi_ops->var_set == NULL)
 		return (ENXIO);
 	return (active_efi_ops->var_set(name, vendor, attrib, datasize, data));
+}
+
+static inline int
+efi_var_query(uint32_t attrib, uint64_t *maxstore, uint64_t *remaining,
+    uint64_t *maxvar)
+{
+	if (active_efi_ops->var_query == NULL)
+		return (ENXIO);
+	return (active_efi_ops->var_query(attrib, maxstore, remaining, maxvar));
 }
 
 int efi_status_to_errno(efi_status status);

@@ -50,6 +50,7 @@
 #include <sys/systm.h>
 #include <sys/boottrace.h>
 #include <sys/conf.h>
+#include <sys/daemonarchy_boottrace.h>
 #include <sys/cpuset.h>
 #include <sys/dtrace_bsd.h>
 #include <sys/epoch.h>
@@ -273,6 +274,7 @@ mi_startup(void)
 	sysinit_mklist(&sysinit_list, SET_BEGIN(sysinit_set), SET_LIMIT(sysinit_set));
 
 	last = SI_SUB_DUMMY;
+	dbt_start();
 #if defined(VERBOSE_SYSINIT)
 	TUNABLE_INT_FETCH("debug.verbose_sysinit", &verbose_sysinit);
 	verbose = 0;
@@ -321,6 +323,9 @@ mi_startup(void)
 				    sip->udata);
 		}
 #endif
+
+		/* Persist a reset-surviving breadcrumb when enabled. */
+		DBT_SYSINIT(sip);
 
 		/* Call function */
 		(*(sip->func))(sip->udata);
@@ -743,7 +748,9 @@ start_init(void *dummy)
 	td = curthread;
 	p = td->td_proc;
 
+	dbt_event("vfs_mountroot");
 	vfs_mountroot();
+	dbt_complete();
 
 	/* Wipe GELI passphrase from the environment. */
 	kern_unsetenv("kern.geom.eli.passphrase");
