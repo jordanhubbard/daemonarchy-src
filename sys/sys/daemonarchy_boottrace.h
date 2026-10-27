@@ -27,13 +27,76 @@
 #define	DBT_ATTRIBUTES		0x00000007
 
 /*
- * Per-step breadcrumb: a separate, tiny variable written before every
- * persisted step, so a small NVRAM store still holds hundreds of steps.
- * The full record above is written only at checkpoints, panic, completion
- * and the budget stop.  Readers show whichever of the two is newer.
+ * Per-step breadcrumbs: tiny variables written before every persisted
+ * step, so a small NVRAM store still holds hundreds of steps.  They form a
+ * ring of debug.boottrace.ring variables (default 16) named DBTStep00,
+ * DBTStep01, ...: breadcrumb N (dbt_step.seq, from 1) overwrites slot
+ * (N - 1) % ring, so the newest steps before a hang are always on NVRAM and
+ * the live footprint is bounded.  Readers sort the slots by seq.  The
+ * kernel deletes every slot (and the single DBTStep variable written by
+ * older kernels, which readers still accept) when tracing starts.  The
+ * full record above is written only at checkpoints, panic, completion and
+ * the budget stop.  Readers show whichever is newer.
  */
-#define	DBT_STEP_VARNAME	"DBTStep"
+#define	DBT_STEP_VARNAME	"DBTStep"	/* old single slot; ring prefix */
 #define	DBT_STEP_TEXT		40
+#define	DBT_RING_DEFAULT	16
+#define	DBT_RING_MAX		64
+#define	DBT_RING_NAMELEN	(sizeof(DBT_STEP_VARNAME) + 2)	/* "DBTStepNN" */
+
+/*
+ * Hardware-trace stick loader self-report ("DBTLoader", same GUID).  The
+ * loader records each step of its stick cycle here, so a stick whose
+ * writes never reach the media is detected on the next boot from NVRAM
+ * alone, and the loop counter does not depend on the stick.
+ */
+#define	DBT_LDR_VARNAME		"DBTLoader"
+#define	DBT_LDR_MAGIC		"DBTLDR01"
+
+#define	DBT_LS_FOUND		1	/* found the stick's data volume */
+#define	DBT_LS_STATE		2	/* read STATE.TXT */
+#define	DBT_LS_FILED		3	/* filed the previous trace */
+#define	DBT_LS_CHOSEN		4	/* chose the next experiment */
+#define	DBT_LS_WROTE		5	/* wrote STATE.TXT */
+#define	DBT_LS_VERIFIED		6	/* read STATE.TXT back from the media */
+#define	DBT_LS_BOOTING		7	/* handed the experiment to the kernel */
+#define	DBT_LS_STOPPED		8	/* stopped; text says why */
+
+#define	DBT_LF_RUNNING		0x0001	/* loop running: stick should hold next/traces/pending */
+#define	DBT_LF_NOPERSIST	0x0002	/* stopped: stick writes did not persist */
+#define	DBT_LF_REPEAT		0x0004	/* stopped: same experiment staged too often */
+#define	DBT_LF_MAP		0x0008	/* block map valid: raw writes */
+#define	DBT_LF_MAPBAD		0x0010	/* block map present but rejected */
+#define	DBT_LF_TEST_DROP	0x0020	/* test: writes deliberately dropped */
+
+#define	DBT_LM_NONE		0
+#define	DBT_LM_RAW		1	/* EFI_BLOCK_IO via the block map */
+#define	DBT_LM_FAT		2	/* firmware FAT driver (no usable map) */
+
+#define	DBT_LV_NONE		0
+#define	DBT_LV_OK		1	/* read back from the media and equal */
+#define	DBT_LV_MISMATCH		2
+#define	DBT_LV_ERROR		3
+#define	DBT_LV_SKIPPED		4	/* test drop */
+
+struct dbt_loader {
+	char		magic[8];	/* DBT_LDR_MAGIC, not NUL terminated */
+	uint32_t	epoch;		/* STATE.TXT epoch= (queue generation) */
+	uint32_t	cycle;		/* loader cycles in this epoch */
+	uint32_t	step;		/* DBT_LS_* reached */
+	uint32_t	flags;		/* DBT_LF_* */
+	uint32_t	method;		/* DBT_LM_* */
+	uint32_t	write_status;	/* last stick write: EFI status code */
+	uint32_t	verify;		/* DBT_LV_* of the last stick write */
+	uint32_t	next;		/* STATE.TXT written: next= */
+	uint32_t	traces;		/* traces= */
+	uint32_t	pending;	/* pending= (0: none) */
+	uint32_t	repeat;		/* consecutive cycles that staged pending */
+	uint32_t	stick_next;	/* STATE.TXT read at this cycle's start */
+	uint32_t	stick_traces;
+	uint32_t	stick_pending;
+	char		text[64];	/* last message, NUL terminated */
+};
 
 #define	DBT_MAGIC		"DBTRACE1"
 #define	DBT_VERSION		1
@@ -49,6 +112,10 @@
 #define	DBT_FLAG_TEST		0x0010	/* a test hang was armed */
 #define	DBT_FLAG_SAVED		0x0020	/* loader saved it to USB */
 #define	DBT_FLAG_THINNED	0x0040	/* budget low: probes no longer persisted */
+#define	DBT_FLAG_STRIDED	0x0080	/* budget low: every Nth step persisted */
+#define	DBT_FLAG_REFRESHED	0x0100	/* firmware freed NVRAM at runtime */
+/* Bits 16..23: log2 of the widest breadcrumb stride used (with STRIDED). */
+#define	DBT_FLAG_STRIDE_SHIFT(f)	(((f) >> 16) & 0xff)
 
 #define	DBT_KIND_SYSINIT	1
 #define	DBT_KIND_PROBE		2
@@ -110,6 +177,7 @@ struct dbt_step {
 _Static_assert(sizeof(struct dbt_header) == 128, "dbt_header layout");
 _Static_assert(sizeof(struct dbt_crumb) == 96, "dbt_crumb layout");
 _Static_assert(sizeof(struct dbt_step) == 64, "dbt_step layout");
+_Static_assert(sizeof(struct dbt_loader) == 128, "dbt_loader layout");
 
 struct sysinit;
 struct _device;

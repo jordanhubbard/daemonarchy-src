@@ -19,6 +19,7 @@
 #include <Protocol/SimpleFileSystem.h>
 
 #include "bootstrap.h"
+#include "boottrace_blk.h"
 #include "netconsole_report.h"
 
 #define	BT_BUFSIZE	8192
@@ -28,13 +29,75 @@ static EFI_GUID bt_guid = DBT_GUID_INIT;
 static uint8_t bt_buf[BT_BUFSIZE];
 static size_t bt_len;
 static char bt_report[BT_REPORT];
-static struct dbt_step bt_stepv;
+static struct dbt_step bt_stepv;		/* newest breadcrumb */
 static bool bt_step_ok;
+static struct dbt_step bt_ringv[DBT_RING_MAX + 1];	/* oldest first */
+static unsigned bt_ring_n;
 static char bt_nvdiag[256];
 static size_t bt_report_len;
 
 static int bt_startup(unsigned);
 static int bt_cycle(void);
+
+static void
+bt_ring_name(char *name, size_t len, unsigned slot)
+{
+	snprintf(name, len, "%s%02u", DBT_STEP_VARNAME, slot);
+}
+
+/*
+ * Breadcrumbs: the ring DBTStep00.. and the single DBTStep of older
+ * kernels, sorted by sequence number into bt_ringv.
+ */
+static void
+bt_load_ring(void)
+{
+	struct dbt_step st, tmp;
+	char name[DBT_RING_NAMELEN];
+	unsigned slot, i, j;
+	size_t slen;
+
+	bt_ring_n = 0;
+	for (slot = 0; slot <= DBT_RING_MAX; slot++) {
+		if (slot < DBT_RING_MAX)
+			bt_ring_name(name, sizeof(name), slot);
+		else
+			strlcpy(name, DBT_STEP_VARNAME, sizeof(name));
+		slen = sizeof(st);
+		if (efi_getenv(&bt_guid, name, &st, &slen) != EFI_SUCCESS ||
+		    slen < sizeof(st) || st.seq == 0)
+			continue;
+		st.text[DBT_STEP_TEXT - 1] = '\0';
+		bt_ringv[bt_ring_n++] = st;
+	}
+	for (i = 1; i < bt_ring_n; i++)
+		for (j = i; j > 0 && bt_ringv[j - 1].seq > bt_ringv[j].seq;
+		    j--) {
+			tmp = bt_ringv[j];
+			bt_ringv[j] = bt_ringv[j - 1];
+			bt_ringv[j - 1] = tmp;
+		}
+	bt_step_ok = bt_ring_n > 0;
+	if (bt_step_ok)
+		bt_stepv = bt_ringv[bt_ring_n - 1];
+}
+
+/* Delete the kernel's trace variables (not the loader's self-report). */
+static EFI_STATUS
+bt_delvars(void)
+{
+	char name[DBT_RING_NAMELEN];
+	unsigned slot;
+
+	for (slot = 0; slot < DBT_RING_MAX; slot++) {
+		bt_ring_name(name, sizeof(name), slot);
+		(void)efi_delenv(&bt_guid, name);
+	}
+	(void)efi_delenv(&bt_guid, DBT_STEP_VARNAME);
+	bt_ring_n = 0;
+	bt_step_ok = false;
+	return (efi_delenv(&bt_guid, DBT_VARNAME));
+}
 
 static const char *
 bt_kind(unsigned kind)
@@ -68,12 +131,7 @@ bt_load(void)
 	size_t need;
 	EFI_STATUS status;
 
-	size_t slen = sizeof(bt_stepv);
-
-	bt_step_ok = efi_getenv(&bt_guid, DBT_STEP_VARNAME, &bt_stepv,
-	    &slen) == EFI_SUCCESS && slen >= sizeof(bt_stepv);
-	if (bt_step_ok)
-		bt_stepv.text[DBT_STEP_TEXT - 1] = '\0';
+	bt_load_ring();
 	bt_len = sizeof(bt_buf);
 	status = efi_getenv(&bt_guid, DBT_VARNAME, bt_buf, &bt_len);
 	if (status == EFI_NOT_FOUND)
@@ -142,6 +200,16 @@ bt_crumb_line(const char *prefix, struct dbt_crumb *c)
 	bt_append("\n");
 }
 
+static void
+bt_step_line(const char *prefix, struct dbt_step *s)
+{
+	bt_append("%sb%u #%u %u.%03us cpu%u %s: %s", prefix, s->seq, s->index,
+	    s->ms / 1000, s->ms % 1000, s->cpu, bt_kind(s->kind), s->text);
+	if (s->kind == DBT_KIND_SYSINIT)
+		bt_append(" [sub 0x%x order 0x%x]", s->a, s->b);
+	bt_append("\n");
+}
+
 /* Append up to `lines' trailing message lines (all if 0). */
 static void
 bt_tail(const char *indent, unsigned lines)
@@ -202,6 +270,14 @@ bt_format(bool summary)
 	if ((h->flags & DBT_FLAG_WRITE_ERROR) != 0)
 		bt_append("NOTE: firmware rejected later writes; the trace "
 		    "stops early.\n");
+	if ((h->flags & DBT_FLAG_STRIDED) != 0)
+		bt_append("NOTE: the NVRAM budget ran low; near the end only "
+		    "every %uth step was persisted.\n      Zoom in with "
+		    "debug.boottrace.from=<a step before the last one>.\n",
+		    1u << DBT_FLAG_STRIDE_SHIFT(h->flags));
+	if ((h->flags & DBT_FLAG_REFRESHED) != 0)
+		bt_append("NOTE: the firmware freed NVRAM at runtime; the "
+		    "budget was refreshed.\n");
 	if ((h->flags & DBT_FLAG_TEST) != 0)
 		bt_append("NOTE: a test hang/reset was armed for this boot.\n");
 	if (!summary) {
@@ -222,6 +298,13 @@ bt_format(bool summary)
 	first = summary && h->crumb_count > 5 ? h->crumb_count - 5 : 0;
 	for (i = first; i < h->crumb_count; i++)
 		bt_crumb_line("  ", bt_crumb(i));
+	if (bt_ring_n > 0) {
+		bt_append("NVRAM breadcrumb ring, %u newest (oldest first):\n",
+		    bt_ring_n);
+		first = summary && bt_ring_n > 5 ? bt_ring_n - 5 : 0;
+		for (i = first; i < bt_ring_n; i++)
+			bt_step_line("  ", &bt_ringv[i]);
+	}
 	bt_append("Last kernel messages:\n");
 	bt_tail("  ", summary ? 8 : 0);
 }
@@ -294,10 +377,9 @@ command_boottrace(int argc, char *argv[])
 	if (strcmp(verb, "cycle") == 0)
 		return (bt_cycle());
 	if (strcmp(verb, "clear") == 0) {
-		EFI_STATUS status = efi_delenv(&bt_guid, DBT_VARNAME);
+		EFI_STATUS status = bt_delvars();
 
-		(void)efi_delenv(&bt_guid, DBT_STEP_VARNAME);
-
+		(void)efi_delenv(&bt_guid, DBT_LDR_VARNAME);
 		if (status != EFI_SUCCESS && status != EFI_NOT_FOUND) {
 			snprintf(command_errbuf, sizeof(command_errbuf),
 			    "could not clear the trace (status %lu)",
@@ -404,8 +486,19 @@ bt_startup(unsigned wait)
  * A cycle files the previous boot's NVRAM trace under the pending
  * experiment, clears the variable and stages the next queue entry as
  * boottrace_q_* variables, which boottrace.lua applies before booting.
- * Files are written through the firmware's FAT driver (Simple File System
- * protocol), which creates and extends files; libsa's dosfs is not used.
+ *
+ * STATE.TXT and the TRACES/ slots are preallocated and contiguous.  When the
+ * volume carries a valid SLOTS.MAP (boottrace_blk.c), they are rewritten as
+ * raw sectors through EFI_BLOCK_IO, flushed, and read back through the
+ * disk's BlockIo: on the MSI Raider (AMI Aptio) writes through the firmware
+ * FAT driver were acknowledged, read back from its cache, and never reached
+ * the stick.  Without a map, files go through the firmware's FAT driver
+ * (Simple File System protocol); libsa's dosfs is not used.
+ *
+ * Every step of the cycle is also recorded in NVRAM (DBTLoader).  When the
+ * previous cycle wrote STATE.TXT but the stick does not hold it, the
+ * writes did not persist: the loop stops with that reason instead of
+ * running the same experiment again.
  */
 #define	BT_TAG		"Daemonarchy boottrace stick v1"
 #define	BT_FILEMAX	16384
@@ -557,7 +650,7 @@ bt_connect_all(void)
 
 /* Find the stick's data volume by its tag file. */
 static EFI_FILE_PROTOCOL *
-bt_volume(void)
+bt_volume(EFI_HANDLE *handlep)
 {
 	EFI_GUID fs_guid = EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID;
 	EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *fs;
@@ -587,6 +680,7 @@ bt_volume(void)
 			if (bt_read(root, "\\DATRACE.TAG", NULL) ==
 			    EFI_SUCCESS && strncmp(bt_file, BT_TAG,
 			    sizeof(BT_TAG) - 1) == 0) {
+				*handlep = handles[i];
 				free(handles);
 				return (root);
 			}
@@ -731,12 +825,238 @@ bt_nvinfo(void)
 		    (uintmax_t)left / 1024, (uintmax_t)maxvar);
 }
 
+
+/*
+ * Loader self-report (DBTLoader): the previous cycle's record, read at the
+ * start of this one, and this cycle's, saved at every step.
+ */
+static struct dbt_loader bt_ldr, bt_ldr_prev;
+static bool bt_ldr_prev_ok;
+static struct bt_map bt_mapv;
+static struct bt_blk bt_blkv;
+static bool bt_raw;			/* SLOTS.MAP accepted: raw writes */
+static char bt_mapwhy[96];
+static char bt_checked[64];		/* mapped file compared with FAT */
+static char bt_cmp[4096];
+static bool bt_drop_fat;		/* test: FAT writes are lost */
+
+static const char *
+bt_ls_name(unsigned step)
+{
+	static const char *names[] = { "none", "found stick",
+	    "read STATE.TXT", "filed trace", "chose experiment",
+	    "wrote STATE.TXT", "verified STATE.TXT", "booting", "stopped" };
+
+	return (step < nitems(names) ? names[step] : "?");
+}
+
+static const char *
+bt_lm_name(unsigned method)
+{
+	return (method == DBT_LM_RAW ? "raw blocks (SLOTS.MAP)" :
+	    method == DBT_LM_FAT ? "firmware FAT driver" : "-");
+}
+
+static const char *
+bt_lv_name(unsigned verify)
+{
+	static const char *names[] = { "-", "ok", "MISMATCH", "read error",
+	    "skipped (test drop)" };
+
+	return (verify < nitems(names) ? names[verify] : "?");
+}
+
+static void
+bt_ldr_load(void)
+{
+	size_t len = sizeof(bt_ldr_prev);
+
+	bt_ldr_prev_ok = efi_getenv(&bt_guid, DBT_LDR_VARNAME, &bt_ldr_prev,
+	    &len) == EFI_SUCCESS && len == sizeof(bt_ldr_prev) &&
+	    memcmp(bt_ldr_prev.magic, DBT_LDR_MAGIC,
+	    sizeof(bt_ldr_prev.magic)) == 0;
+	if (bt_ldr_prev_ok)
+		bt_ldr_prev.text[sizeof(bt_ldr_prev.text) - 1] = '\0';
+	else
+		memset(&bt_ldr_prev, 0, sizeof(bt_ldr_prev));
+	memset(&bt_ldr, 0, sizeof(bt_ldr));
+	memcpy(bt_ldr.magic, DBT_LDR_MAGIC, sizeof(bt_ldr.magic));
+}
+
+static void
+bt_ldr_save(unsigned step, const char *fmt, ...)
+{
+	va_list ap;
+	EFI_STATUS status;
+
+	bt_ldr.step = step;
+	if (fmt != NULL) {
+		va_start(ap, fmt);
+		vsnprintf(bt_ldr.text, sizeof(bt_ldr.text), fmt, ap);
+		va_end(ap);
+	}
+	status = efi_setenv(&bt_guid, DBT_LDR_VARNAME, DBT_ATTRIBUTES,
+	    &bt_ldr, sizeof(bt_ldr));
+	if (status != EFI_SUCCESS)
+		printf("Hardware trace: recording loader step '%s' in NVRAM "
+		    "failed (status %lu)\n", bt_ls_name(step),
+		    DECODE_ERROR(status));
+}
+
+/* One line per record, for the trace file and the screen. */
+static void
+bt_ldr_describe(size_t *len, const char *label, struct dbt_loader *l)
+{
+	bt_out_append(len, "loader %s: cycle %u (epoch %u) reached '%s'; "
+	    "stick %s; flags 0x%x\n", label, l->cycle, l->epoch,
+	    bt_ls_name(l->step), bt_lm_name(l->method), l->flags);
+	if (l->step >= DBT_LS_WROTE)
+		bt_out_append(len, "  wrote next=%u traces=%u pending=%04u, "
+		    "status %u, read-back %s\n", l->next, l->traces,
+		    l->pending, l->write_status, bt_lv_name(l->verify));
+	bt_out_append(len, "  had read next=%u traces=%u pending=%04u; "
+	    "repeat %u; %s\n", l->stick_next, l->stick_traces,
+	    l->stick_pending, l->repeat, l->text);
+}
+
+static bool
+bt_test_drop(const char *what)
+{
+	const char *v = getenv("boottrace_test_drop");
+
+	return (v != NULL && (strcmp(v, what) == 0 || strcmp(v, "all") == 0));
+}
+
+/*
+ * Accept SLOTS.MAP only when it describes this partition and its sectors
+ * for STATE.TXT hold what the FAT driver returned for the file (nothing
+ * has been written yet, so the two views must agree).
+ */
+static void
+bt_raw_setup(EFI_HANDLE h, EFI_FILE_PROTOCOL *root, size_t slen,
+    const char *state)
+{
+	EFI_GUID blkio = BLOCK_IO_PROTOCOL;
+	EFI_DEVICE_PATH *dp, *node, *trim, *walk;
+	EFI_BLOCK_IO_PROTOCOL *disk;
+	EFI_HANDLE dh;
+	const struct bt_map_ent *e;
+	size_t len, n;
+
+	bt_raw = false;
+	bt_checked[0] = '\0';
+	memset(&bt_blkv, 0, sizeof(bt_blkv));
+	if (bt_read(root, "\\SLOTS.MAP", &len) != EFI_SUCCESS) {
+		strlcpy(bt_mapwhy, "no SLOTS.MAP (older stick)",
+		    sizeof(bt_mapwhy));
+		return;
+	}
+	if (bt_map_parse(bt_file, len, &bt_mapv, bt_mapwhy,
+	    sizeof(bt_mapwhy)) != 0)
+		goto bad;
+	if (BS->HandleProtocol(h, &blkio, (void **)&bt_blkv.part) !=
+	    EFI_SUCCESS) {
+		strlcpy(bt_mapwhy, "no BlockIo on the volume",
+		    sizeof(bt_mapwhy));
+		goto bad;
+	}
+	dp = efi_lookup_devpath(h);
+	node = dp != NULL ? efi_devpath_last_node(dp) : NULL;
+	if (node != NULL && DevicePathType(node) == MEDIA_DEVICE_PATH &&
+	    DevicePathSubType(node) == MEDIA_HARDDRIVE_DP) {
+		bt_blkv.disk_lba0 = ((HARDDRIVE_DEVICE_PATH *)node)->
+		    PartitionStart;
+		trim = efi_devpath_trim(dp);
+		walk = trim;
+		if (trim != NULL && BS->LocateDevicePath(&blkio, &walk, &dh) ==
+		    EFI_SUCCESS && IsDevicePathEnd(walk) &&
+		    BS->HandleProtocol(dh, &blkio, (void **)&disk) ==
+		    EFI_SUCCESS && disk->Media != NULL &&
+		    !disk->Media->LogicalPartition)
+			bt_blkv.disk = disk;
+		free(trim);
+	}
+	if (bt_blk_check(&bt_blkv, &bt_mapv, bt_mapwhy, sizeof(bt_mapwhy)) !=
+	    EFI_SUCCESS)
+		goto bad;
+	e = bt_map_find(&bt_mapv, "STATE.TXT");
+	n = e != NULL ? MIN(MIN(slen, e->size), sizeof(bt_cmp)) : 0;
+	if (n == 0 || bt_blk_read(&bt_blkv, e, bt_cmp, n) != EFI_SUCCESS ||
+	    memcmp(bt_cmp, state, n) != 0) {
+		strlcpy(bt_mapwhy, "STATE.TXT is not where SLOTS.MAP says",
+		    sizeof(bt_mapwhy));
+		goto bad;
+	}
+	bt_blkv.drop = bt_test_drop("raw");
+	bt_raw = true;
+	bt_ldr.flags |= DBT_LF_MAP;
+	snprintf(bt_mapwhy, sizeof(bt_mapwhy), "%u mapped files, read-back "
+	    "via the %s", bt_mapv.count, bt_blkv.disk != NULL ? "whole disk" :
+	    "partition");
+	return;
+bad:
+	bt_ldr.flags |= DBT_LF_MAPBAD;
+}
+
+/* Write a stick file: raw through the map when possible, else FAT. */
+static EFI_STATUS
+bt_stick_write(EFI_FILE_PROTOCOL *root, const char *path, const char *data,
+    size_t len)
+{
+	const struct bt_map_ent *e;
+	EFI_STATUS status;
+	size_t n;
+
+	e = bt_raw ? bt_map_find(&bt_mapv, path) : NULL;
+	/* First write of a slot this cycle: it must be where the map says. */
+	if (e != NULL && strcmp(bt_checked, path) != 0) {
+		strlcpy(bt_checked, path, sizeof(bt_checked));
+		if (bt_read(root, path, &n) == EFI_SUCCESS) {
+			n = MIN(MIN(n, e->size), sizeof(bt_cmp));
+			if (n == 0 || bt_blk_read(&bt_blkv, e, bt_cmp, n) !=
+			    EFI_SUCCESS || memcmp(bt_cmp, bt_file, n) != 0) {
+				printf("Hardware trace: %s is not where "
+				    "SLOTS.MAP says; using the FAT driver.\n",
+				    path);
+				bt_raw = false;
+				bt_ldr.flags = (bt_ldr.flags & ~DBT_LF_MAP) |
+				    DBT_LF_MAPBAD;
+				e = NULL;
+			}
+		}
+	}
+	if (e != NULL) {
+		bt_ldr.method = DBT_LM_RAW;
+		if (bt_blkv.drop)
+			bt_ldr.flags |= DBT_LF_TEST_DROP;
+		status = bt_blk_write(&bt_blkv, e, data, len);
+		bt_ldr.verify = bt_blkv.verify;
+	} else {
+		bt_ldr.method = DBT_LM_FAT;
+		if (bt_drop_fat) {
+			/* Test: acknowledged, served from cache, never written. */
+			bt_ldr.flags |= DBT_LF_TEST_DROP;
+			bt_ldr.verify = DBT_LV_SKIPPED;
+			status = EFI_SUCCESS;
+		} else {
+			status = bt_write(root, path, data, len);
+			/* FAT read-back may come from the driver's cache. */
+			bt_ldr.verify = status == EFI_SUCCESS ? DBT_LV_OK :
+			    DBT_LV_ERROR;
+		}
+	}
+	bt_ldr.write_status = (uint32_t)DECODE_ERROR(status);
+	return (status);
+}
+
 static void
 bt_stop(const char *why)
 {
 	printf("\n=========== HARDWARE TRACE: STOPPED ===========\n%s\n"
 	    "Take the stick to the controller; it reads TRACES/ and writes "
 	    "a new QUEUE/.\n", why);
+	bt_ldr.flags &= ~DBT_LF_RUNNING;
+	bt_ldr_save(DBT_LS_STOPPED, "%.63s", why);
 	setenv("boottrace_cycle", "stop", 1);
 	setenv("autoboot_delay", "NO", 1);
 }
@@ -746,17 +1066,25 @@ bt_cycle(void)
 {
 	struct dbt_header *h = (struct dbt_header *)bt_buf;
 	EFI_FILE_PROTOCOL *root;
+	EFI_HANDLE vol = NULL;
 	EFI_STATUS status;
 	char state[512], val[80], pending[80], path[64], name[32];
-	unsigned next, traces, n;
-	size_t len;
+	unsigned next, traces, n, epoch, pending_n, max_repeat;
+	size_t len, slen;
 	int error;
-	bool complete = false, reclaim;
+	bool complete = false, reclaim, same;
 	uint64_t nv_free;
 	char *line, *end;
+	const char *v;
 
 	unsetenv("boottrace_cycle");
-	root = bt_volume();
+	bt_ldr_load();
+	bt_drop_fat = bt_test_drop("fat");
+	v = getenv("boottrace_max_repeat");
+	max_repeat = v != NULL ? strtoul(v, NULL, 10) : 2;
+	if (max_repeat == 0)
+		max_repeat = 2;
+	root = bt_volume(&vol);
 	if (root == NULL) {
 		printf("Hardware trace: no stick data volume (DATRACE.TAG) "
 		    "found.\n");
@@ -764,13 +1092,77 @@ bt_cycle(void)
 		return (CMD_OK);
 	}
 	state[0] = '\0';
-	if (bt_read(root, "\\STATE.TXT", NULL) == EFI_SUCCESS)
+	slen = 0;
+	if (bt_read(root, "\\STATE.TXT", &slen) == EFI_SUCCESS)
 		strlcpy(state, bt_file, sizeof(state));
+	else
+		slen = 0;
 	next = bt_state_get(state, "next", val, sizeof(val));
 	if (next == 0)
 		next = 1;
 	traces = bt_state_get(state, "traces", val, sizeof(val));
-	(void)bt_state_get(state, "pending", pending, sizeof(pending));
+	epoch = bt_state_get(state, "epoch", val, sizeof(val));
+	pending_n = bt_state_get(state, "pending", pending, sizeof(pending));
+	bt_raw_setup(vol, root, MIN(slen, sizeof(state) - 1), state);
+
+	same = bt_ldr_prev_ok && bt_ldr_prev.epoch == epoch;
+	bt_ldr.epoch = epoch;
+	bt_ldr.cycle = same ? bt_ldr_prev.cycle + 1 : 1;
+	bt_ldr.stick_next = next;
+	bt_ldr.stick_traces = traces;
+	bt_ldr.stick_pending = pending_n;
+	bt_ldr.method = bt_raw ? DBT_LM_RAW : DBT_LM_FAT;
+	printf("Hardware trace: cycle %u; stick writes via %s (%s)\n",
+	    bt_ldr.cycle, bt_lm_name(bt_ldr.method), bt_mapwhy);
+	if (bt_drop_fat || bt_blkv.drop)
+		printf("Hardware trace: TEST: boottrace_test_drop=%s; those "
+		    "writes are acknowledged but never made\n",
+		    getenv("boottrace_test_drop"));
+	bt_ldr_save(DBT_LS_STATE, "stick next=%u traces=%u pending=%s", next,
+	    traces, pending[0] != '\0' ? pending : "-");
+
+	/*
+	 * 0: the previous cycle staged an experiment and recorded what it
+	 * wrote to STATE.TXT.  If the stick does not hold that, its writes
+	 * never reached the media; looping would repeat the same experiment.
+	 * The verdict sticks until the stick is queued again (new epoch) or
+	 * "boottrace clear" deletes DBTLoader.
+	 */
+	if (same && (((bt_ldr_prev.flags & DBT_LF_RUNNING) != 0 &&
+	    (bt_ldr_prev.next != next || bt_ldr_prev.traces != traces ||
+	    bt_ldr_prev.pending != pending_n)) ||
+	    (bt_ldr_prev.flags & DBT_LF_NOPERSIST) != 0)) {
+		(void)root->Close(root);
+		bt_ldr.flags |= DBT_LF_NOPERSIST;
+		bt_ldr.cycle = bt_ldr_prev.cycle;
+		bt_ldr.next = bt_ldr_prev.next;
+		bt_ldr.traces = bt_ldr_prev.traces;
+		bt_ldr.pending = bt_ldr_prev.pending;
+		bt_ldr.method = bt_ldr_prev.method;
+		bt_ldr.verify = bt_ldr_prev.verify;
+		bt_ldr.write_status = bt_ldr_prev.write_status;
+		len = 0;
+		bt_out_append(&len, "STICK WRITES ARE NOT PERSISTING.\n"
+		    "Cycle %u wrote STATE.TXT next=%u traces=%u pending=%04u "
+		    "via %s (read-back %s),\nbut the stick still reads next=%u "
+		    "traces=%u pending=%s.\n", bt_ldr_prev.cycle,
+		    bt_ldr_prev.next, bt_ldr_prev.traces, bt_ldr_prev.pending,
+		    bt_lm_name(bt_ldr_prev.method),
+		    bt_lv_name(bt_ldr_prev.verify), next, traces,
+		    pending[0] != '\0' ? pending : "-");
+		if (bt_load() == 0) {
+			bt_format(true);
+			bt_out_append(&len, "The kernel trace of experiment %04u "
+			    "stays in NVRAM ('boottrace show'; Windows: "
+			    "read-boottrace.ps1):\n%s", bt_ldr_prev.pending,
+			    bt_report);
+		}
+		bt_out_append(&len, "Queue the stick again (stick.py queue) or "
+		    "run 'boottrace clear' to start over.");
+		printf("\n");
+		bt_stop(bt_out);
+		return (CMD_OK);
+	}
 
 	/* 1-3: file the previous boot's trace, then clear the variable. */
 	bt_nvdiag[0] = '\0';
@@ -822,6 +1214,10 @@ bt_cycle(void)
 				}
 			}
 		}
+		if (bt_ldr_prev_ok)
+			bt_ldr_describe(&len, "previous", &bt_ldr_prev);
+		bt_out_append(&len, "loader now: cycle %u, stick via %s (%s)\n",
+		    bt_ldr.cycle, bt_lm_name(bt_ldr.method), bt_mapwhy);
 		if (error == 0) {
 			bt_out_append(&len, "nvram: write #%u, status %u, "
 			    "%u steps\n\n", h->seq, h->status, h->steps);
@@ -835,35 +1231,39 @@ bt_cycle(void)
 			    "unreadable trace");
 		traces++;
 		snprintf(path, sizeof(path), "\\TRACES\\%04u.TXT", traces);
-		status = bt_write(root, path, bt_out, len);
+		status = bt_stick_write(root, path, bt_out, len);
 		if (status == EFI_SUCCESS && !reclaim && bt_nvdiag[0] != '\0') {
 			bt_out_append(&len, "\n%s", bt_nvdiag);
-			status = bt_write(root, path, bt_out, len);
+			status = bt_stick_write(root, path, bt_out, len);
 		}
 		if (status == EFI_SUCCESS && reclaim) {
 			/* Only now is it safe to drop the variables and compact. */
-			(void)efi_delenv(&bt_guid, DBT_VARNAME);
-			(void)efi_delenv(&bt_guid, DBT_STEP_VARNAME);
+			(void)bt_delvars();
 			bt_reclaim(nv_free);
 			bt_out_append(&len, "\n%s", bt_nvdiag);
-			status = bt_write(root, path, bt_out, len);
+			status = bt_stick_write(root, path, bt_out, len);
 			reclaim = false;
 		}
 		if (status != EFI_SUCCESS) {
-			printf("Hardware trace: writing %s FAILED (status %lu);"
-			    " the trace stays in NVRAM.\n", path,
-			    DECODE_ERROR(status));
+			printf("Hardware trace: writing %s FAILED (status %lu, "
+			    "read-back %s); the trace stays in NVRAM.\n", path,
+			    DECODE_ERROR(status), bt_lv_name(bt_ldr.verify));
 			(void)root->Close(root);
-			bt_stop("Stick write failed.");
+			snprintf(bt_out, sizeof(bt_out), "Stick write failed: "
+			    "%s via %s, status %lu, read-back %s.", path + 1,
+			    bt_lm_name(bt_ldr.method), DECODE_ERROR(status),
+			    bt_lv_name(bt_ldr.verify));
+			bt_stop(bt_out);
 			return (CMD_OK);
 		}
 		if (error == 0) {
 			bt_format(true);
 			printf("\n%s", bt_report);
 		}
-		printf("Hardware trace: saved %s\n", path);
-		(void)efi_delenv(&bt_guid, DBT_VARNAME);
-		(void)efi_delenv(&bt_guid, DBT_STEP_VARNAME);
+		printf("Hardware trace: saved %s via %s (read-back %s)\n", path,
+		    bt_lm_name(bt_ldr.method), bt_lv_name(bt_ldr.verify));
+		bt_ldr_save(DBT_LS_FILED, "filed %s", path + 1);
+		(void)bt_delvars();
 	}
 
 	if (reclaim)
@@ -901,20 +1301,54 @@ bt_cycle(void)
 		setenv("boottrace_q_id", pending, 1);
 		next++;
 	}
-	len = snprintf(state, sizeof(state), "next=%u\ntraces=%u\npending=%s\n",
-	    next, traces, pending);
-	status = bt_write(root, "\\STATE.TXT", state, len);
+	pending_n = strtoul(pending, NULL, 10);
+	/* Belt and braces: the same experiment staged again and again. */
+	if (pending_n != 0 && same && bt_ldr_prev.pending == pending_n)
+		bt_ldr.repeat = bt_ldr_prev.repeat + 1;
+	bt_ldr.next = next;
+	bt_ldr.traces = traces;
+	bt_ldr.pending = pending_n;
+	bt_ldr_save(DBT_LS_CHOSEN, "chose %s", pending[0] != '\0' ? pending :
+	    "none");
+	if (bt_ldr.repeat >= max_repeat) {
+		(void)root->Close(root);
+		bt_ldr.flags |= DBT_LF_REPEAT;
+		snprintf(bt_out, sizeof(bt_out), "Experiment %s would run for "
+		    "the %u%s time in a row: stick writes are not persisting "
+		    "(boottrace_max_repeat=%u).", pending, bt_ldr.repeat + 1,
+		    bt_ldr.repeat + 1 == 2 ? "nd" : bt_ldr.repeat + 1 == 3 ?
+		    "rd" : "th", max_repeat);
+		bt_stop(bt_out);
+		return (CMD_OK);
+	}
+	if (epoch != 0)
+		len = snprintf(state, sizeof(state), "next=%u\ntraces=%u\n"
+		    "pending=%s\nepoch=%u\n", next, traces, pending, epoch);
+	else
+		len = snprintf(state, sizeof(state), "next=%u\ntraces=%u\n"
+		    "pending=%s\n", next, traces, pending);
+	status = bt_stick_write(root, "\\STATE.TXT", state, len);
 	(void)root->Close(root);
+	bt_ldr_save(bt_ldr.verify == DBT_LV_OK && bt_ldr.method == DBT_LM_RAW ?
+	    DBT_LS_VERIFIED : DBT_LS_WROTE, "STATE.TXT status %lu",
+	    DECODE_ERROR(status));
 	if (status != EFI_SUCCESS) {
-		bt_stop("Writing STATE.TXT on the stick failed.");
+		snprintf(bt_out, sizeof(bt_out), "Writing STATE.TXT on the "
+		    "stick failed via %s (status %lu, read-back %s).",
+		    bt_lm_name(bt_ldr.method), DECODE_ERROR(status),
+		    bt_lv_name(bt_ldr.verify));
+		bt_stop(bt_out);
 		return (CMD_OK);
 	}
 	if (pending[0] == '\0') {
 		bt_stop(bt_out);
 		return (CMD_OK);
 	}
-	printf("Hardware trace: running experiment %s (%s)\n", pending,
-	    path + 1);
+	printf("Hardware trace: running experiment %s (%s); STATE.TXT via %s, "
+	    "read-back %s\n", pending, path + 1, bt_lm_name(bt_ldr.method),
+	    bt_lv_name(bt_ldr.verify));
+	bt_ldr.flags |= DBT_LF_RUNNING;
+	bt_ldr_save(DBT_LS_BOOTING, "booting %s", pending);
 	setenv("boottrace_cycle", "boot", 1);
 	return (CMD_OK);
 }
