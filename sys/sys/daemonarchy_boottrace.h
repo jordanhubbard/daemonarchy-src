@@ -68,8 +68,9 @@ struct dbt_header {
 	uint32_t	msg_len;	/* message buffer bytes after crumbs */
 	uint32_t	uptime_ms;	/* time of this write since kernel entry */
 	uint32_t	nv_left_kb;	/* NVRAM left when tracing started */
-	uint32_t	budget_writes;	/* writes the budget allows */
-	uint32_t	reserved[2];
+	uint32_t	budget_writes;	/* full writes the budget allows */
+	uint32_t	nv_used_kb;	/* NVRAM this boot has written so far */
+	uint32_t	reserved;
 	char		kernel[DBT_KERNEL_SIZE]; /* kernel version line */
 };
 

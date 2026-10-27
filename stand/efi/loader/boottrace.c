@@ -187,9 +187,10 @@ bt_format(bool summary)
 	if (!summary) {
 		bt_append("Kernel: %s\n", kernel);
 		bt_append("Steps seen: %u, last write at %u.%03us, NVRAM free "
-		    "at start %u KiB, budget %u full writes, flags 0x%x\n",
-		    h->steps, h->uptime_ms / 1000, h->uptime_ms % 1000,
-		    h->nv_left_kb, h->budget_writes, h->flags);
+		    "at start %u KiB, %u KiB written, budget %u full writes, "
+		    "flags 0x%x\n", h->steps, h->uptime_ms / 1000,
+		    h->uptime_ms % 1000, h->nv_left_kb, h->nv_used_kb,
+		    h->budget_writes, h->flags);
 		if (h->resume_from == UINT32_MAX)
 			bt_append("Persisted: coarse steps only (zoom in with "
 			    "debug.boottrace.from=N)\n");
@@ -593,7 +594,7 @@ bt_out_append(size_t *len, const char *fmt, ...)
  * reclaim simply refuses a write and the loop stops early.
  */
 static void
-bt_reclaim(void)
+bt_reclaim(uint64_t free_estimate)
 {
 	UINT32 attr = EFI_VARIABLE_NON_VOLATILE |
 	    EFI_VARIABLE_BOOTSERVICE_ACCESS;
@@ -608,7 +609,14 @@ bt_reclaim(void)
 	    EFI_SUCCESS || maxvar < 8192)
 		return;
 	size = MIN(16384, maxvar - 1024);
-	n = MIN(maxstore / size + 2, 64);
+	/*
+	 * Boot-time QueryVariableInfo ignores stale copies, so the kernel's
+	 * runtime figure says how full the store really is.  Write just past
+	 * it: one write triggers the reclaim, and little garbage follows.
+	 */
+	if (free_estimate == 0 || free_estimate > maxstore)
+		free_estimate = maxstore;
+	n = MIN(free_estimate / (size + 128) + 2, 64);
 	buf = calloc(1, size);
 	if (buf == NULL)
 		return;
@@ -649,6 +657,7 @@ bt_cycle(void)
 	size_t len;
 	int error;
 	bool complete = false, reclaim;
+	uint64_t nv_free;
 	char *line, *end;
 
 	unsetenv("boottrace_cycle");
@@ -670,10 +679,11 @@ bt_cycle(void)
 
 	/* 1-3: file the previous boot's trace, then clear the variable. */
 	error = bt_load();
-	/* A boot that wrote nothing or ran low leaves stale copies behind. */
-	reclaim = (error == ENOENT && pending[0] != '\0') || (error == 0 &&
-	    (h->nv_left_kb < 192 || (h->flags & (DBT_FLAG_BUDGET |
-	    DBT_FLAG_WRITE_ERROR)) != 0));
+	/* A boot that ran the store low leaves stale copies behind. */
+	reclaim = error == 0 && (h->nv_left_kb < 192 ||
+	    (h->flags & (DBT_FLAG_BUDGET | DBT_FLAG_WRITE_ERROR)) != 0);
+	nv_free = error == 0 && h->nv_left_kb > h->nv_used_kb ?
+	    (uint64_t)(h->nv_left_kb - h->nv_used_kb) * 1024 : 1;
 	if (error != ENOENT || pending[0] != '\0') {
 		len = 0;
 		bt_out_append(&len, "Daemonarchy hardware trace %04u\n",
@@ -727,7 +737,7 @@ bt_cycle(void)
 	}
 
 	if (reclaim)
-		bt_reclaim();
+		bt_reclaim(nv_free);
 
 	/* 4: stage the next experiment, unless a boot completed. */
 	snprintf(path, sizeof(path), "\\QUEUE\\%04u.CNF", next);

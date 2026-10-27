@@ -75,6 +75,7 @@ static uint32_t dbt_status = DBT_STATUS_RUNNING;
 static uint32_t dbt_resume_from = UINT32_MAX;	/* first fine-grained step */
 static uint32_t dbt_budget;		/* full-size writes the budget allows */
 static uint64_t dbt_bytes_left;		/* NVRAM bytes this boot may use */
+static uint64_t dbt_bytes_used;		/* NVRAM bytes written this boot */
 static uint32_t dbt_last_sub;
 static uint32_t dbt_nv_left_kb;
 static int dbt_errors;
@@ -222,6 +223,7 @@ dbt_build(int msglen)
 	h->uptime_ms = dbt_ms();
 	h->nv_left_kb = dbt_nv_left_kb;
 	h->budget_writes = dbt_budget;
+	h->nv_used_kb = dbt_bytes_used / 1024;
 	strlcpy(h->kernel, version, sizeof(h->kernel));
 	for (i = 0; h->kernel[i] != '\0'; i++)
 		if (h->kernel[i] == '\n')
@@ -278,7 +280,19 @@ dbt_rt_start(void)
 		printf("boottrace: persisting coarse steps "
 		    "(debug.boottrace.from=N zooms in)\n");
 	if (dbt_budget < 3) {
+		size_t size;
+
+		/*
+		 * Leave one minimal record so the loader knows the store is
+		 * full of stale copies and compacts it before the next boot.
+		 */
 		printf("boottrace: not enough NVRAM; tracing kept in RAM\n");
+		dbt_flags |= DBT_FLAG_BUDGET;
+		dbt_seq++;
+		dbt_crumbs = 1;
+		size = dbt_build(0);
+		(void)efi_var_set(dbt_name, &dbt_guid, DBT_ATTRIBUTES, size,
+		    dbt_buf);
 		dbt_stopped = true;
 		return;
 	}
@@ -323,6 +337,7 @@ dbt_write(bool force)
 	}
 	dbt_in_write = false;
 	dbt_bytes_left -= size + DBT_WRITE_OVERHEAD;
+	dbt_bytes_used += size + DBT_WRITE_OVERHEAD;
 	if (error != 0) {
 		dbt_last_error = error;
 		if (++dbt_errors >= 3) {
