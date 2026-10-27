@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Stop the Apple T2 (ANS2, 106b:2005) NVMe controller from raising a fatal
+  status under concurrent writes. The driver now rings the completion queue head
+  doorbell once per completion, before the tracker and its command ID can be
+  reused, and never rewrites the doorbell with an unchanged value. Before the
+  fix, a MacBookPro16,1 faulted within seconds at queue depth 4 or more, on
+  both the 1.1.1 and 1.3.1 kernels. With it, five rounds over all 1,906 cached
+  packages and 4.8 million 4 KiB random writes at queue depth 48 completed
+  without a recovery event.
+
 - Restore the root coding-agent entry point to the existing source-development
   `SKILL.md` and require repository-owned, ignored worktree placement.
 
