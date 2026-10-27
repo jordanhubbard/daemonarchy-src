@@ -18,6 +18,9 @@
 #ifndef _SYS_DAEMONARCHY_BOOTTRACE_H_
 #define	_SYS_DAEMONARCHY_BOOTTRACE_H_
 
+/* The record uses fixed-width types; buildworld's test-includes compiles this alone. */
+#include <sys/types.h>
+
 #define	DBT_VARNAME		"DaemonarchyBootTrace"
 /* {9262df38-e448-4c99-bdd0-e70eada0faa1} */
 #define	DBT_GUID_INIT		{ 0x9262df38, 0xe448, 0x4c99, \
