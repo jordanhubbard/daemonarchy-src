@@ -124,7 +124,9 @@ end
 
 -- Called by loader.lua after loader.conf is read.
 function boottrace.startup()
-	if loader.getenv("boottrace_autocycle") == "YES" then
+	-- The unattended cycle belongs to the hardware trace image only.
+	if loader.getenv("boottrace_autocycle") == "YES" and
+	    loader.getenv("boottrace_stick") == "YES" then
 		local delay = tonumber(loader.getenv("boottrace_autocycle_delay") or "5")
 		print("Hardware trace: running the next queued experiment in " ..
 		    delay .. " s; press any key for the menu.")

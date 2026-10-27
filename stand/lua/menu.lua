@@ -293,8 +293,10 @@ menu.welcome = {
 			entry_type = core.MENU_ENTRY,
 			name = "Hard" .. color.highlight("w") ..
 			    "are trace: save last, run next experiment",
+			-- Only on the hardware trace image (its data volume).
 			visible = function()
-				return require("boottrace").available()
+				return require("boottrace").available() and
+				    loader.getenv("boottrace_stick") == "YES"
 			end,
 			func = function()
 				require("boottrace").cycle()

@@ -466,28 +466,56 @@ bt_read(EFI_FILE_PROTOCOL *root, const char *path, size_t *lenp)
 	return (status);
 }
 
-/* Replace a file's contents; verify by reading back. */
+/*
+ * Replace a file's contents and verify by reading back.  The stick's files
+ * are preallocated (stick.py, build-hwtrace-image.sh): they are rewritten
+ * in place and padded with newlines to their existing size, so the loader
+ * never allocates clusters.  Some firmware FAT drivers keep FAT updates in
+ * a cache that is not written before the kernel starts; on OVMF a kernel
+ * that then wrote DUMPS/ reused clusters the loader had just allocated.
+ * A file that does not exist yet is still created, for older sticks.
+ */
 static EFI_STATUS
 bt_write(EFI_FILE_PROTOCOL *root, const char *path, const char *data,
     size_t len)
 {
+	static char pad[512];
 	EFI_FILE_PROTOCOL *f;
 	EFI_STATUS status;
+	UINT64 fsize = 0;
 	UINTN size;
 	size_t off;
 
 	if (bt_open(root, &f, path, EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE,
-	    0) == EFI_SUCCESS)
-		(void)f->Delete(f);	/* closes the handle */
-	status = bt_open(root, &f, path, EFI_FILE_MODE_READ |
-	    EFI_FILE_MODE_WRITE | EFI_FILE_MODE_CREATE, 0);
-	if (status != EFI_SUCCESS)
-		return (status);
+	    0) == EFI_SUCCESS) {
+		if (f->SetPosition(f, UINT64_MAX) != EFI_SUCCESS ||
+		    f->GetPosition(f, &fsize) != EFI_SUCCESS ||
+		    f->SetPosition(f, 0) != EFI_SUCCESS)
+			fsize = 0;
+		if (fsize == 0)
+			(void)f->Delete(f);	/* closes the handle */
+	}
+	if (fsize == 0) {
+		status = bt_open(root, &f, path, EFI_FILE_MODE_READ |
+		    EFI_FILE_MODE_WRITE | EFI_FILE_MODE_CREATE, 0);
+		if (status != EFI_SUCCESS)
+			return (status);
+	} else if (len > fsize)
+		len = fsize;		/* keep the head of an oversized report */
+	status = EFI_SUCCESS;
 	for (off = 0; off < len; off += size) {
 		size = len - off;
 		status = f->Write(f, &size, (void *)(data + off));
 		if (status != EFI_SUCCESS || size == 0)
 			break;
+	}
+	if (pad[0] != '\n')
+		memset(pad, '\n', sizeof(pad));
+	for (off = len; status == EFI_SUCCESS && off < fsize; off += size) {
+		size = MIN(sizeof(pad), fsize - off);
+		status = f->Write(f, &size, pad);
+		if (size == 0)
+			status = EFI_DEVICE_ERROR;
 	}
 	if (status == EFI_SUCCESS)
 		status = f->Flush(f);
@@ -499,7 +527,7 @@ bt_write(EFI_FILE_PROTOCOL *root, const char *path, const char *data,
 
 		/* bt_write is never handed bt_file itself. */
 		status = bt_read(root, path, &got);
-		if (status == EFI_SUCCESS && (got != len ||
+		if (status == EFI_SUCCESS && (got < len ||
 		    memcmp(bt_file, data, len) != 0))
 			status = EFI_DEVICE_ERROR;
 	}
