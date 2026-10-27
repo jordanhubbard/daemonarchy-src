@@ -26,6 +26,15 @@
 /* EFI_VARIABLE_NON_VOLATILE | BOOTSERVICE_ACCESS | RUNTIME_ACCESS */
 #define	DBT_ATTRIBUTES		0x00000007
 
+/*
+ * Per-step breadcrumb: a separate, tiny variable written before every
+ * persisted step, so a small NVRAM store still holds hundreds of steps.
+ * The full record above is written only at checkpoints, panic, completion
+ * and the budget stop.  Readers show whichever of the two is newer.
+ */
+#define	DBT_STEP_VARNAME	"DBTStep"
+#define	DBT_STEP_TEXT		40
+
 #define	DBT_MAGIC		"DBTRACE1"
 #define	DBT_VERSION		1
 
@@ -39,6 +48,7 @@
 #define	DBT_FLAG_RESUMED	0x0008	/* resumed after earlier budget stop */
 #define	DBT_FLAG_TEST		0x0010	/* a test hang was armed */
 #define	DBT_FLAG_SAVED		0x0020	/* loader saved it to USB */
+#define	DBT_FLAG_THINNED	0x0040	/* budget low: probes no longer persisted */
 
 #define	DBT_KIND_SYSINIT	1
 #define	DBT_KIND_PROBE		2
@@ -70,7 +80,7 @@ struct dbt_header {
 	uint32_t	nv_left_kb;	/* NVRAM left when tracing started */
 	uint32_t	budget_writes;	/* full writes the budget allows */
 	uint32_t	nv_used_kb;	/* NVRAM this boot has written so far */
-	uint32_t	reserved;
+	uint32_t	step_writes;	/* DBTStep breadcrumb writes so far */
 	char		kernel[DBT_KERNEL_SIZE]; /* kernel version line */
 };
 
@@ -84,10 +94,22 @@ struct dbt_crumb {
 	char		text[DBT_TEXT_SIZE]; /* NUL terminated */
 };
 
+struct dbt_step {
+	uint32_t	seq;		/* breadcrumb write number this boot */
+	uint32_t	index;		/* step number in this boot */
+	uint32_t	a;		/* SYSINIT subsystem */
+	uint32_t	b;		/* SYSINIT order */
+	uint32_t	ms;		/* milliseconds since kernel entry */
+	uint16_t	kind;		/* DBT_KIND_* */
+	uint16_t	cpu;
+	char		text[DBT_STEP_TEXT]; /* NUL terminated */
+};
+
 #ifdef _KERNEL
 #ifndef _STANDALONE
 _Static_assert(sizeof(struct dbt_header) == 128, "dbt_header layout");
 _Static_assert(sizeof(struct dbt_crumb) == 96, "dbt_crumb layout");
+_Static_assert(sizeof(struct dbt_step) == 64, "dbt_step layout");
 
 struct sysinit;
 struct _device;

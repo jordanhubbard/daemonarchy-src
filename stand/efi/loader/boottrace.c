@@ -28,6 +28,9 @@ static EFI_GUID bt_guid = DBT_GUID_INIT;
 static uint8_t bt_buf[BT_BUFSIZE];
 static size_t bt_len;
 static char bt_report[BT_REPORT];
+static struct dbt_step bt_stepv;
+static bool bt_step_ok;
+static char bt_nvdiag[256];
 static size_t bt_report_len;
 
 static int bt_startup(unsigned);
@@ -65,6 +68,12 @@ bt_load(void)
 	size_t need;
 	EFI_STATUS status;
 
+	size_t slen = sizeof(bt_stepv);
+
+	bt_step_ok = efi_getenv(&bt_guid, DBT_STEP_VARNAME, &bt_stepv,
+	    &slen) == EFI_SUCCESS && slen >= sizeof(bt_stepv);
+	if (bt_step_ok)
+		bt_stepv.text[DBT_STEP_TEXT - 1] = '\0';
 	bt_len = sizeof(bt_buf);
 	status = efi_getenv(&bt_guid, DBT_VARNAME, bt_buf, &bt_len);
 	if (status == EFI_NOT_FOUND)
@@ -172,12 +181,23 @@ bt_format(bool summary)
 	bt_append("Daemonarchy boot trace (EFI variable %s, write #%u)\n",
 	    DBT_VARNAME, h->seq);
 	bt_append("Status: %s\n", bt_status(h->status));
-	if (h->crumb_count > 0)
+	if (bt_step_ok && (h->crumb_count == 0 || bt_stepv.index >
+	    bt_crumb(h->crumb_count - 1)->index) &&
+	    h->status == DBT_STATUS_RUNNING) {
+		bt_append("Last step: #%u %u.%03us cpu%u %s: %s", bt_stepv.index,
+		    bt_stepv.ms / 1000, bt_stepv.ms % 1000, bt_stepv.cpu,
+		    bt_kind(bt_stepv.kind), bt_stepv.text);
+		if (bt_stepv.kind == DBT_KIND_SYSINIT)
+			bt_append(" [sub 0x%x order 0x%x]", bt_stepv.a,
+			    bt_stepv.b);
+		bt_append("\n      (breadcrumb #%u; the full record below is "
+		    "from step #%u)\n", bt_stepv.seq, h->steps);
+	} else if (h->crumb_count > 0)
 		bt_crumb_line("Last step: ", bt_crumb(h->crumb_count - 1));
 	if ((h->flags & DBT_FLAG_BUDGET) != 0)
 		bt_append("NOTE: the NVRAM write budget ran out at step #%u, "
-		    "before the failure.\n      Rerun with "
-		    "debug.boottrace.from=%u to persist from there.\n",
+		    "before the failure.\n      Narrow with "
+		    "debug.boottrace.from=%u or a later from_sub.\n",
 		    h->steps, h->steps > 8 ? h->steps - 8 : 1);
 	if ((h->flags & DBT_FLAG_WRITE_ERROR) != 0)
 		bt_append("NOTE: firmware rejected later writes; the trace "
@@ -186,14 +206,14 @@ bt_format(bool summary)
 		bt_append("NOTE: a test hang/reset was armed for this boot.\n");
 	if (!summary) {
 		bt_append("Kernel: %s\n", kernel);
-		bt_append("Steps seen: %u, last write at %u.%03us, NVRAM free "
-		    "at start %u KiB, %u KiB written, budget %u full writes, "
-		    "flags 0x%x\n", h->steps, h->uptime_ms / 1000,
-		    h->uptime_ms % 1000, h->nv_left_kb, h->nv_used_kb,
-		    h->budget_writes, h->flags);
+		bt_append("Steps seen: %u, last full write at %u.%03us, NVRAM "
+		    "free at start %u KiB, %u KiB written, %u breadcrumbs "
+		    "(budget ~%u), flags 0x%x\n", h->steps,
+		    h->uptime_ms / 1000, h->uptime_ms % 1000, h->nv_left_kb,
+		    h->nv_used_kb, h->step_writes, h->budget_writes, h->flags);
 		if (h->resume_from == UINT32_MAX)
-			bt_append("Persisted: coarse steps only (zoom in with "
-			    "debug.boottrace.from=N)\n");
+			bt_append("Persisted: coarse before debug.boottrace."
+			    "from_sub, every step after it\n");
 		else
 			bt_append("Persisted: every step from #%u\n",
 			    h->resume_from);
@@ -275,6 +295,8 @@ command_boottrace(int argc, char *argv[])
 		return (bt_cycle());
 	if (strcmp(verb, "clear") == 0) {
 		EFI_STATUS status = efi_delenv(&bt_guid, DBT_VARNAME);
+
+		(void)efi_delenv(&bt_guid, DBT_STEP_VARNAME);
 
 		if (status != EFI_SUCCESS && status != EFI_NOT_FOUND) {
 			snprintf(command_errbuf, sizeof(command_errbuf),
@@ -604,11 +626,23 @@ bt_reclaim(uint64_t free_estimate)
 	size_t size;
 	unsigned i, n;
 
+	EFI_STATUS st = EFI_SUCCESS;
+
 	if (RS->Hdr.Revision < EFI_2_00_SYSTEM_TABLE_REVISION ||
 	    RS->QueryVariableInfo(attr, &maxstore, &before, &maxvar) !=
-	    EFI_SUCCESS || maxvar < 8192)
+	    EFI_SUCCESS) {
+		snprintf(bt_nvdiag, sizeof(bt_nvdiag), "loader nvram: "
+		    "QueryVariableInfo unavailable; no compaction\n");
 		return;
-	size = MIN(16384, maxvar - 1024);
+	}
+	if (maxvar < 2048) {
+		snprintf(bt_nvdiag, sizeof(bt_nvdiag), "loader nvram: store "
+		    "%ju KiB, %ju KiB free (boot time), max variable %ju; too "
+		    "small to compact\n", (uintmax_t)maxstore / 1024,
+		    (uintmax_t)before / 1024, (uintmax_t)maxvar);
+		return;
+	}
+	size = MIN(16384, maxvar - 512);
 	/*
 	 * Boot-time QueryVariableInfo ignores stale copies, so the kernel's
 	 * runtime figure says how full the store really is.  Write just past
@@ -623,17 +657,21 @@ bt_reclaim(uint64_t free_estimate)
 	bt_wide(name, "DaemonarchyBootTraceReclaim");
 	for (i = 0; i < n; i++) {
 		buf[0] = i;	/* identical data may be skipped by firmware */
-		if (RS->SetVariable(name, &bt_guid, attr, size, buf) !=
-		    EFI_SUCCESS)
+		st = RS->SetVariable(name, &bt_guid, attr, size, buf);
+		if (st != EFI_SUCCESS)
 			break;
 	}
 	(void)RS->SetVariable(name, &bt_guid, 0, 0, NULL);
 	free(buf);
-	if (RS->QueryVariableInfo(attr, &maxstore, &after, &maxvar) ==
-	    EFI_SUCCESS)
-		printf("Hardware trace: NVRAM compacted (%u scratch writes); "
-		    "%ju KiB free of %ju KiB\n", i, (uintmax_t)after / 1024,
-		    (uintmax_t)maxstore / 1024);
+	after = 0;
+	(void)RS->QueryVariableInfo(attr, &maxstore, &after, &maxvar);
+	snprintf(bt_nvdiag, sizeof(bt_nvdiag), "loader nvram: store %ju KiB, "
+	    "max variable %ju; boot-time free %ju -> %ju KiB after %u of %u "
+	    "scratch writes of %zu bytes (last status %lu)\n",
+	    (uintmax_t)maxstore / 1024, (uintmax_t)maxvar,
+	    (uintmax_t)before / 1024, (uintmax_t)after / 1024, i, n, size,
+	    DECODE_ERROR(st));
+	printf("Hardware trace: %s", bt_nvdiag);
 }
 
 static void
@@ -684,6 +722,7 @@ bt_cycle(void)
 	    (h->flags & (DBT_FLAG_BUDGET | DBT_FLAG_WRITE_ERROR)) != 0);
 	nv_free = error == 0 && h->nv_left_kb > h->nv_used_kb ?
 	    (uint64_t)(h->nv_left_kb - h->nv_used_kb) * 1024 : 1;
+	bt_nvdiag[0] = '\0';
 	if (error != ENOENT || pending[0] != '\0') {
 		len = 0;
 		bt_out_append(&len, "Daemonarchy hardware trace %04u\n",
@@ -719,6 +758,15 @@ bt_cycle(void)
 		traces++;
 		snprintf(path, sizeof(path), "\\TRACES\\%04u.TXT", traces);
 		status = bt_write(root, path, bt_out, len);
+		if (status == EFI_SUCCESS && reclaim) {
+			/* Only now is it safe to drop the variables and compact. */
+			(void)efi_delenv(&bt_guid, DBT_VARNAME);
+			(void)efi_delenv(&bt_guid, DBT_STEP_VARNAME);
+			bt_reclaim(nv_free);
+			bt_out_append(&len, "\n%s", bt_nvdiag);
+			status = bt_write(root, path, bt_out, len);
+			reclaim = false;
+		}
 		if (status != EFI_SUCCESS) {
 			printf("Hardware trace: writing %s FAILED (status %lu);"
 			    " the trace stays in NVRAM.\n", path,
@@ -732,8 +780,8 @@ bt_cycle(void)
 			printf("\n%s", bt_report);
 		}
 		printf("Hardware trace: saved %s\n", path);
-		if (error != ENOENT)
-			(void)efi_delenv(&bt_guid, DBT_VARNAME);
+		(void)efi_delenv(&bt_guid, DBT_VARNAME);
+		(void)efi_delenv(&bt_guid, DBT_STEP_VARNAME);
 	}
 
 	if (reclaim)

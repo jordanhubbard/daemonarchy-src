@@ -10,14 +10,17 @@
  *  - The step being entered must be on NVRAM before it runs, because a hang
  *    with interrupts disabled never gives a later callout a chance to run.
  *  - UEFI variable stores append a new copy on every SetVariable and most
- *    firmware cannot reclaim the space at runtime, so every boot works from
- *    a byte budget derived from QueryVariableInfo.  By default only coarse
- *    steps are persisted: the first SYSINIT of each subsystem, every device
- *    attach, hinted (fixed-class) device probes, config hooks and events.
- *    debug.boottrace.from=N persists every step from step N on, so a later
- *    experiment can zoom into the region where a coarse trace stopped.  The
- *    message-buffer tail shrinks as the budget drains; two full-size writes
- *    stay reserved for completion, panic or the budget stop.
+ *    firmware cannot reclaim the space at runtime; a laptop store may have
+ *    only tens of KiB free.  Each boot works from a byte budget derived
+ *    from QueryVariableInfo minus a small reserve.  Every persisted step
+ *    is a 64-byte breadcrumb in its own variable (DBTStep); the full
+ *    record with breadcrumbs and the message-buffer tail is written only at
+ *    the first opportunity, at checkpoints, at panic, completion and the
+ *    budget stop.  Two full writes stay reserved for the last two.
+ *  - Before debug.boottrace.from_sub (default SI_SUB_CONFIGURE) only the
+ *    first SYSINIT of each subsystem is persisted; from there every SYSINIT,
+ *    attach, config hook and each device's first probe is.  When the
+ *    budget runs low, per-device probes are dropped first.
  *  - Writing stops at boot completion (just before init is executed).
  */
 
@@ -77,6 +80,13 @@ static uint32_t dbt_budget;		/* full-size writes the budget allows */
 static uint64_t dbt_bytes_left;		/* NVRAM bytes this boot may use */
 static uint64_t dbt_bytes_used;		/* NVRAM bytes written this boot */
 static uint32_t dbt_last_sub;
+static uint64_t dbt_bytes_start;	/* budget when tracing started */
+static uint32_t dbt_step_cost = 192;	/* estimate until measured */
+static uint32_t dbt_step_writes;
+static uint32_t dbt_since_full;
+static bool dbt_thinned;
+static bool dbt_fine_seen;
+static device_t dbt_last_probe_dev;
 static uint32_t dbt_nv_left_kb;
 static int dbt_errors;
 static int dbt_last_error;
@@ -87,10 +97,12 @@ static bool dbt_in_write;
 static uint64_t dbt_t0;
 
 /* Tunables. */
-static int dbt_msgbuf_len = 1536;
-static int dbt_crumbs = 8;
+static int dbt_msgbuf_len = 1024;
+static int dbt_crumbs = 6;
 static int dbt_probes = 1;
-static int dbt_reserve_kb = 64;
+static int dbt_reserve_kb = -1;		/* auto: max variable / 4, 8..16 KiB */
+static u_int dbt_from_sub = SI_SUB_CONFIGURE;
+static int dbt_full_every = 64;
 static int dbt_max_writes;
 static int dbt_from = -1;
 static int dbt_test_reset;
@@ -98,6 +110,8 @@ static char dbt_test_hang[64];
 
 static uint8_t dbt_buf[DBT_BUFSIZE] __aligned(8);
 static uint16_t dbt_name[sizeof(DBT_VARNAME)];
+static uint16_t dbt_step_name[sizeof(DBT_STEP_VARNAME)];
+static struct dbt_step dbt_stepbuf;
 #ifdef EFIRT
 static efi_guid_t dbt_guid = DBT_GUID_INIT;
 #endif
@@ -224,6 +238,7 @@ dbt_build(int msglen)
 	h->nv_left_kb = dbt_nv_left_kb;
 	h->budget_writes = dbt_budget;
 	h->nv_used_kb = dbt_bytes_used / 1024;
+	h->step_writes = dbt_step_writes;
 	strlcpy(h->kernel, version, sizeof(h->kernel));
 	for (i = 0; h->kernel[i] != '\0'; i++)
 		if (h->kernel[i] == '\n')
@@ -239,105 +254,88 @@ dbt_build(int msglen)
 }
 
 #ifdef EFIRT
+static int
+dbt_query(uint64_t *left, uint64_t *maxvar)
+{
+	uint64_t maxstore;
+
+	return (efi_var_query(DBT_ATTRIBUTES, &maxstore, left, maxvar));
+}
+
+static void dbt_write(bool force);
+
 static void
 dbt_rt_start(void)
 {
-	uint64_t maxstore, left, maxvar;
-	uint32_t cost;
+	uint64_t left, maxvar, reserve;
+	size_t i;
 	int error;
 
 	dbt_rt_checked = true;
-	for (size_t i = 0; i < sizeof(dbt_name) / sizeof(dbt_name[0]); i++)
+	for (i = 0; i < nitems(dbt_name); i++)
 		dbt_name[i] = DBT_VARNAME[i];
-
+	for (i = 0; i < nitems(dbt_step_name); i++)
+		dbt_step_name[i] = DBT_STEP_VARNAME[i];
 	if (dbt_from >= 0) {
 		dbt_resume_from = dbt_from;
 		dbt_flags |= DBT_FLAG_RESUMED;
 	}
 
-	cost = dbt_full_cost();
-	error = efi_var_query(DBT_ATTRIBUTES, &maxstore, &left, &maxvar);
-	if (error == 0) {
-		dbt_nv_left_kb = left / 1024;
-		if (left > (uint64_t)dbt_reserve_kb * 1024)
-			dbt_bytes_left = left - (uint64_t)dbt_reserve_kb * 1024;
-		else
-			dbt_bytes_left = 0;
-	} else
-		dbt_bytes_left = 256 * (uint64_t)cost;
-	if (dbt_max_writes > 0 &&
-	    dbt_bytes_left > (uint64_t)dbt_max_writes * cost)
-		dbt_bytes_left = (uint64_t)dbt_max_writes * cost;
-	dbt_budget = dbt_bytes_left / cost;
-	printf("boottrace: recording to EFI variable %s-%s; %u KiB NVRAM "
-	    "free (query %d), budget %ju KiB (%u full writes of %u bytes)\n",
-	    DBT_VARNAME, DBT_GUID_STRING, dbt_nv_left_kb, error,
-	    (uintmax_t)dbt_bytes_left / 1024, dbt_budget, cost);
+	maxvar = 0;
+	error = dbt_query(&left, &maxvar);
+	if (error != 0)
+		left = 64 * 1024;	/* unknown: assume a small store */
+	if (dbt_reserve_kb >= 0)
+		reserve = (uint64_t)dbt_reserve_kb * 1024;
+	else
+		reserve = MIN(MAX(maxvar / 4, 8 * 1024), 16 * 1024);
+	dbt_nv_left_kb = left / 1024;
+	dbt_bytes_left = left > reserve ? left - reserve : 0;
+	if (dbt_max_writes > 0)
+		dbt_bytes_left = MIN(dbt_bytes_left,
+		    (uint64_t)dbt_max_writes * dbt_step_cost);
+	/* A cramped store gets smaller full records. */
+	if (dbt_bytes_left < 6 * dbt_full_cost()) {
+		dbt_msgbuf_len = imin(dbt_msgbuf_len, 512);
+		dbt_crumbs = imin(dbt_crumbs, 4);
+	}
+	dbt_bytes_start = dbt_bytes_left;
+	dbt_budget = dbt_bytes_left / dbt_step_cost;
+	printf("boottrace: EFI variables %s/%s-%s; %u KiB NVRAM free "
+	    "(query %d, max variable %ju), reserve %ju KiB, budget %ju KiB "
+	    "(~%u breadcrumbs)\n", DBT_VARNAME, DBT_STEP_VARNAME,
+	    DBT_GUID_STRING, dbt_nv_left_kb, error, (uintmax_t)maxvar,
+	    (uintmax_t)reserve / 1024, (uintmax_t)dbt_bytes_left / 1024,
+	    dbt_budget);
 	if (dbt_resume_from != UINT32_MAX)
 		printf("boottrace: persisting every step from #%u\n",
 		    dbt_resume_from);
 	else
-		printf("boottrace: persisting coarse steps "
-		    "(debug.boottrace.from=N zooms in)\n");
-	if (dbt_budget < 3) {
-		size_t size;
-
-		/*
-		 * Leave one minimal record so the loader knows the store is
-		 * full of stale copies and compacts it before the next boot.
-		 */
-		printf("boottrace: not enough NVRAM; tracing kept in RAM\n");
-		dbt_flags |= DBT_FLAG_BUDGET;
-		dbt_seq++;
-		dbt_crumbs = 1;
-		size = dbt_build(0);
-		(void)efi_var_set(dbt_name, &dbt_guid, DBT_ATTRIBUTES, size,
-		    dbt_buf);
-		dbt_stopped = true;
-		return;
-	}
+		printf("boottrace: persisting every step from subsystem "
+		    "0x%x (debug.boottrace.from_sub)\n", dbt_from_sub);
 	dbt_rt_ready = true;
+	if (dbt_bytes_left < 2 * dbt_full_cost()) {
+		/* Leave one full record so the loader can say why. */
+		printf("boottrace: not enough NVRAM for tracing\n");
+		dbt_flags |= DBT_FLAG_BUDGET;
+		dbt_bytes_left = dbt_full_cost();
+		dbt_write(true);
+		dbt_stopped = true;
+	}
 }
 
-static void
-dbt_write(bool force)
+static int
+dbt_set(uint16_t *name, size_t size, void *data)
 {
-	size_t size, full;
-	int error, msglen;
+	int error;
 
-	if (!dbt_rt_ready || dbt_stopped || dbt_in_write)
-		return;
-	full = dbt_full_cost();
-	/* Keep two full-size writes for completion, panic or the stop. */
-	if (!force && dbt_bytes_left < 3 * full) {
-		dbt_flags |= DBT_FLAG_BUDGET;
-		force = true;
-		printf("boottrace: NVRAM budget used at step %u; zoom in "
-		    "with debug.boottrace.from\n", dbt_steps);
-	}
-	/* Ordinary writes trade message-buffer tail for longevity. */
-	msglen = force ? dbt_msgbuf_len : imax(256, imin(dbt_msgbuf_len,
-	    (int)((dbt_bytes_left - 2 * full) / 96)));
-	dbt_in_write = true;
-	dbt_seq++;
-	size = dbt_build(msglen);
-	if (size + DBT_WRITE_OVERHEAD > dbt_bytes_left) {
-		dbt_seq--;
-		dbt_in_write = false;
-		dbt_stopped = true;
-		return;
-	}
-	error = efi_var_set(dbt_name, &dbt_guid, DBT_ATTRIBUTES, size,
-	    dbt_buf);
+	error = efi_var_set(name, &dbt_guid, DBT_ATTRIBUTES, size, data);
 	if (error != 0) {
 		/* An old copy with different attributes blocks the update. */
-		(void)efi_var_set(dbt_name, &dbt_guid, 0, 0, NULL);
-		error = efi_var_set(dbt_name, &dbt_guid, DBT_ATTRIBUTES, size,
-		    dbt_buf);
+		(void)efi_var_set(name, &dbt_guid, 0, 0, NULL);
+		error = efi_var_set(name, &dbt_guid, DBT_ATTRIBUTES, size,
+		    data);
 	}
-	dbt_in_write = false;
-	dbt_bytes_left -= size + DBT_WRITE_OVERHEAD;
-	dbt_bytes_used += size + DBT_WRITE_OVERHEAD;
 	if (error != 0) {
 		dbt_last_error = error;
 		if (++dbt_errors >= 3) {
@@ -346,15 +344,97 @@ dbt_write(bool force)
 			printf("boottrace: SetVariable failed (%d); "
 			    "NVRAM tracing stopped\n", error);
 		}
+	}
+	return (error);
+}
+
+/* Full record: breadcrumbs plus the message-buffer tail. */
+static void
+dbt_write(bool force)
+{
+	size_t size, full;
+
+	if (!dbt_rt_ready || dbt_stopped || dbt_in_write)
+		return;
+	full = dbt_full_cost();
+	/* Two full writes stay reserved for completion, panic or the stop. */
+	if (!force && dbt_bytes_left < 3 * full)
+		return;
+	dbt_in_write = true;
+	dbt_seq++;
+	size = dbt_build(dbt_msgbuf_len);
+	if (size + DBT_WRITE_OVERHEAD > dbt_bytes_left) {
+		dbt_seq--;
+		dbt_in_write = false;
+		dbt_stopped = true;
 		return;
 	}
+	(void)dbt_set(dbt_name, size, dbt_buf);
+	dbt_in_write = false;
+	dbt_bytes_left -= size + DBT_WRITE_OVERHEAD;
+	dbt_bytes_used += size + DBT_WRITE_OVERHEAD;
+	dbt_since_full = 0;
 	dbt_persisted = dbt_steps;
 	if ((dbt_flags & DBT_FLAG_BUDGET) != 0)
 		dbt_stopped = true;
 }
+
+/* One 64-byte breadcrumb for the step about to run. */
+static void
+dbt_write_step(struct dbt_crumb *c)
+{
+	uint64_t before, after, maxvar;
+	bool measure;
+
+	if (!dbt_rt_ready || dbt_stopped || dbt_in_write)
+		return;
+	if (dbt_bytes_left < dbt_step_cost + 2 * dbt_full_cost()) {
+		/* Budget gone: file the stop in the full record and quit. */
+		dbt_flags |= DBT_FLAG_BUDGET;
+		printf("boottrace: NVRAM budget used at step %u; narrow with "
+		    "debug.boottrace.from or from_sub\n", dbt_steps);
+		dbt_write(true);
+		return;
+	}
+	if (!dbt_thinned && dbt_bytes_left < dbt_bytes_start * 2 / 5) {
+		dbt_thinned = true;
+		dbt_flags |= DBT_FLAG_THINNED;
+	}
+	memset(&dbt_stepbuf, 0, sizeof(dbt_stepbuf));
+	dbt_stepbuf.seq = ++dbt_step_writes;
+	dbt_stepbuf.index = c->index;
+	dbt_stepbuf.a = c->a;
+	dbt_stepbuf.b = c->b;
+	dbt_stepbuf.ms = c->ms;
+	dbt_stepbuf.kind = c->kind;
+	dbt_stepbuf.cpu = c->cpu;
+	strlcpy(dbt_stepbuf.text, c->text, sizeof(dbt_stepbuf.text));
+	dbt_in_write = true;
+	/* Measure what one breadcrumb really costs on this firmware. */
+	measure = dbt_step_writes == 2 && dbt_query(&before, &maxvar) == 0;
+	(void)dbt_set(dbt_step_name, sizeof(dbt_stepbuf), &dbt_stepbuf);
+	if (measure && dbt_query(&after, &maxvar) == 0 && before > after &&
+	    before - after >= sizeof(dbt_stepbuf) &&
+	    before - after <= 1024)
+		dbt_step_cost = before - after;
+	dbt_in_write = false;
+	dbt_bytes_left -= MIN(dbt_bytes_left, dbt_step_cost);
+	dbt_bytes_used += dbt_step_cost;
+	dbt_since_full++;
+	dbt_persisted = dbt_steps;
+	/* Periodic checkpoint while the budget is comfortable. */
+	if (dbt_full_every > 0 && dbt_since_full >= (u_int)dbt_full_every &&
+	    dbt_bytes_left > dbt_bytes_start / 2)
+		dbt_write(false);
+}
 #else
 static void
 dbt_write(bool force __unused)
+{
+}
+
+static void
+dbt_write_step(struct dbt_crumb *c __unused)
 {
 }
 #endif
@@ -398,7 +478,8 @@ dbt_step(int kind, uint32_t a, uint32_t b, bool fine, bool coarse,
 	if (block)
 		mtx_lock(&dbt_mtx);
 	dbt_steps++;
-	persist = block && (dbt_steps >= dbt_resume_from ? fine : coarse);
+	persist = block && (dbt_steps >= dbt_resume_from ||
+	    dbt_last_sub >= dbt_from_sub ? fine : coarse);
 	c = &dbt_ring[dbt_steps % DBT_RING];
 	memset(c, 0, sizeof(*c));
 	c->index = dbt_steps;
@@ -417,13 +498,20 @@ dbt_step(int kind, uint32_t a, uint32_t b, bool fine, bool coarse,
 	if (test != NULL && dbt_test_hang[0] != '\0' &&
 	    strcmp(test, dbt_test_hang) == 0) {
 		dbt_flags |= DBT_FLAG_TEST;
-		persist = block;
-		if (persist)
-			dbt_write(true);
+		if (block) {
+			dbt_write_step(c);
+			dbt_write(false);
+		}
 	} else if (block && dbt_rt_ready && dbt_seq == 0)
 		dbt_write(true);	/* first opportunity: flush RAM crumbs */
-	else if (persist)
-		dbt_write(false);
+	else if (persist) {
+		/* Checkpoint the messages when the fine-grained region starts. */
+		if (!dbt_fine_seen && dbt_last_sub >= dbt_from_sub) {
+			dbt_fine_seen = true;
+			dbt_write(false);
+		}
+		dbt_write_step(c);
+	}
 	if (block)
 		mtx_unlock(&dbt_mtx);
 	if (test != NULL)
@@ -470,12 +558,15 @@ dbt_start(void)
 	TUNABLE_INT_FETCH("debug.boottrace.reserve_kb", &dbt_reserve_kb);
 	TUNABLE_INT_FETCH("debug.boottrace.max_writes", &dbt_max_writes);
 	TUNABLE_INT_FETCH("debug.boottrace.from", &dbt_from);
+	getenv_uint("debug.boottrace.from_sub", &dbt_from_sub);
+	TUNABLE_INT_FETCH("debug.boottrace.full_every", &dbt_full_every);
 	TUNABLE_INT_FETCH("debug.boottrace.test_reset", &dbt_test_reset);
 	TUNABLE_STR_FETCH("debug.boottrace.test_hang", dbt_test_hang,
 	    sizeof(dbt_test_hang));
 	dbt_msgbuf_len = imax(0, imin(dbt_msgbuf_len, DBT_MAX_MSGBUF));
 	dbt_crumbs = imax(1, imin(dbt_crumbs, DBT_MAX_CRUMBS));
-	dbt_reserve_kb = imax(16, dbt_reserve_kb);
+	if (dbt_reserve_kb >= 0)
+		dbt_reserve_kb = imax(4, dbt_reserve_kb);
 #if defined(__amd64__)
 	dbt_t0 = rdtsc();
 #endif
@@ -527,15 +618,19 @@ dbt_device(int kind, device_t dev, driver_t *drv)
 			loc[0] = '\0';
 	}
 	if (kind == DBT_KIND_PROBE) {
-		fine = dbt_probes >= 2 || (dbt_probes == 1 && fixed);
+		/* Each device's first probe attempt; every hinted one. */
+		fine = dbt_probes >= 2 || (dbt_probes == 1 && (fixed ||
+		    (dev != dbt_last_probe_dev && !dbt_thinned)));
 		coarse = dbt_probes >= 1 && fixed;
+		dbt_last_probe_dev = dev;
 		what = "probe";
 	} else {
 		fine = coarse = true;
 		what = "attach";
 	}
+	/* The breadcrumb keeps the first 39 characters: name, parent, driver. */
 	dbt_step(kind, 0, 0, fine, coarse, device_get_nameunit(dev),
-	    "%s %s on %s drv %s %s", what, device_get_nameunit(dev), pname,
+	    "%s %s@%s %s %s", what, device_get_nameunit(dev), pname,
 	    drv != NULL ? drv->name : "?", loc);
 }
 
@@ -546,8 +641,7 @@ dbt_hook(void *func)
 	const char *name;
 
 	name = dbt_symbol(func, buf, sizeof(buf));
-	dbt_step(DBT_KIND_HOOK, 0, 0, true, true, name, "config_intrhook %s",
-	    name);
+	dbt_step(DBT_KIND_HOOK, 0, 0, true, true, name, "hook %s", name);
 }
 
 void
@@ -585,8 +679,9 @@ dbt_complete(void)
 	dbt_stopped = true;
 	dbt_active = 0;
 	mtx_unlock(&dbt_mtx);
-	printf("boottrace: boot complete; %u steps, %u NVRAM writes\n",
-	    dbt_steps, dbt_seq);
+	printf("boottrace: boot complete; %u steps, %u full records, %u "
+	    "breadcrumbs of ~%u bytes\n", dbt_steps, dbt_seq,
+	    dbt_step_writes, dbt_step_cost);
 }
 
 void
