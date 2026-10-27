@@ -74,7 +74,7 @@
 /* Firmware variable header, UTF-16 name and alignment, conservatively. */
 #define	DBT_WRITE_OVERHEAD	128
 #define	DBT_REQUERY		32	/* breadcrumbs between budget re-reads */
-#define	DBT_STRIDE_MAX		6	/* widest stride: every 64th step */
+#define	DBT_STRIDE_MAX		10	/* widest stride: every 1024th step */
 
 int dbt_active;
 
@@ -439,17 +439,25 @@ dbt_requery(void)
 	}
 }
 
-/* Breadcrumb stride for the remaining budget: 1, 2, 4, ... (log2). */
+/*
+ * Breadcrumb stride for the remaining budget: 1, 2, 4, ... (log2).  Both
+ * figures are measured above the floor kept for the last breadcrumb and
+ * the two reserved full records: below a quarter of the spendable budget
+ * the stride doubles each time what is left halves, so each level covers
+ * about as many steps as the last.
+ */
 static u_int
 dbt_stride(void)
 {
-	uint64_t q;
+	uint64_t floor, avail, q;
 	u_int shift;
 
 	if (!dbt_stride_on)
 		return (0);
-	q = dbt_bytes_start / 4;
-	for (shift = 0; shift < DBT_STRIDE_MAX && dbt_bytes_left < q; shift++)
+	floor = dbt_step_cost + 2 * dbt_full_cost();
+	avail = dbt_bytes_left > floor ? dbt_bytes_left - floor : 0;
+	q = (dbt_bytes_start > floor ? dbt_bytes_start - floor : 0) / 4;
+	for (shift = 0; shift < DBT_STRIDE_MAX && avail < q; shift++)
 		q /= 2;
 	return (shift);
 }
