@@ -40,6 +40,12 @@ require("netdebug")
 
 config.load()
 
+-- Show a failed traced boot, or run the unattended trace loop.
+local boottrace = require("boottrace")
+if boottrace.available() and boottrace.startup() == "prompt" then
+	return
+end
+
 -- The explicitly selected wired-debug profile waits at the ordinary prompt.
 -- Failure leaves the normal local boot path available.
 if core.isUEFIBoot() and loader.getenv("netdebug_enable") == "YES" then

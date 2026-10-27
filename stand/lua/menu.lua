@@ -242,6 +242,8 @@ menu.welcome = {
 		return {
 			boot_entry_1,
 			boot_entry_2,
+			menu_entries.boottrace,
+			menu_entries.hwtrace,
 			menu_entries.prompt,
 			menu_entries.netdebug,
 			menu_entries.reboot,
@@ -273,6 +275,36 @@ menu.welcome = {
 		}
 	end,
 	all_entries = {
+		boottrace = {
+			entry_type = core.MENU_ENTRY,
+			name = function()
+				return "Boot " .. color.highlight("T") ..
+				    "race: " .. require("boottrace").label()
+			end,
+			visible = function()
+				return require("boottrace").available()
+			end,
+			func = function()
+				require("boottrace").boot()
+			end,
+			alias = {"t", "T"},
+		},
+		hwtrace = {
+			entry_type = core.MENU_ENTRY,
+			name = "Hard" .. color.highlight("w") ..
+			    "are trace: save last, run next experiment",
+			-- Only on the hardware trace image (its data volume).
+			visible = function()
+				return require("boottrace").available() and
+				    loader.getenv("boottrace_stick") == "YES"
+			end,
+			func = function()
+				require("boottrace").cycle()
+				printc("Press any key to return to the menu...")
+				io.getchar()
+			end,
+			alias = {"w", "W"},
+		},
 		netdebug = {
 			entry_type = core.MENU_RETURN,
 			name = color.highlight("N") .. "etwork debugging",

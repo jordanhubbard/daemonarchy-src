@@ -835,6 +835,32 @@ var_set(efi_char *name, efi_guid_t *vendor, uint32_t attrib,
 	return (efi_call(&ec));
 }
 
+static int
+var_query(uint32_t attrib, uint64_t *maxstore, uint64_t *remaining,
+    uint64_t *maxvar)
+{
+	struct efirt_callinfo ec;
+	struct efi_rt *rtdm;
+
+	if (efi_runtime == NULL)
+		return (ENXIO);
+	rtdm = efi_phys_to_kva((uintptr_t)efi_runtime);
+	/* QueryVariableInfo first appeared in UEFI 2.0. */
+	if (rtdm == NULL || rtdm->rt_hdr.th_rev < (2 << 16) ||
+	    rtdm->rt_hdr.th_hdrsz < offsetof(struct efi_rt, rt_qvarinfo) +
+	    sizeof(rtdm->rt_qvarinfo))
+		return (ENOTSUP);
+	bzero(&ec, sizeof(ec));
+	ec.ec_argcnt = 4;
+	ec.ec_name = "rt_qvarinfo";
+	ec.ec_arg1 = (uintptr_t)attrib;
+	ec.ec_arg2 = (uintptr_t)maxstore;
+	ec.ec_arg3 = (uintptr_t)remaining;
+	ec.ec_arg4 = (uintptr_t)maxvar;
+	ec.ec_fptr = EFI_RT_METHOD_PA(rt_qvarinfo);
+	return (efi_call(&ec));
+}
+
 const static struct efi_ops efi_ops = {
 	.rt_ok = rt_ok,
 	.get_table = get_table,
@@ -848,6 +874,7 @@ const static struct efi_ops efi_ops = {
 	.var_get = var_get,
 	.var_nextname = var_nextname,
 	.var_set = var_set,
+	.var_query = var_query,
 };
 const struct efi_ops *active_efi_ops = &efi_ops;
 
