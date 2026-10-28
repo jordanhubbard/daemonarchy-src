@@ -108,7 +108,9 @@ static bool dbt_rt_ready;		/* EFI runtime services usable */
 static bool dbt_rt_checked;
 static bool dbt_stopped;		/* NVRAM writing finished or failed */
 static bool dbt_in_write;
-static uint64_t dbt_t0;
+#if defined(__amd64__)
+static uint64_t dbt_t0;			/* TSC at enable; other archs use sbinuptime */
+#endif
 
 /* Tunables. */
 static int dbt_msgbuf_len = 1024;
@@ -559,7 +561,7 @@ dbt_test_trap(const char *what)
 	    dbt_test_reset ? "triple fault" : "hang with interrupts disabled",
 	    what);
 	DELAY(100000);
-	disable_intr();
+	(void)intr_disable();
 #if defined(__amd64__)
 	if (dbt_test_reset) {
 		struct region_descriptor rd = { 0, 0 };
