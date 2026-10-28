@@ -13,10 +13,18 @@
  *    firmware cannot reclaim the space at runtime; a laptop store may have
  *    only tens of KiB free.  Each boot works from a byte budget derived
  *    from QueryVariableInfo minus a small reserve.  Every persisted step
- *    is a 64-byte breadcrumb in its own variable (DBTStep); the full
- *    record with breadcrumbs and the message-buffer tail is written only at
- *    the first opportunity, at checkpoints, at panic, completion and the
- *    budget stop.  Two full writes stay reserved for the last two.
+ *    is a 64-byte breadcrumb in a ring of small variables (DBTStep00..,
+ *    debug.boottrace.ring), overwritten in place, so the newest steps
+ *    before a hang are on NVRAM and the live footprint stays a few KiB.
+ *    The full record with breadcrumbs and the message-buffer tail is
+ *    written only at the first opportunity, at checkpoints, at panic,
+ *    completion and the budget stop.  Two full writes stay reserved for
+ *    the last two.
+ *  - The budget is re-read from QueryVariableInfo every DBT_REQUERY
+ *    breadcrumbs; firmware that reclaims at runtime refills it.  When it
+ *    runs low, breadcrumbs are persisted with a growing stride (every 2nd,
+ *    4th, ... step) instead of stopping, so the last breadcrumb stays close
+ *    to a hang; debug.boottrace.from then zooms in.
  *  - Before debug.boottrace.from_sub (default SI_SUB_CONFIGURE) only the
  *    first SYSINIT of each subsystem is persisted; from there every SYSINIT,
  *    attach, config hook and each device's first probe is.  When the
@@ -65,6 +73,8 @@
     DBT_MAX_CRUMBS * sizeof(struct dbt_crumb) + DBT_MAX_MSGBUF)
 /* Firmware variable header, UTF-16 name and alignment, conservatively. */
 #define	DBT_WRITE_OVERHEAD	128
+#define	DBT_REQUERY		32	/* breadcrumbs between budget re-reads */
+#define	DBT_STRIDE_MAX		10	/* widest stride: every 1024th step */
 
 int dbt_active;
 
@@ -88,6 +98,10 @@ static bool dbt_thinned;
 static bool dbt_fine_seen;
 static device_t dbt_last_probe_dev;
 static uint32_t dbt_nv_left_kb;
+static uint64_t dbt_reserve;		/* NVRAM bytes never used */
+static bool dbt_query_tracks;		/* QueryVariableInfo follows writes */
+static u_int dbt_stride_shift;		/* current breadcrumb stride (log2) */
+static u_int dbt_stride_count;
 static int dbt_errors;
 static int dbt_last_error;
 static bool dbt_rt_ready;		/* EFI runtime services usable */
@@ -107,10 +121,13 @@ static int dbt_max_writes;
 static int dbt_from = -1;
 static int dbt_test_reset;
 static char dbt_test_hang[64];
+static int dbt_ring_k = DBT_RING_DEFAULT;
+static int dbt_stride_on = 1;
 
 static uint8_t dbt_buf[DBT_BUFSIZE] __aligned(8);
 static uint16_t dbt_name[sizeof(DBT_VARNAME)];
 static uint16_t dbt_step_name[sizeof(DBT_STEP_VARNAME)];
+static uint16_t dbt_ring_name[DBT_RING_MAX][DBT_RING_NAMELEN];
 static struct dbt_step dbt_stepbuf;
 #ifdef EFIRT
 static efi_guid_t dbt_guid = DBT_GUID_INIT;
@@ -276,6 +293,20 @@ dbt_rt_start(void)
 		dbt_name[i] = DBT_VARNAME[i];
 	for (i = 0; i < nitems(dbt_step_name); i++)
 		dbt_step_name[i] = DBT_STEP_VARNAME[i];
+	/*
+	 * Breadcrumbs left by an earlier boot (or by an older kernel's single
+	 * DBTStep) would be sorted in with this boot's; delete every slot.
+	 */
+	(void)efi_var_set(dbt_step_name, &dbt_guid, 0, 0, NULL);
+	for (i = 0; i < DBT_RING_MAX; i++) {
+		size_t n = sizeof(DBT_STEP_VARNAME) - 1;
+
+		memcpy(dbt_ring_name[i], dbt_step_name, n * sizeof(uint16_t));
+		dbt_ring_name[i][n] = '0' + i / 10;
+		dbt_ring_name[i][n + 1] = '0' + i % 10;
+		dbt_ring_name[i][n + 2] = 0;
+		(void)efi_var_set(dbt_ring_name[i], &dbt_guid, 0, 0, NULL);
+	}
 	if (dbt_from >= 0) {
 		dbt_resume_from = dbt_from;
 		dbt_flags |= DBT_FLAG_RESUMED;
@@ -290,6 +321,7 @@ dbt_rt_start(void)
 	else
 		reserve = MIN(MAX(maxvar / 4, 8 * 1024), 16 * 1024);
 	dbt_nv_left_kb = left / 1024;
+	dbt_reserve = reserve;
 	dbt_bytes_left = left > reserve ? left - reserve : 0;
 	if (dbt_max_writes > 0)
 		dbt_bytes_left = MIN(dbt_bytes_left,
@@ -301,12 +333,12 @@ dbt_rt_start(void)
 	}
 	dbt_bytes_start = dbt_bytes_left;
 	dbt_budget = dbt_bytes_left / dbt_step_cost;
-	printf("boottrace: EFI variables %s/%s-%s; %u KiB NVRAM free "
-	    "(query %d, max variable %ju), reserve %ju KiB, budget %ju KiB "
-	    "(~%u breadcrumbs)\n", DBT_VARNAME, DBT_STEP_VARNAME,
-	    DBT_GUID_STRING, dbt_nv_left_kb, error, (uintmax_t)maxvar,
-	    (uintmax_t)reserve / 1024, (uintmax_t)dbt_bytes_left / 1024,
-	    dbt_budget);
+	printf("boottrace: EFI variables %s/%s00..%02d-%s; %u KiB NVRAM "
+	    "free (query %d, max variable %ju), reserve %ju KiB, budget %ju "
+	    "KiB (~%u breadcrumbs, ring of %d)\n", DBT_VARNAME,
+	    DBT_STEP_VARNAME, dbt_ring_k - 1, DBT_GUID_STRING, dbt_nv_left_kb,
+	    error, (uintmax_t)maxvar, (uintmax_t)reserve / 1024,
+	    (uintmax_t)dbt_bytes_left / 1024, dbt_budget, dbt_ring_k);
 	if (dbt_resume_from != UINT32_MAX)
 		printf("boottrace: persisting every step from #%u\n",
 		    dbt_resume_from);
@@ -379,15 +411,69 @@ dbt_write(bool force)
 		dbt_stopped = true;
 }
 
+/*
+ * Re-read the free space.  Adopt a smaller figure always; a larger one
+ * (firmware reclaimed at runtime, or breadcrumbs cost less than measured)
+ * only when QueryVariableInfo was seen to follow writes, so firmware that
+ * reports a constant can never lead the trace into the reserve.
+ */
+static void
+dbt_requery(void)
+{
+	uint64_t left, maxvar, avail;
+
+	if (dbt_max_writes > 0 || dbt_query(&left, &maxvar) != 0)
+		return;
+	avail = left > dbt_reserve ? left - dbt_reserve : 0;
+	if (avail < dbt_bytes_left)
+		dbt_bytes_left = avail;
+	else if (dbt_query_tracks && avail > dbt_bytes_left) {
+		if (avail > dbt_bytes_left + 4 * dbt_full_cost() &&
+		    (dbt_flags & DBT_FLAG_REFRESHED) == 0) {
+			dbt_flags |= DBT_FLAG_REFRESHED;
+			printf("boottrace: firmware freed NVRAM at runtime; "
+			    "budget refreshed to %ju KiB\n",
+			    (uintmax_t)avail / 1024);
+		}
+		dbt_bytes_left = avail;
+	}
+}
+
+/*
+ * Breadcrumb stride for the remaining budget: 1, 2, 4, ... (log2).  Both
+ * figures are measured above the floor kept for the last breadcrumb and
+ * the two reserved full records: below a quarter of the spendable budget
+ * the stride doubles each time what is left halves, so each level covers
+ * about as many steps as the last.
+ */
+static u_int
+dbt_stride(void)
+{
+	uint64_t floor, avail, q;
+	u_int shift;
+
+	if (!dbt_stride_on)
+		return (0);
+	floor = dbt_step_cost + 2 * dbt_full_cost();
+	avail = dbt_bytes_left > floor ? dbt_bytes_left - floor : 0;
+	q = (dbt_bytes_start > floor ? dbt_bytes_start - floor : 0) / 4;
+	for (shift = 0; shift < DBT_STRIDE_MAX && avail < q; shift++)
+		q /= 2;
+	return (shift);
+}
+
 /* One 64-byte breadcrumb for the step about to run. */
 static void
-dbt_write_step(struct dbt_crumb *c)
+dbt_write_step(struct dbt_crumb *c, bool must)
 {
 	uint64_t before, after, maxvar;
+	u_int shift, slot;
 	bool measure;
 
 	if (!dbt_rt_ready || dbt_stopped || dbt_in_write)
 		return;
+	if (dbt_bytes_left < dbt_step_cost + 2 * dbt_full_cost())
+		dbt_requery();
 	if (dbt_bytes_left < dbt_step_cost + 2 * dbt_full_cost()) {
 		/* Budget gone: file the stop in the full record and quit. */
 		dbt_flags |= DBT_FLAG_BUDGET;
@@ -400,8 +486,27 @@ dbt_write_step(struct dbt_crumb *c)
 		dbt_thinned = true;
 		dbt_flags |= DBT_FLAG_THINNED;
 	}
+	shift = dbt_stride();
+	if (shift != dbt_stride_shift) {
+		dbt_stride_shift = shift;
+		dbt_stride_count = 0;
+		if (shift > 0) {
+			dbt_flags |= DBT_FLAG_STRIDED;
+			if (shift > DBT_FLAG_STRIDE_SHIFT(dbt_flags))
+				dbt_flags = (dbt_flags & ~0xff0000u) |
+				    (shift << 16);
+			printf("boottrace: NVRAM budget low at step %u; "
+			    "persisting every %u%s step\n", dbt_steps, 1u << shift,
+			    shift == 1 ? "nd" : "th");
+		}
+	}
+	if (!must && shift > 0 && c->kind != DBT_KIND_EVENT &&
+	    ++dbt_stride_count < (1u << shift))
+		return;
+	dbt_stride_count = 0;
 	memset(&dbt_stepbuf, 0, sizeof(dbt_stepbuf));
 	dbt_stepbuf.seq = ++dbt_step_writes;
+	slot = (dbt_stepbuf.seq - 1) % dbt_ring_k;
 	dbt_stepbuf.index = c->index;
 	dbt_stepbuf.a = c->a;
 	dbt_stepbuf.b = c->b;
@@ -412,16 +517,20 @@ dbt_write_step(struct dbt_crumb *c)
 	dbt_in_write = true;
 	/* Measure what one breadcrumb really costs on this firmware. */
 	measure = dbt_step_writes == 2 && dbt_query(&before, &maxvar) == 0;
-	(void)dbt_set(dbt_step_name, sizeof(dbt_stepbuf), &dbt_stepbuf);
+	(void)dbt_set(dbt_ring_name[slot], sizeof(dbt_stepbuf), &dbt_stepbuf);
 	if (measure && dbt_query(&after, &maxvar) == 0 && before > after &&
 	    before - after >= sizeof(dbt_stepbuf) &&
-	    before - after <= 1024)
+	    before - after <= 1024) {
 		dbt_step_cost = before - after;
+		dbt_query_tracks = true;
+	}
 	dbt_in_write = false;
 	dbt_bytes_left -= MIN(dbt_bytes_left, dbt_step_cost);
 	dbt_bytes_used += dbt_step_cost;
 	dbt_since_full++;
 	dbt_persisted = dbt_steps;
+	if (dbt_step_writes % DBT_REQUERY == 0)
+		dbt_requery();
 	/* Periodic checkpoint while the budget is comfortable. */
 	if (dbt_full_every > 0 && dbt_since_full >= (u_int)dbt_full_every &&
 	    dbt_bytes_left > dbt_bytes_start / 2)
@@ -434,7 +543,7 @@ dbt_write(bool force __unused)
 }
 
 static void
-dbt_write_step(struct dbt_crumb *c __unused)
+dbt_write_step(struct dbt_crumb *c __unused, bool must __unused)
 {
 }
 #endif
@@ -499,7 +608,7 @@ dbt_step(int kind, uint32_t a, uint32_t b, bool fine, bool coarse,
 	    strcmp(test, dbt_test_hang) == 0) {
 		dbt_flags |= DBT_FLAG_TEST;
 		if (block) {
-			dbt_write_step(c);
+			dbt_write_step(c, true);
 			dbt_write(false);
 		}
 	} else if (block && dbt_rt_ready && dbt_seq == 0)
@@ -510,7 +619,7 @@ dbt_step(int kind, uint32_t a, uint32_t b, bool fine, bool coarse,
 			dbt_fine_seen = true;
 			dbt_write(false);
 		}
-		dbt_write_step(c);
+		dbt_write_step(c, false);
 	}
 	if (block)
 		mtx_unlock(&dbt_mtx);
@@ -563,6 +672,9 @@ dbt_start(void)
 	TUNABLE_INT_FETCH("debug.boottrace.test_reset", &dbt_test_reset);
 	TUNABLE_STR_FETCH("debug.boottrace.test_hang", dbt_test_hang,
 	    sizeof(dbt_test_hang));
+	TUNABLE_INT_FETCH("debug.boottrace.ring", &dbt_ring_k);
+	TUNABLE_INT_FETCH("debug.boottrace.stride", &dbt_stride_on);
+	dbt_ring_k = imax(1, imin(dbt_ring_k, DBT_RING_MAX));
 	dbt_msgbuf_len = imax(0, imin(dbt_msgbuf_len, DBT_MAX_MSGBUF));
 	dbt_crumbs = imax(1, imin(dbt_crumbs, DBT_MAX_CRUMBS));
 	if (dbt_reserve_kb >= 0)
@@ -680,8 +792,8 @@ dbt_complete(void)
 	dbt_active = 0;
 	mtx_unlock(&dbt_mtx);
 	printf("boottrace: boot complete; %u steps, %u full records, %u "
-	    "breadcrumbs of ~%u bytes\n", dbt_steps, dbt_seq,
-	    dbt_step_writes, dbt_step_cost);
+	    "breadcrumbs of ~%u bytes (ring of %d)\n", dbt_steps, dbt_seq,
+	    dbt_step_writes, dbt_step_cost, dbt_ring_k);
 }
 
 void
