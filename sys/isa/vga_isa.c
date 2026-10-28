@@ -150,11 +150,29 @@ isavga_skip(void)
 	uint16_t flags;
 	int ignore;
 #endif
+#ifdef __amd64__
+	int probe;
+#endif
 
 	if (resource_disabled(VGA_DRIVER_NAME, 0)) {
 		dbt_event("isavga: hint.vga.0.disabled, not probing");
 		return (true);
 	}
+#ifdef __amd64__
+	/*
+	 * A UEFI boot draws its console on the EFI framebuffer and has no use
+	 * for legacy VGA, whose probe touches 0x3c0-0x3df and 0xa0000 before
+	 * any hint is consulted.  On the MSI Raider (Core Ultra 9 285HX) that
+	 * probe hangs the machine, and its FADT does not set ACPI_FADT_NO_VGA.
+	 * hw.vga.efi_probe=1 restores the probe, e.g. for kern.vty=sc.
+	 */
+	probe = 0;
+	TUNABLE_INT_FETCH("hw.vga.efi_probe", &probe);
+	if (efi_boot && !probe) {
+		dbt_event("isavga: UEFI boot, not probing legacy VGA");
+		return (true);
+	}
+#endif
 #if defined(__amd64__) || defined(__i386__)
 	if (!acpi_get_fadt_bootflags(&flags))
 		return (false);
