@@ -72,9 +72,10 @@ function netdebug.setup()
 		{"Controller's IPv4 address", "netdebug.peer", "", ipv4},
 	}
 	if not plain then
-		table.insert(fields, {"Shared key file", "netdebug.keyfile", "/boot/debug.key", function(v)
+		-- The loader's Lua has no table library (interp_lua.c).
+		fields[#fields + 1] = {"Shared key file", "netdebug.keyfile", "/boot/debug.key", function(v)
 			return v:sub(1, 1) == "/" and #v <= 255
-		end})
+		end}
 	end
 	local values = {}
 	for i, field in ipairs(fields) do
@@ -87,7 +88,13 @@ function netdebug.setup()
 		end
 	end
 	-- Pass parsed arguments directly: paths must never become loader commands.
-	local result = loader.command("netdebug", plain and "start-plain" or "start", table.unpack(values))
+	-- No table.unpack in the loader: plain mode has three values, keyed four.
+	local result
+	if plain then
+		result = loader.command("netdebug", "start-plain", values[1], values[2], values[3])
+	else
+		result = loader.command("netdebug", "start", values[1], values[2], values[3], values[4])
+	end
 	if result ~= 0 then
 		print("Network debugging could not start: " ..
 		    (loader.command_error() or "loader refused activation"))

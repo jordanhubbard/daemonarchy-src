@@ -112,6 +112,16 @@ end
 
 local CSI = "\027["
 
+-- The loader's Lua has no table or math library (stand/liblua leaves out
+-- ltablib.c and lmathlib.c), so lists are joined by hand.
+local function join(list)
+	local text = ""
+	for _, part in ipairs(list) do
+		text = text .. part
+	end
+	return text
+end
+
 local function at(x, y)
 	return CSI .. y .. ";" .. x .. "H"
 end
@@ -175,9 +185,9 @@ function splash.wordmark_frame(reveal, shine)
 			end
 			parts[#parts + 1] = ch
 		end
-		out[#out + 1] = table.concat(parts)
+		out[#out + 1] = join(parts)
 	end
-	return table.concat(out) .. reset()
+	return join(out) .. reset()
 end
 
 function splash.mascot_frame(shape)
@@ -195,7 +205,7 @@ function splash.mascot_frame(shape)
 			out[#out + 1] = fg(MAGENTA, false) .. line
 		end
 	end
-	return table.concat(out) .. reset()
+	return join(out) .. reset()
 end
 
 function splash.tagline_frame(count)
@@ -210,7 +220,9 @@ function splash.frames(animate)
 	local frames = {}
 	local width = 0
 	for _, line in ipairs(splash.wordmark) do
-		width = math.max(width, #line)
+		if #line > width then
+			width = #line
+		end
 	end
 	if animate then
 		-- 1. Sweep: the wordmark appears left to right behind a spark.
@@ -242,7 +254,8 @@ end
 -- Draw the splash. Returns the total delay spent, in microseconds.
 function splash.draw(mode)
 	local frames = splash.frames(mode == "yes")
-	local final = table.remove(frames)
+	local final = frames[#frames]
+	frames[#frames] = nil
 	local spent = 0
 	local key = false
 	printc(CSI .. "H" .. CSI .. "J" .. CSI .. "?25l")

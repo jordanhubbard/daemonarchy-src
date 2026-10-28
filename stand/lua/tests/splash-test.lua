@@ -32,8 +32,12 @@ local function scenario(env, opts)
 	local enabled = (env.loader_color or "yes"):lower() ~= "no"
 	package.loaded.color = { disabled = not enabled,
 	    isEnabled = function() return enabled end }
+	-- Like the loader's Lua: no table or math library while the splash runs.
+	local saved_table, saved_math = table, math
+	table, math = nil, nil
 	local splash = require("splash")
 	local spent, err = splash.run()
+	table, math = saved_table, saved_math
 	return table.concat(out), delayed, spent, err, keys_read
 end
 
