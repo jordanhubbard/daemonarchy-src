@@ -49,6 +49,9 @@
 #include <vm/pmap.h>
 
 #include <machine/md_var.h>
+#if defined(__amd64__) || defined(__i386__)
+#include <contrib/dev/acpica/include/acpi.h>
+#endif
 #ifdef __i386__
 #include <machine/pc/bios.h>
 #endif
@@ -58,6 +61,8 @@
 
 #include <isa/isareg.h>
 #include <isa/isavar.h>
+
+#include <sys/daemonarchy_boottrace.h>
 
 #define VGA_ID		0x0009d041	/* PNP0900 */
 
@@ -129,9 +134,44 @@ vga_resume(device_t dev)
 	}
 }
 
+/*
+ * Whether to leave the legacy VGA ports and memory alone.  The probe below
+ * touches 0x3c0-0x3df and 0xa0000 directly, and some machines hang or reset
+ * on that access (an MSI Raider 18 HX resets ~9 s after "probe vga0").  A
+ * disabled hint is only checked at attach, after the probe has already run,
+ * so honour it here; also honour the FADT "VGA Not Present" boot flag, which
+ * hw.vga.acpi_ignore_no_vga=1 overrides for firmware that sets it wrongly.
+ * UEFI consoles use efifb and do not need this device.
+ */
+static bool
+isavga_skip(void)
+{
+#if defined(__amd64__) || defined(__i386__)
+	uint16_t flags;
+	int ignore;
+#endif
+
+	if (resource_disabled(VGA_DRIVER_NAME, 0)) {
+		dbt_event("isavga: hint.vga.0.disabled, not probing");
+		return (true);
+	}
+#if defined(__amd64__) || defined(__i386__)
+	if (!acpi_get_fadt_bootflags(&flags))
+		return (false);
+	dbt_event("isavga: FADT boot flags 0x%04x", flags);
+	ignore = 0;
+	TUNABLE_INT_FETCH("hw.vga.acpi_ignore_no_vga", &ignore);
+	if (!ignore && (flags & ACPI_FADT_NO_VGA) != 0)
+		return (true);
+#endif
+	return (false);
+}
+
 static void
 isavga_identify(driver_t *driver, device_t parent)
 {
+	if (isavga_skip())
+		return;
 	BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, VGA_DRIVER_NAME, 0);
 }
 
