@@ -293,6 +293,13 @@ vmd_attach(device_t dev)
 		case 1:
 			sc->vmd_bus_start = 128;
 			break;
+		case 3:
+			/*
+			 * Newer client parts report 3 here, for example the
+			 * Arrow Lake-HX VMD (8086:ad0b) on an MSI Raider 18 HX
+			 * with VMD_CONFIG 0x2f01.  Linux's vmd driver treats
+			 * it like 2.
+			 */
 		case 2:
 			sc->vmd_bus_start = 224;
 			break;
