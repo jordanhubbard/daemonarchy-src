@@ -35,6 +35,7 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/clock.h>
+#include <sys/daemonarchy_boottrace.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/kdb.h>
@@ -51,6 +52,9 @@
 #include <isa/isavar.h>
 #endif
 #include <machine/intr_machdep.h>
+#ifdef __amd64__
+#include <machine/md_var.h>
+#endif
 #include "clock_if.h"
 #ifdef DEV_ACPI
 #include <contrib/dev/acpica/include/acpi.h>
@@ -75,6 +79,20 @@ MTX_SYSINIT(atrtc_lock_init, &atrtc_lock, "atrtc", MTX_SPIN);
 /* Force RTC enabled/disabled. */
 static int atrtc_enabled = -1;
 TUNABLE_INT("hw.atrtc.enabled", &atrtc_enabled);
+
+/*
+ * On an amd64 UEFI boot, an RTC whose I/O ports cannot be allocated is left
+ * alone: the attach fails and efirtc(4) keeps the time.  The MSI Raider 18
+ * HX (Core Ultra 9 285HX) claims port 0x70 alone as an ACPI system
+ * resource, so the 0x70-0x71 allocation fails, and a stock boot hangs in
+ * this attach.  hw.atrtc.force_on_conflict=1 restores the old behaviour of
+ * programming the RTC without its ports.  Non-UEFI boots are unchanged.
+ */
+static int atrtc_force_on_conflict = 0;
+TUNABLE_INT("hw.atrtc.force_on_conflict", &atrtc_force_on_conflict);
+
+/* Set when an attach declined the RTC: rtcin() and writertc() stay off it. */
+static bool atrtc_hw_off = false;
 
 struct mtx atrtc_time_lock;
 MTX_SYSINIT(atrtc_time_lock_init, &atrtc_time_lock, "atrtc_time", MTX_DEF);
@@ -127,6 +145,8 @@ rtcin(int reg)
 {
 	u_char val;
 
+	if (atrtc_hw_off)
+		return (0xff);
 	mtx_lock_spin(&atrtc_lock);
 	val = rtcin_locked(reg);
 	mtx_unlock_spin(&atrtc_lock);
@@ -137,8 +157,33 @@ void
 writertc(int reg, u_char val)
 {
 
+	if (atrtc_hw_off)
+		return;
 	mtx_lock_spin(&atrtc_lock);
 	rtcout_locked(reg, val);
+	mtx_unlock_spin(&atrtc_lock);
+}
+
+/*
+ * Register write for attach: a boot-trace event before each port access,
+ * outside the spin lock so the event reaches NVRAM before the access runs.
+ * Breadcrumbs keep 39 characters.
+ */
+static void
+atrtc_traced_out(int reg, u_char val)
+{
+
+	dbt_event("atrtc: sel 0x%02x: in 0x84,out 0x70", reg);
+	mtx_lock_spin(&atrtc_lock);
+	inb(0x84);
+	outb(IO_RTC, reg);
+	rtc_reg = reg;
+	inb(0x84);
+	mtx_unlock_spin(&atrtc_lock);
+	dbt_event("atrtc: wr 0x%02x=0x%02x: out 0x71,in 0x84", reg, val);
+	mtx_lock_spin(&atrtc_lock);
+	outb(IO_RTC + 1, val);
+	inb(0x84);
 	mtx_unlock_spin(&atrtc_lock);
 }
 
@@ -146,10 +191,9 @@ static void
 atrtc_start(void)
 {
 
-	mtx_lock_spin(&atrtc_lock);
-	rtcout_locked(RTC_STATUSA, rtc_statusa);
-	rtcout_locked(RTC_STATUSB, RTCSB_24HR);
-	mtx_unlock_spin(&atrtc_lock);
+	atrtc_traced_out(RTC_STATUSA, rtc_statusa);
+	atrtc_traced_out(RTC_STATUSB, RTCSB_24HR);
+	dbt_event("atrtc: start done");
 }
 
 static void
@@ -186,6 +230,8 @@ void
 atrtc_restore(void)
 {
 
+	if (atrtc_hw_off)
+		return;
 	/* Restore all of the RTC's "status" (actually, control) registers. */
 	mtx_lock_spin(&atrtc_lock);
 	rtcin_locked(RTC_STATUSA);	/* dummy to get rtc_reg set */
@@ -377,14 +423,17 @@ atrtc_reg_acpi_cmos_handler(device_t dev)
 		return (ENXIO);
 	}
 
+	dbt_event("atrtc: install ACPI CMOS handler");
 	if (sc->acpi_handle == NULL ||
 	    ACPI_FAILURE(AcpiInstallAddressSpaceHandler(sc->acpi_handle,
 	      ACPI_ADR_SPACE_CMOS, atrtc_acpi_cmos_handler, NULL, dev))) {
 		sc->acpi_handle = NULL;
+		dbt_event("atrtc: ACPI CMOS handler failed");
 		device_printf(dev,
 		    "Can't register ACPI CMOS address space handler\n");
 		return (ENXIO);
         }
+	dbt_event("atrtc: ACPI CMOS handler installed");
 
         return (0);
 }
@@ -478,11 +527,36 @@ atrtc_attach(device_t dev)
 	int i;
 
 	sc = device_get_softc(dev);
+	dbt_event("atrtc: %s alloc ports 0x70-0x71",
+	    device_get_nameunit(dev));
 	sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->port_rid,
 	    IO_RTC, IO_RTC + 1, 2, RF_ACTIVE);
-	if (sc->port_res == NULL)
+	if (sc->port_res == NULL) {
+		dbt_event("atrtc: ports 0x70-0x71 NOT allocated");
+#ifdef __amd64__
+		if (efi_boot && !atrtc_force_on_conflict) {
+			/*
+			 * Another device owns the RTC's ports (on the MSI, a
+			 * one-byte ACPI system resource at 0x70).  Leave the
+			 * RTC alone; efirtc(4) provides the time of day.
+			 */
+			atrtc_hw_off = true;
+			dbt_event("atrtc: UEFI port conflict, declining");
+			device_printf(dev, "I/O ports 0x70-0x71 are claimed by "
+			    "another device; not touching the RTC on this UEFI "
+			    "boot (hw.atrtc.force_on_conflict=1 overrides)\n");
+			return (ENXIO);
+		}
+		if (efi_boot)
+			dbt_event("atrtc: port conflict, forced on");
+#endif
 		device_printf(dev, "Warning: Couldn't map I/O.\n");
+	} else {
+		dbt_event("atrtc: ports 0x70-0x71 allocated");
+		atrtc_hw_off = false;
+	}
 	atrtc_start();
+	dbt_event("atrtc: clock_register");
 	clock_register(dev, 1000000);
 	bzero(&sc->et, sizeof(struct eventtimer));
 	if (!atrtcclock_disable &&
@@ -492,19 +566,26 @@ atrtc_attach(device_t dev)
 		while (bus_get_resource(dev, SYS_RES_IRQ, sc->intr_rid,
 		    &s, NULL) == 0 && s != 8)
 			sc->intr_rid++;
+		dbt_event("atrtc: alloc IRQ 8 (rid %d)", sc->intr_rid);
 		sc->intr_res = bus_alloc_resource(dev, SYS_RES_IRQ,
 		    &sc->intr_rid, 8, 8, 1, RF_ACTIVE);
 		if (sc->intr_res == NULL) {
+			dbt_event("atrtc: IRQ 8 NOT allocated");
 			device_printf(dev, "Can't map interrupt.\n");
 			return (0);
-		} else if ((bus_setup_intr(dev, sc->intr_res, INTR_TYPE_CLK,
+		}
+		dbt_event("atrtc: bus_setup_intr IRQ 8");
+		if ((bus_setup_intr(dev, sc->intr_res, INTR_TYPE_CLK,
 		    rtc_intr, NULL, sc, &sc->intr_handler))) {
+			dbt_event("atrtc: bus_setup_intr failed");
 			device_printf(dev, "Can't setup interrupt.\n");
 			return (0);
-		} else { 
+		} else {
 			/* Bind IRQ to BSP to avoid live migration. */
+			dbt_event("atrtc: bus_bind_intr IRQ 8 to cpu 0");
 			bus_bind_intr(dev, sc->intr_res, 0);
 		}
+		dbt_event("atrtc: et_register RTC");
 		sc->et.et_name = "RTC";
 		sc->et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_POW2DIV;
 		sc->et.et_quality = 0;
@@ -515,7 +596,9 @@ atrtc_attach(device_t dev)
 		sc->et.et_stop = rtc_stop;
 		sc->et.et_priv = dev;
 		et_register(&sc->et);
-	}
+	} else
+		dbt_event("atrtc: no clock interrupt (hint/off)");
+	dbt_event("atrtc: attach done");
 	return(0);
 }
 
@@ -565,6 +648,7 @@ atrtc_settime(device_t dev __unused, struct timespec *ts)
 
 	clock_ts_to_bcd(ts, &bct, false);
 	clock_dbgprint_bcd(dev, CLOCK_DBG_WRITE, &bct);
+	dbt_event("atrtc: settime: wr 0x0b, time regs");
 
 	mtx_lock(&atrtc_time_lock);
 	mtx_lock_spin(&atrtc_lock);
@@ -601,6 +685,7 @@ atrtc_gettime(device_t dev, struct timespec *ts)
 	struct bcd_clocktime bct;
 
 	/* Look if we have a RTC present and the time is valid */
+	dbt_event("atrtc: gettime: rd 0x0d (in 0x71)");
 	if (!(rtcin(RTC_STATUSD) & RTCSD_PWR)) {
 		atrtc_power_lost = true;
 		device_printf(dev, "WARNING: Battery failure indication\n");
@@ -615,6 +700,7 @@ atrtc_gettime(device_t dev, struct timespec *ts)
 	 * and try again if so.
 	 */
 	mtx_lock(&atrtc_time_lock);
+	dbt_event("atrtc: gettime: poll 0x0a, rd time");
 	while (rtcin(RTC_STATUSA) & RTCSA_TUP)
 		continue;
 	mtx_lock_spin(&atrtc_lock);
