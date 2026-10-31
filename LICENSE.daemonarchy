@@ -1,0 +1,39 @@
+Daemonarchy project license
+
+This repository (daemonarchy-src) is part of the Daemonarchy project. The project's
+repositories, all under https://github.com/jordanhubbard, are:
+
+  daemonarchy          the installer and release engineering
+  daemonarchy-desktop  the Daemonarchy look and FreeBSD tools over Omarchy
+  daemonarchy-ports    the release ports tree (fork of the FreeBSD ports tree)
+  daemonarchy-src      the owned FreeBSD source tree (fork of FreeBSD src)
+  omarchy-freebsd      the FreeBSD layer that the x11-wm/omarchy port installs
+
+The map of the repositories is in HACKING.md of the daemonarchy repository:
+https://github.com/jordanhubbard/daemonarchy/blob/main/HACKING.md
+
+Daemonarchy-original work in this repository is licensed under the BSD
+2-Clause license (SPDX: BSD-2-Clause), whose terms follow. These terms apply
+to Daemonarchy project work; no copyright holder is named for that work.
+
+Third-party and upstream-derived components keep their own licenses and
+their upstream copyright notices. Which component, at which path, is under
+which license is listed in licenses/README.md, and the texts of the licenses
+named there are in the licenses/ directory. A file that carries its own license
+header or SPDX tag is under that license. The Daemonarchy-original files are
+listed in licenses/README.md; any other file in this tree that is not listed
+there follows FreeBSD's COPYRIGHT file and the in-tree license files and file
+headers that FreeBSD maintains.
+
+The COPYRIGHT file of this repository is unchanged. It states the terms of
+FreeBSD as FreeBSD publishes them, and this file does not replace it.
+
+----------------------------------------------------------------------
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
