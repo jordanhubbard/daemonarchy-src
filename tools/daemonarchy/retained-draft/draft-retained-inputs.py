@@ -161,7 +161,7 @@ def main():
         "test_policy_identity": "sha256:" + policy_member.sha256,
         "release_policy_identity": "sha256:" + release_member.sha256,
         "tools": [tool("python", "usr/local/bin/python3.12"),
-                  tool("true", "usr/bin/true")],
+                  tool("echo", "bin/echo")],
         "actions": [
             # Grounded: tools/daemonarchy/README.md "Plan and build" (phases buildworld,
             # buildkernel, packages, release-obj, sets) with the DEV-001 baseline's four
@@ -183,15 +183,15 @@ def main():
              "requires": ["draft-controller-build"], "inventory": list(cases),
              "outputs": ["tests"], "timeout_seconds": 3600},
             # UNKNOWN: no whole-tree docs build or check is defined for this fork.
-            {"id": "draft-unknown-docs", "stage": "docs", "tool": "true",
-             "argv": [BOOTSTRAP + "/tree/usr/bin/true"],
+            {"id": "draft-unknown-docs", "stage": "docs", "tool": "echo",
+             "argv": [BOOTSTRAP + "/tree/bin/echo", "UNKNOWN-placeholder-not-a-result"],
              "requires": ["draft-controller-build"],
              "inventory": ["UNKNOWN-source-docs-action"],
              "outputs": ["documentation"], "timeout_seconds": 3600},
             # UNKNOWN: verification/retained-project-acceptance.json covers eleven
             # selected-utility cases only; no whole-build acceptance policy exists.
-            {"id": "draft-unknown-accept", "stage": "accept", "tool": "true",
-             "argv": [BOOTSTRAP + "/tree/usr/bin/true"],
+            {"id": "draft-unknown-accept", "stage": "accept", "tool": "echo",
+             "argv": [BOOTSTRAP + "/tree/bin/echo", "UNKNOWN-placeholder-not-a-result"],
              "requires": ["draft-controller-build", "draft-controller-tests",
                           "draft-unknown-docs"],
              "inventory": ["UNKNOWN-independent-acceptance"],
