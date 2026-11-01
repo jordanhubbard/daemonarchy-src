@@ -1,0 +1,362 @@
+{
+  "schema": "literate-ai/retained-project-test-policy@1",
+  "project_policy_identity": "sha256:966919ad95981f7b4ffdc2033188bfbece5afd2b0706925073e9ec551fb67742",
+  "cases": [
+    {
+      "id": "test_build.BuildTests.test_actual_release_tree_archives_preserve_symlinks_and_root_ownership",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_build.BuildTests.test_actual_subprocess_failure_and_timeout",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_build.BuildTests.test_changed_log_or_symlink_refused",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_build.BuildTests.test_large_archive_trace_is_preserved_without_a_whole_record_read",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_build.BuildTests.test_manifest_redirected_parent_refuses_before_reading_references",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_build.BuildTests.test_manifest_unsafe_duplicate_and_malformed_references_refuse",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_build.BuildTests.test_missing_phase_or_artifact_inventory_refused",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_build.BuildTests.test_native_gate_refuses_foreign_host",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_build.BuildTests.test_native_trace_mode_preserves_structured_make_query_stdout",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_build.BuildTests.test_optional_manifest_sets_cannot_escape_the_artifact_inventory",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_build.BuildTests.test_plan_binds_profile_and_does_not_create_output",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_build.BuildTests.test_plan_tampering_and_failed_result_refused",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_build.BuildTests.test_resume_cannot_rebind_an_existing_build",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_build.BuildTests.test_source_mutation_and_untracked_inputs_refused",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_build.BuildTests.test_streamed_filemon_markers_can_cross_read_boundaries",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_build.BuildTests.test_streamed_trace_growth_is_refused_before_blob_publication",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_build.BuildTests.test_trace_phase_coverage_and_inventory_cannot_be_substituted",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_build.BuildTests.test_trace_plan_is_explicit_and_preserves_untraced_plan_identity",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_build.BuildTests.test_trace_preflight_requires_existing_device_without_worker_mutation",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_build.BuildTests.test_trace_redirection_and_budgets_are_refused",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_build.BuildTests.test_trace_snapshots_preserve_prior_bytes_across_later_phase_updates",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_build.BuildTests.test_trace_without_real_filemon_compilation_is_refused",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_build.BuildTests.test_unsafe_output_and_parallelism_refused",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_build.BuildTests.test_verifier_checks_bytes_without_claiming_acceptance",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_build.BuildTests.test_wrong_or_abbreviated_revision_refused",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_capture_seed.SeedTests.test_changed_open_file_refuses_and_retains_no_success_record",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_capture_seed.SeedTests.test_escaping_or_missing_link_target_refuses_before_output",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_capture_seed.SeedTests.test_exact_bytes_modes_links_and_no_admission",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_capture_seed.SeedTests.test_existing_output_and_redirected_parent_are_preserved",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_capture_seed.SeedTests.test_growth_and_aggregate_budgets_refuse_before_output",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_capture_seed.SeedTests.test_redirected_source_ancestor_refuses",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_capture_seed.SeedTests.test_reviewed_digest_and_duplicate_keys_refuse_before_writes",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_capture_seed.SeedTests.test_source_digest_drift_preserves_incomplete_capture",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_capture_seed.SeedTests.test_special_source_file_and_privileged_mode_refuse",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_capture_seed.SeedTests.test_unlisted_linker_reference_or_false_reference_list_refuses",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_inventory_bootstrap.BootstrapInventoryTests.test_changed_bytes_refuse_existing_capture_and_preserve_failure",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_inventory_bootstrap.BootstrapInventoryTests.test_excluded_subtree_is_not_captured",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_inventory_bootstrap.BootstrapInventoryTests.test_inventory_copies_through_existing_capture_without_admission",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_inventory_bootstrap.BootstrapInventoryTests.test_linker_script_references_are_complete_and_cycles_refuse",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_inventory_bootstrap.BootstrapInventoryTests.test_redirected_ancestors_absolute_links_and_unknown_fields_refuse",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_loader_kernel_handoff.HandoffTests.test_kernel_pairing_requires_a_prior_firmware_boot_and_handoff",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_loader_kernel_handoff.HandoffTests.test_loader_response_cannot_claim_kernel_connection",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_loader_kernel_handoff.HandoffTests.test_missing_peer_never_becomes_kernel_evidence",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_loader_kernel_handoff.HandoffTests.test_only_fresh_kernel_role_for_same_boot_closes_handoff",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_prepare_worker.WorkerTests.test_absent_device_reports_unready_without_loading",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_prepare_worker.WorkerTests.test_direct_character_device_requires_exact_owner_only_permissions",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_prepare_worker.WorkerTests.test_privileged_user_or_primary_group_refuses",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_prepare_worker.WorkerTests.test_unprivileged_enable_refuses_before_module_load",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_prepare_worker.WorkerTests.test_wrong_make_provider_refuses_before_device_access",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_report_kyua.KyuaReportTests.test_ambiguous_case_inventory_refuses",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_report_kyua.KyuaReportTests.test_duplicate_original_result_pair_cannot_fill_missing_case",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_report_kyua.KyuaReportTests.test_exact_native_schema_preserves_pass_and_binds_original_bytes",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_report_kyua.KyuaReportTests.test_existing_output_is_preserved",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_report_kyua.KyuaReportTests.test_failed_broken_and_expected_failure_never_become_passes",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_report_kyua.KyuaReportTests.test_missing_result_and_unselected_original_case_refuse",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_report_kyua.KyuaReportTests.test_orphan_result_refuses",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_report_kyua.KyuaReportTests.test_real_atf_expected_failure_and_root_skip_are_preserved",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_report_kyua.KyuaReportTests.test_real_kyua_database_reports_actual_plain_test_outcome",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_report_kyua.KyuaReportTests.test_redirected_input_byte_budget_and_sqlite_companions_refuse",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_report_kyua.KyuaReportTests.test_root_requirement_skip_is_exact_and_not_authorized_or_promoted",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_report_kyua.KyuaReportTests.test_schema_version_extra_objects_and_views_refuse",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_report_kyua.KyuaReportTests.test_unknown_state_reason_and_timing_refuse",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_retained_source_stage.OriginalCaseListingTests.test_compiler_link_plan_selects_the_exact_captured_linker",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_retained_source_stage.OriginalCaseListingTests.test_empty_duplicate_or_unsupported_listing_refuses",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_retained_source_stage.OriginalCaseListingTests.test_metadata_is_preserved_and_the_exact_inventory_is_required",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_retained_source_stage.OriginalCaseListingTests.test_missing_foreign_ambiguous_or_malformed_link_jobs_refuse",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_retained_source_stage.OriginalCaseListingTests.test_new_export_directories_are_readable_under_private_umask",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_retained_source_stage.OriginalCaseListingTests.test_original_runner_receives_reviewed_account_views_and_fixture",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_retained_source_stage.OriginalCaseListingTests.test_secondary_paths_require_complete_canonical_disjoint_arguments",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    },
+    {
+      "id": "test_retained_source_stage.OriginalCaseListingTests.test_selected_launcher_uses_only_reviewed_views_for_tools_and_loader",
+      "action": "draft-controller-tests",
+      "skip_reason": null
+    }
+  ],
+  "reports": [
+    {
+      "action": "draft-controller-tests",
+      "path": "tests/controller-report.json"
+    }
+  ]
+}
