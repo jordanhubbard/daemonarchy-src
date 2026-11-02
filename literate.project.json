@@ -105,5 +105,13 @@
     "patch_authority": "strict",
     "writers": [],
     "branch_gc_minimum_age_days": 7
+  },
+  "scale_limits": {
+    "schema": "literate-ai/project-scale-limits@1",
+    "pinned_input_files": 500000,
+    "pinned_input_total_bytes": 4294967296,
+    "catalog_files": 250000,
+    "catalog_entries": 1000000,
+    "catalog_total_bytes": 4294967296
   }
 }

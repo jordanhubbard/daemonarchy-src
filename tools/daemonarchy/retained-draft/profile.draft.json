@@ -1,0 +1,192 @@
+{
+  "schema": "literate-ai/retained-project-profile@1",
+  "authority_mode": "retained-project",
+  "target": "freebsd",
+  "worker_identity": "sha256:29d0ce36b8f96325b660670b5e4a2e99bd42e705472c2b4594f6955e04fe2171",
+  "toolchain_identity": "sha256:d70008dbdf53bf73e6793047f0abac27710b65a7d4b0054735d16204eae71435",
+  "dependency_identity": "sha256:5b8c257af24528b3bf9cc46317f481475a540ff4913422f09ba056fd64c05206",
+  "test_policy_identity": "sha256:ab53881dd1e9715f346f08ba3441a35a5641217e66d394595bb960d947db0a1f",
+  "release_policy_identity": "sha256:d6aa952ae0f5abf279a67472a609130e834fae151b543bafaa1ae6ee86968381",
+  "tools": [
+    {
+      "name": "python",
+      "path": "tools/daemonarchy/retained/bootstrap/tree/usr/local/bin/python3.12",
+      "identity": "sha256:05587422e95c177bedf8622ec5d6771150412a652a3c38417d45e6c00dbd91b7"
+    },
+    {
+      "name": "echo",
+      "path": "tools/daemonarchy/retained/bootstrap/tree/bin/echo",
+      "identity": "sha256:f096b7ac348e2f4ab0797a2a77dc8f1c7b82cd3b63aab442b450c848f543920a"
+    }
+  ],
+  "actions": [
+    {
+      "id": "draft-controller-build",
+      "stage": "build",
+      "tool": "python",
+      "argv": [
+        "tools/daemonarchy/retained/bootstrap/tree/usr/local/bin/python3.12",
+        "tools/daemonarchy/build.py",
+        "run",
+        "--revision",
+        "1924bee0c02ffede04c5002b5f7b46b44814558f",
+        "--output",
+        "{output_root}/build",
+        "--jobs",
+        "4"
+      ],
+      "requires": [],
+      "inventory": [
+        "buildworld",
+        "buildkernel",
+        "packages",
+        "release-obj",
+        "sets"
+      ],
+      "outputs": [
+        "build"
+      ],
+      "timeout_seconds": 86400
+    },
+    {
+      "id": "draft-controller-tests",
+      "stage": "test",
+      "tool": "python",
+      "argv": [
+        "tools/daemonarchy/retained/bootstrap/tree/usr/local/bin/python3.12",
+        "tools/daemonarchy/retained-draft/unittest-report.py",
+        "--test-dir",
+        "tools/daemonarchy",
+        "--output",
+        "{output_root}/tests/controller-report.json"
+      ],
+      "requires": [
+        "draft-controller-build"
+      ],
+      "inventory": [
+        "test_build.BuildTests.test_actual_release_tree_archives_preserve_symlinks_and_root_ownership",
+        "test_build.BuildTests.test_actual_subprocess_failure_and_timeout",
+        "test_build.BuildTests.test_changed_log_or_symlink_refused",
+        "test_build.BuildTests.test_large_archive_trace_is_preserved_without_a_whole_record_read",
+        "test_build.BuildTests.test_manifest_redirected_parent_refuses_before_reading_references",
+        "test_build.BuildTests.test_manifest_unsafe_duplicate_and_malformed_references_refuse",
+        "test_build.BuildTests.test_missing_phase_or_artifact_inventory_refused",
+        "test_build.BuildTests.test_native_gate_refuses_foreign_host",
+        "test_build.BuildTests.test_native_trace_mode_preserves_structured_make_query_stdout",
+        "test_build.BuildTests.test_optional_manifest_sets_cannot_escape_the_artifact_inventory",
+        "test_build.BuildTests.test_plan_binds_profile_and_does_not_create_output",
+        "test_build.BuildTests.test_plan_tampering_and_failed_result_refused",
+        "test_build.BuildTests.test_resume_cannot_rebind_an_existing_build",
+        "test_build.BuildTests.test_source_mutation_and_untracked_inputs_refused",
+        "test_build.BuildTests.test_streamed_filemon_markers_can_cross_read_boundaries",
+        "test_build.BuildTests.test_streamed_trace_growth_is_refused_before_blob_publication",
+        "test_build.BuildTests.test_trace_phase_coverage_and_inventory_cannot_be_substituted",
+        "test_build.BuildTests.test_trace_plan_is_explicit_and_preserves_untraced_plan_identity",
+        "test_build.BuildTests.test_trace_preflight_requires_existing_device_without_worker_mutation",
+        "test_build.BuildTests.test_trace_redirection_and_budgets_are_refused",
+        "test_build.BuildTests.test_trace_snapshots_preserve_prior_bytes_across_later_phase_updates",
+        "test_build.BuildTests.test_trace_without_real_filemon_compilation_is_refused",
+        "test_build.BuildTests.test_unsafe_output_and_parallelism_refused",
+        "test_build.BuildTests.test_verifier_checks_bytes_without_claiming_acceptance",
+        "test_build.BuildTests.test_wrong_or_abbreviated_revision_refused",
+        "test_capture_seed.SeedTests.test_changed_open_file_refuses_and_retains_no_success_record",
+        "test_capture_seed.SeedTests.test_escaping_or_missing_link_target_refuses_before_output",
+        "test_capture_seed.SeedTests.test_exact_bytes_modes_links_and_no_admission",
+        "test_capture_seed.SeedTests.test_existing_output_and_redirected_parent_are_preserved",
+        "test_capture_seed.SeedTests.test_growth_and_aggregate_budgets_refuse_before_output",
+        "test_capture_seed.SeedTests.test_redirected_source_ancestor_refuses",
+        "test_capture_seed.SeedTests.test_reviewed_digest_and_duplicate_keys_refuse_before_writes",
+        "test_capture_seed.SeedTests.test_source_digest_drift_preserves_incomplete_capture",
+        "test_capture_seed.SeedTests.test_special_source_file_and_privileged_mode_refuse",
+        "test_capture_seed.SeedTests.test_unlisted_linker_reference_or_false_reference_list_refuses",
+        "test_inventory_bootstrap.BootstrapInventoryTests.test_changed_bytes_refuse_existing_capture_and_preserve_failure",
+        "test_inventory_bootstrap.BootstrapInventoryTests.test_excluded_subtree_is_not_captured",
+        "test_inventory_bootstrap.BootstrapInventoryTests.test_inventory_copies_through_existing_capture_without_admission",
+        "test_inventory_bootstrap.BootstrapInventoryTests.test_linker_script_references_are_complete_and_cycles_refuse",
+        "test_inventory_bootstrap.BootstrapInventoryTests.test_redirected_ancestors_absolute_links_and_unknown_fields_refuse",
+        "test_loader_kernel_handoff.HandoffTests.test_kernel_pairing_requires_a_prior_firmware_boot_and_handoff",
+        "test_loader_kernel_handoff.HandoffTests.test_loader_response_cannot_claim_kernel_connection",
+        "test_loader_kernel_handoff.HandoffTests.test_missing_peer_never_becomes_kernel_evidence",
+        "test_loader_kernel_handoff.HandoffTests.test_only_fresh_kernel_role_for_same_boot_closes_handoff",
+        "test_prepare_worker.WorkerTests.test_absent_device_reports_unready_without_loading",
+        "test_prepare_worker.WorkerTests.test_direct_character_device_requires_exact_owner_only_permissions",
+        "test_prepare_worker.WorkerTests.test_privileged_user_or_primary_group_refuses",
+        "test_prepare_worker.WorkerTests.test_unprivileged_enable_refuses_before_module_load",
+        "test_prepare_worker.WorkerTests.test_wrong_make_provider_refuses_before_device_access",
+        "test_report_kyua.KyuaReportTests.test_ambiguous_case_inventory_refuses",
+        "test_report_kyua.KyuaReportTests.test_duplicate_original_result_pair_cannot_fill_missing_case",
+        "test_report_kyua.KyuaReportTests.test_exact_native_schema_preserves_pass_and_binds_original_bytes",
+        "test_report_kyua.KyuaReportTests.test_existing_output_is_preserved",
+        "test_report_kyua.KyuaReportTests.test_failed_broken_and_expected_failure_never_become_passes",
+        "test_report_kyua.KyuaReportTests.test_missing_result_and_unselected_original_case_refuse",
+        "test_report_kyua.KyuaReportTests.test_orphan_result_refuses",
+        "test_report_kyua.KyuaReportTests.test_real_atf_expected_failure_and_root_skip_are_preserved",
+        "test_report_kyua.KyuaReportTests.test_real_kyua_database_reports_actual_plain_test_outcome",
+        "test_report_kyua.KyuaReportTests.test_redirected_input_byte_budget_and_sqlite_companions_refuse",
+        "test_report_kyua.KyuaReportTests.test_root_requirement_skip_is_exact_and_not_authorized_or_promoted",
+        "test_report_kyua.KyuaReportTests.test_schema_version_extra_objects_and_views_refuse",
+        "test_report_kyua.KyuaReportTests.test_unknown_state_reason_and_timing_refuse",
+        "test_retained_source_stage.OriginalCaseListingTests.test_compiler_link_plan_selects_the_exact_captured_linker",
+        "test_retained_source_stage.OriginalCaseListingTests.test_empty_duplicate_or_unsupported_listing_refuses",
+        "test_retained_source_stage.OriginalCaseListingTests.test_metadata_is_preserved_and_the_exact_inventory_is_required",
+        "test_retained_source_stage.OriginalCaseListingTests.test_missing_foreign_ambiguous_or_malformed_link_jobs_refuse",
+        "test_retained_source_stage.OriginalCaseListingTests.test_new_export_directories_are_readable_under_private_umask",
+        "test_retained_source_stage.OriginalCaseListingTests.test_original_runner_receives_reviewed_account_views_and_fixture",
+        "test_retained_source_stage.OriginalCaseListingTests.test_secondary_paths_require_complete_canonical_disjoint_arguments",
+        "test_retained_source_stage.OriginalCaseListingTests.test_selected_launcher_uses_only_reviewed_views_for_tools_and_loader"
+      ],
+      "outputs": [
+        "tests"
+      ],
+      "timeout_seconds": 3600
+    },
+    {
+      "id": "draft-unknown-docs",
+      "stage": "docs",
+      "tool": "echo",
+      "argv": [
+        "tools/daemonarchy/retained/bootstrap/tree/bin/echo",
+        "UNKNOWN-placeholder-not-a-result"
+      ],
+      "requires": [
+        "draft-controller-build"
+      ],
+      "inventory": [
+        "UNKNOWN-source-docs-action"
+      ],
+      "outputs": [
+        "documentation"
+      ],
+      "timeout_seconds": 3600
+    },
+    {
+      "id": "draft-unknown-accept",
+      "stage": "accept",
+      "tool": "echo",
+      "argv": [
+        "tools/daemonarchy/retained/bootstrap/tree/bin/echo",
+        "UNKNOWN-placeholder-not-a-result"
+      ],
+      "requires": [
+        "draft-controller-build",
+        "draft-controller-tests",
+        "draft-unknown-docs"
+      ],
+      "inventory": [
+        "UNKNOWN-independent-acceptance"
+      ],
+      "outputs": [
+        "acceptance"
+      ],
+      "timeout_seconds": 3600
+    }
+  ],
+  "package_inventory": [
+    "build"
+  ],
+  "runtime_library_paths": [
+    "tools/daemonarchy/retained/bootstrap/tree/lib",
+    "tools/daemonarchy/retained/bootstrap/tree/usr/lib",
+    "tools/daemonarchy/retained/bootstrap/tree/usr/local/lib"
+  ]
+}
