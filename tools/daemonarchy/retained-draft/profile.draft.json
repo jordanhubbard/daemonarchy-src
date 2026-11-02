@@ -3,39 +3,78 @@
   "authority_mode": "retained-project",
   "target": "freebsd",
   "worker_identity": "sha256:29d0ce36b8f96325b660670b5e4a2e99bd42e705472c2b4594f6955e04fe2171",
-  "toolchain_identity": "sha256:d70008dbdf53bf73e6793047f0abac27710b65a7d4b0054735d16204eae71435",
+  "toolchain_identity": "sha256:7764b2dc50ffd525373292eb4cdf6d4fb8ef1945244626bd060de3141252c55f",
   "dependency_identity": "sha256:5b8c257af24528b3bf9cc46317f481475a540ff4913422f09ba056fd64c05206",
   "test_policy_identity": "sha256:ab53881dd1e9715f346f08ba3441a35a5641217e66d394595bb960d947db0a1f",
   "release_policy_identity": "sha256:d6aa952ae0f5abf279a67472a609130e834fae151b543bafaa1ae6ee86968381",
   "tools": [
     {
-      "name": "python",
+      "name": "python3.12",
       "path": "tools/daemonarchy/retained/bootstrap/tree/usr/local/bin/python3.12",
       "identity": "sha256:05587422e95c177bedf8622ec5d6771150412a652a3c38417d45e6c00dbd91b7"
     },
     {
-      "name": "echo",
-      "path": "tools/daemonarchy/retained/bootstrap/tree/bin/echo",
-      "identity": "sha256:f096b7ac348e2f4ab0797a2a77dc8f1c7b82cd3b63aab442b450c848f543920a"
+      "name": "kyua",
+      "path": "tools/daemonarchy/retained/bootstrap/tree/usr/bin/kyua",
+      "identity": "sha256:b1bf26cb431a8beb191dd4690d1c4652af18f6ea12cf778e429d25e80993e515"
+    },
+    {
+      "name": "git",
+      "path": "closure/toolchain/bin/git",
+      "identity": "sha256:9cadbec61700a74b755a5c90e1dc8734f7a6de7915d925b0aa3647aec2e1bf25"
     }
   ],
   "actions": [
     {
-      "id": "draft-controller-build",
-      "stage": "build",
-      "tool": "python",
+      "id": "draft-ambient-preflight",
+      "stage": "stage",
+      "tool": "python3.12",
       "argv": [
         "tools/daemonarchy/retained/bootstrap/tree/usr/local/bin/python3.12",
+        "-B",
+        "tools/daemonarchy/retained-draft/ambient-preflight.py",
+        "--inventory",
+        "tools/daemonarchy/retained-draft/closure-inventory.json",
+        "--output",
+        "{output_root}/preflight/ambient.json"
+      ],
+      "requires": [],
+      "inventory": [
+        "ambient:make",
+        "ambient:cc",
+        "ambient:ld.lld",
+        "ambient:pkg",
+        "ambient:sysctl",
+        "ambient:atf-sh",
+        "ambient:kyua-host",
+        "ambient:git-core-libexec",
+        "ambient:git-core-share",
+        "ambient:dynamic-linker"
+      ],
+      "outputs": [
+        "preflight"
+      ],
+      "timeout_seconds": 3600
+    },
+    {
+      "id": "draft-controller-build",
+      "stage": "build",
+      "tool": "python3.12",
+      "argv": [
+        "tools/daemonarchy/retained/bootstrap/tree/usr/local/bin/python3.12",
+        "-B",
         "tools/daemonarchy/build.py",
         "run",
         "--revision",
-        "1924bee0c02ffede04c5002b5f7b46b44814558f",
+        "2e8e3bc686af7c6b7ed41320625873b8286828b9",
         "--output",
         "{output_root}/build",
         "--jobs",
         "4"
       ],
-      "requires": [],
+      "requires": [
+        "draft-ambient-preflight"
+      ],
       "inventory": [
         "buildworld",
         "buildkernel",
@@ -51,9 +90,10 @@
     {
       "id": "draft-controller-tests",
       "stage": "test",
-      "tool": "python",
+      "tool": "python3.12",
       "argv": [
         "tools/daemonarchy/retained/bootstrap/tree/usr/local/bin/python3.12",
+        "-B",
         "tools/daemonarchy/retained-draft/unittest-report.py",
         "--test-dir",
         "tools/daemonarchy",
@@ -141,39 +181,92 @@
       "timeout_seconds": 3600
     },
     {
-      "id": "draft-unknown-docs",
+      "id": "draft-docs-tree",
       "stage": "docs",
-      "tool": "echo",
+      "tool": "python3.12",
       "argv": [
-        "tools/daemonarchy/retained/bootstrap/tree/bin/echo",
-        "UNKNOWN-placeholder-not-a-result"
+        "tools/daemonarchy/retained/bootstrap/tree/usr/local/bin/python3.12",
+        "-B",
+        "tools/daemonarchy/retained-draft/docs-tree-check.py",
+        "--root",
+        ".",
+        "--include",
+        "docs/**/*.md",
+        "--include",
+        "*.md",
+        "--include",
+        "tools/**/*.md",
+        "--exclude",
+        "tools/daemonarchy/retained/bootstrap/**",
+        "--output",
+        "{output_root}/docs-tree/report.json"
       ],
       "requires": [
         "draft-controller-build"
       ],
       "inventory": [
-        "UNKNOWN-source-docs-action"
+        "docs-tree:AGENTS.md",
+        "docs-tree:CHANGELOG.md",
+        "docs-tree:CONTRIBUTING.md",
+        "docs-tree:PROJECT.md",
+        "docs-tree:README.md",
+        "docs-tree:SKILL.md",
+        "docs-tree:docs/README.md",
+        "docs-tree:docs/architecture/design-traceability.md",
+        "docs-tree:docs/roadmap/active-work.md",
+        "docs-tree:docs/user/loader-network-debug.md",
+        "docs-tree:docs/user/source-units.md",
+        "docs-tree:tools/daemonarchy/CHANGELOG.md",
+        "docs-tree:tools/daemonarchy/README.md",
+        "docs-tree:tools/daemonarchy/components/expand-number/acceptance.md",
+        "docs-tree:tools/daemonarchy/components/expand-number/component.md",
+        "docs-tree:tools/daemonarchy/components/expand-number/interfaces/contract.md",
+        "docs-tree:tools/daemonarchy/components/libutil-header/acceptance.md",
+        "docs-tree:tools/daemonarchy/components/libutil-header/component.md",
+        "docs-tree:tools/daemonarchy/components/libutil-header/interfaces/contract.md",
+        "docs-tree:tools/daemonarchy/components/native-bootstrap/acceptance.md",
+        "docs-tree:tools/daemonarchy/components/native-bootstrap/component.md",
+        "docs-tree:tools/daemonarchy/components/native-bootstrap/interfaces/contract.md",
+        "docs-tree:tools/daemonarchy/components/native-build-support/acceptance.md",
+        "docs-tree:tools/daemonarchy/components/native-build-support/component.md",
+        "docs-tree:tools/daemonarchy/components/native-build-support/interfaces/contract.md",
+        "docs-tree:tools/daemonarchy/components/truncate/acceptance.md",
+        "docs-tree:tools/daemonarchy/components/truncate/component.md",
+        "docs-tree:tools/daemonarchy/components/truncate/interfaces/contract.md",
+        "docs-tree:tools/daemonarchy/retained-draft/PROVENANCE.md",
+        "docs-tree:tools/daemonarchy/skills/specification-to-source/original-boundaries/SKILL.md",
+        "docs-tree:tools/daemonarchy/workflows/original.md",
+        "docs-tree:tools/pkgbase/README.md",
+        "docs-tree:tools/qemu/README.md"
       ],
       "outputs": [
-        "documentation"
+        "docs-tree"
       ],
       "timeout_seconds": 3600
     },
     {
-      "id": "draft-unknown-accept",
+      "id": "draft-accept-build-verify",
       "stage": "accept",
-      "tool": "echo",
+      "tool": "python3.12",
       "argv": [
-        "tools/daemonarchy/retained/bootstrap/tree/bin/echo",
-        "UNKNOWN-placeholder-not-a-result"
+        "tools/daemonarchy/retained/bootstrap/tree/usr/local/bin/python3.12",
+        "-B",
+        "tools/daemonarchy/retained-draft/accept-build.py",
+        "--build-py",
+        "tools/daemonarchy/build.py",
+        "--build-dir",
+        "{output_root}/build",
+        "--report",
+        "{output_root}/acceptance/build-verify.json"
       ],
       "requires": [
+        "draft-ambient-preflight",
         "draft-controller-build",
         "draft-controller-tests",
-        "draft-unknown-docs"
+        "draft-docs-tree"
       ],
       "inventory": [
-        "UNKNOWN-independent-acceptance"
+        "build.py verify"
       ],
       "outputs": [
         "acceptance"
@@ -187,6 +280,7 @@
   "runtime_library_paths": [
     "tools/daemonarchy/retained/bootstrap/tree/lib",
     "tools/daemonarchy/retained/bootstrap/tree/usr/lib",
-    "tools/daemonarchy/retained/bootstrap/tree/usr/local/lib"
+    "tools/daemonarchy/retained/bootstrap/tree/usr/local/lib",
+    "closure/toolchain/lib"
   ]
 }

@@ -1,0 +1,242 @@
+{
+ "ambient": [
+  {
+   "kind": "file",
+   "mode": "0555",
+   "name": "make",
+   "owner": {
+    "kind": "base-system"
+   },
+   "path": "/usr/bin/make",
+   "realpath": "/usr/bin/make",
+   "sha256": "d76476fc5cab5f04dcd399dd92f2af02116ab582d655ed11e303f018ace31fb1",
+   "size": 223080,
+   "why": "build.py native_preflight requires /usr/bin/make by absolute path; make drives buildworld/buildkernel"
+  },
+  {
+   "kind": "file",
+   "mode": "0555",
+   "name": "cc",
+   "owner": {
+    "kind": "base-system"
+   },
+   "path": "/usr/bin/cc",
+   "realpath": "/usr/bin/cc",
+   "sha256": "8c5dbe8122a5f0c3f24167a9134fc007bd2091f894527c16d9318598fd2e2256",
+   "size": 125040,
+   "why": "build.py native_preflight requires /usr/bin/cc; the world build bootstraps from the host compiler"
+  },
+  {
+   "kind": "file",
+   "mode": "0555",
+   "name": "ld.lld",
+   "owner": {
+    "kind": "base-system"
+   },
+   "path": "/usr/bin/ld.lld",
+   "realpath": "/usr/bin/ld.lld",
+   "sha256": "5fd0910c91aeaa71766eb9669dcdeb96c9c3f134b04029bce93decb79082432c",
+   "size": 3236856,
+   "why": "host linker used with cc"
+  },
+  {
+   "kind": "file",
+   "mode": "0755",
+   "name": "pkg",
+   "owner": {
+    "kind": "pkg",
+    "name": "pkg-2.8.4",
+    "version_origin": "pkg-2.8.4 ports-mgmt/pkg"
+   },
+   "path": "/usr/local/sbin/pkg",
+   "realpath": "/usr/local/sbin/pkg",
+   "sha256": "6aa088572c7f7a6f7d1149bc9e2f2efc1d4f059ed490cd79dbf15afe277ca174",
+   "size": 3884408,
+   "why": "build.py sets PKG_CMD=/usr/local/sbin/pkg and requires it"
+  },
+  {
+   "kind": "file",
+   "mode": "0555",
+   "name": "sysctl",
+   "owner": {
+    "kind": "base-system"
+   },
+   "path": "/sbin/sysctl",
+   "realpath": "/sbin/sysctl",
+   "sha256": "984fe75cdc89ca70a2a2aac0f4c9ece4ff5f0f758a0c33891a0f4d8987ffeaf3",
+   "size": 24752,
+   "why": "build.py native_preflight reads hw.physmem with /sbin/sysctl"
+  },
+  {
+   "kind": "file",
+   "mode": "0555",
+   "name": "atf-sh",
+   "owner": {
+    "kind": "base-system"
+   },
+   "path": "/usr/libexec/atf-sh",
+   "realpath": "/usr/libexec/atf-sh",
+   "sha256": "bf4685ebdaebb0f3a45c65d438d069ef4bec7abe03a9e2baa504c6fb90f722c9",
+   "size": 27232,
+   "why": "test_report_kyua.py requires /usr/libexec/atf-sh by absolute path or skips"
+  },
+  {
+   "kind": "file",
+   "mode": "0555",
+   "name": "kyua-host",
+   "owner": {
+    "kind": "base-system"
+   },
+   "path": "/usr/bin/kyua",
+   "realpath": "/usr/bin/kyua",
+   "sha256": "b1bf26cb431a8beb191dd4690d1c4652af18f6ea12cf778e429d25e80993e515",
+   "size": 1434896,
+   "why": "host kyua; the seed carries a copy, which must be byte-identical for the seed to describe the host"
+  },
+  {
+   "bytes": 630438056,
+   "digest": "b72fbb257f1526b5994aff03b9252ee4f56f002d93a9b899b46f6a8664d64377",
+   "exclude": [],
+   "files": 199,
+   "kind": "tree",
+   "name": "git-core-libexec",
+   "path": "/usr/local/libexec/git-core",
+   "why": "compiled-in git exec path (git --exec-path); the captured git cannot relocate it"
+  },
+  {
+   "bytes": 507023,
+   "digest": "dedde6111079294ddc82c5ea1b1cead690eb13ba804aab2b29b0dbc58c3d17d3",
+   "exclude": [],
+   "files": 99,
+   "kind": "tree",
+   "name": "git-core-share",
+   "path": "/usr/local/share/git-core",
+   "why": "git templates, compiled-in path"
+  },
+  {
+   "kind": "file",
+   "mode": "0555",
+   "name": "dynamic-linker",
+   "owner": {
+    "kind": "base-system"
+   },
+   "path": "/libexec/ld-elf.so.1",
+   "realpath": "/libexec/ld-elf.so.1",
+   "sha256": "002510dc2343bea2f485d36856670d8f3628038e99e055ee51909aa802972b29",
+   "size": 122968,
+   "why": "ELF interpreter of every captured binary; its absolute path is recorded in the executable and cannot be relocated"
+  }
+ ],
+ "host": {
+  "freebsd_kernel": "16.0-CURRENT",
+  "freebsd_userland": "16.0-CURRENT",
+  "machine": "amd64"
+ },
+ "libraries": [
+  {
+   "mode": "0444",
+   "owner": {
+    "kind": "base-system"
+   },
+   "path": "/lib/libc.so.7",
+   "realpath": "/lib/libc.so.7",
+   "role": "toolchain",
+   "sha256": "210ffc6ba03d511523dd8831722a2913c79658ba2a6268449f8c7cf82d95dc9e",
+   "size": 2214096,
+   "soname": "libc.so.7"
+  },
+  {
+   "mode": "0755",
+   "owner": {
+    "kind": "pkg",
+    "name": "gettext-runtime-1.0_1",
+    "version_origin": "gettext-runtime-1.0_1 devel/gettext-runtime"
+   },
+   "path": "/usr/local/lib/libintl.so.8",
+   "realpath": "/usr/local/lib/libintl.so.8.4.6",
+   "role": "toolchain",
+   "sha256": "81c777975d167472926b629ea7da6501b207da174623ac8a595f7f6e333b773c",
+   "size": 200176,
+   "soname": "libintl.so.8"
+  },
+  {
+   "mode": "0755",
+   "owner": {
+    "kind": "pkg",
+    "name": "pcre2-10.49",
+    "version_origin": "pcre2-10.49 devel/pcre2"
+   },
+   "path": "/usr/local/lib/libpcre2-8.so.0",
+   "realpath": "/usr/local/lib/libpcre2-8.so.0.16.1",
+   "role": "toolchain",
+   "sha256": "3b986b21cfca64a77b8e0d51e7c18f5061f898a3ff879a6d282586ed9a6852da",
+   "size": 773088,
+   "soname": "libpcre2-8.so.0"
+  },
+  {
+   "mode": "0444",
+   "owner": {
+    "kind": "base-system"
+   },
+   "path": "/lib/libsys.so.7",
+   "realpath": "/lib/libsys.so.7",
+   "role": "toolchain",
+   "sha256": "f99e9052fb7ffe8a597cf65f813acd3e89f2b7ecebc2a9001debc14de0df679a",
+   "size": 112008,
+   "soname": "libsys.so.7"
+  },
+  {
+   "mode": "0444",
+   "owner": {
+    "kind": "base-system"
+   },
+   "path": "/lib/libthr.so.3",
+   "realpath": "/lib/libthr.so.3",
+   "role": "toolchain",
+   "sha256": "4778bf04b36deacbe5a237ef21b481cef2232accf022c7b4b681efe78f9ff1c8",
+   "size": 130664,
+   "soname": "libthr.so.3"
+  },
+  {
+   "mode": "0444",
+   "owner": {
+    "kind": "base-system"
+   },
+   "path": "/lib/libz.so.6",
+   "realpath": "/lib/libz.so.6",
+   "role": "toolchain",
+   "sha256": "88033feb5ca258275edae515eaf43dcf659a9f42af7ec9d45d5879859c5a256f",
+   "size": 102400,
+   "soname": "libz.so.6"
+  }
+ ],
+ "problems": [],
+ "schema": "daemonarchy/retained-closure-inventory@1",
+ "spec_sha256": "d5e2b1006954963c947c82ed6d0f3980b6ed45b0883270222167507985892554",
+ "tools": [
+  {
+   "libraries": [
+    "libc.so.7",
+    "libintl.so.8",
+    "libpcre2-8.so.0",
+    "libsys.so.7",
+    "libthr.so.3",
+    "libz.so.6"
+   ],
+   "mode": "0755",
+   "name": "git",
+   "owner": {
+    "kind": "pkg",
+    "name": "git-2.56.0",
+    "version_origin": "git-2.56.0 devel/git"
+   },
+   "path": "/usr/local/bin/git",
+   "realpath": "/usr/local/bin/git",
+   "role": "toolchain",
+   "sha256": "9cadbec61700a74b755a5c90e1dc8734f7a6de7915d925b0aa3647aec2e1bf25",
+   "size": 4118104,
+   "why": "tools/daemonarchy/test_build.py runs bare `git -C` in temp repositories; the bootstrap seed has no git (its selection lists no git). build.py itself also runs `git` for its --revision/clean-checkout check"
+  }
+ ],
+ "trees": []
+}
