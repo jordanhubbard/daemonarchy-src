@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
-/* Copyright (c) 2026 Daemonarchy contributors. */
 #ifndef _LOADER_NETCONSOLE_PROTO_H_
 #define _LOADER_NETCONSOLE_PROTO_H_
 

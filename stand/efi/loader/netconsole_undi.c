@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
-/* Copyright (c) 2026 Daemonarchy contributors. */
 
 #include "netconsole_undi.h"
 
