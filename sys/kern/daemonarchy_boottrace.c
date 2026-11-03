@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
-/* Copyright (c) 2026 Daemonarchy contributors. */
 
 /*
  * Reset-surviving boot trace.  See sys/sys/daemonarchy_boottrace.h for the

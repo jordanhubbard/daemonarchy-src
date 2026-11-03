@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
-/* Copyright (c) 2026 Daemonarchy contributors. */
 /*
  * Early polled backend for legacy (transitional) virtio-net over the PCI
  * I/O BAR, as provided by bhyve and QEMU (1af4:1000).  Only VIRTIO_NET_F_MAC

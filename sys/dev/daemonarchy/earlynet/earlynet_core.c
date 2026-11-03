@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
-/* Copyright (c) 2026 Daemonarchy contributors. */
 /*
  * Protocol core of the early polled network console: ARP, IPv4/UDP and
  * debugnet-compatible framing over a backend that owns the NIC directly.

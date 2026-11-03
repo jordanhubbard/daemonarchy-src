@@ -1,5 +1,4 @@
 -- SPDX-License-Identifier: BSD-2-Clause
--- Copyright (c) 2026 Daemonarchy contributors.
 --
 -- Menu support for the reset-surviving boot trace.  The menu entry turns on
 -- debug.boottrace for one boot.  loader.conf may name a preset to read first

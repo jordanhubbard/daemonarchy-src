@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
-/* Copyright (c) 2026 Daemonarchy contributors. */
 /*
  * Kernel glue for the early polled network console.  Explicitly enabled by
  * netdebug.plain=1 and netdebug.early=1 plus the identity the EFI loader

@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
-/* Copyright (c) 2026 Daemonarchy contributors. */
 /*
  * Kernel-owned, bounded, polled network console used before the ordinary
  * NIC driver attaches.  See tools/daemonarchy/earlynet-ownership.md for the
