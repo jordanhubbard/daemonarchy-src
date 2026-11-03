@@ -49,9 +49,107 @@ def git(*args):
     ).strip()
 
 
+# Retained-snapshot identity, set by main() only when SOURCE has no .git (see load_snapshot).
+SNAPSHOT = None
+# Never exemptable: the controller and the inputs make_plan reads.
+SNAPSHOT_PROTECTED = ("tools/daemonarchy/build.py", "tools/daemonarchy/src.conf", "sys/conf/newvers.sh")
+
+
+def has_git():
+    return (SOURCE / ".git").exists()
+
+
+def git_object_id(kind, stream, size):
+    h = hashlib.sha1(f"{kind} {size}\0".encode())
+    for block in iter(lambda: stream.read(1024 * 1024), b""):
+        h.update(block)
+    return h.digest()
+
+
+def snapshot_tree(directory, excludes, prefix=""):
+    """Git tree ID of the files under directory, computed without git (empty dirs ignored)."""
+    entries = []
+    with os.scandir(directory) as scan:
+        for entry in scan:
+            rel = prefix + entry.name
+            if any(rel == e or rel.startswith(e + "/") for e in excludes):
+                continue
+            mode = entry.stat(follow_symlinks=False).st_mode
+            name = os.fsencode(entry.name)
+            if stat.S_ISDIR(mode):
+                oid = snapshot_tree(entry.path, excludes, rel + "/")
+                if oid is not None:
+                    entries.append((name + b"/", b"40000", name, oid))
+            elif stat.S_ISLNK(mode):
+                target = os.fsencode(os.readlink(entry.path))
+                entries.append((name, b"120000", name, hashlib.sha1(b"blob %d\0" % len(target) + target).digest()))
+            elif stat.S_ISREG(mode):
+                with open(entry.path, "rb") as stream:
+                    oid = git_object_id("blob", stream, os.fstat(stream.fileno()).st_size)
+                entries.append((name, b"100755" if mode & 0o100 else b"100644", name, oid))
+            else:
+                raise ValueError(f"snapshot contains a non-regular file: {rel}")
+    if not entries and prefix:
+        return None
+    body = b"".join(m + b" " + n + b"\0" + o for _, m, n, o in sorted(entries, key=lambda e: e[0]))
+    return hashlib.sha1(b"tree %d\0" % len(body) + body).digest()
+
+
+def load_snapshot(args):
+    """Validate the pinned identity options. Returns None when a checkout (.git) is present."""
+    given = (args.snapshot_commit, args.snapshot_upstream_base, args.snapshot_exclude)
+    if has_git():
+        if any(given):
+            raise ValueError("--snapshot-* options are only valid in a source tree without .git")
+        return None
+    if not (args.snapshot_commit and args.snapshot_upstream_base):
+        raise ValueError("no .git: a snapshot needs --snapshot-commit and --snapshot-upstream-base")
+    if not re.fullmatch(r"[0-9a-f]{40}", args.snapshot_upstream_base):
+        raise ValueError("--snapshot-upstream-base must be a full 40-character commit ID")
+    excludes = sorted(set(args.snapshot_exclude or ()))
+    for e in excludes:
+        parts = Path(e).parts
+        if Path(e).is_absolute() or ".." in parts or "." in parts or not parts or e != "/".join(parts):
+            raise ValueError("--snapshot-exclude must be a normalized relative path")
+        if any(p == e or p.startswith(e + "/") for p in SNAPSHOT_PROTECTED):
+            raise ValueError(f"--snapshot-exclude may not cover {e}")
+    raw = Path(args.snapshot_commit).read_bytes()
+    commit = hashlib.sha1(b"commit %d\0" % len(raw) + raw).hexdigest()
+    header = raw.split(b"\n\n", 1)[0].decode()
+    tree = re.match(r"tree ([0-9a-f]{40})\n", header)
+    stamp = re.search(r"^committer .* (\d+) [+-]\d{4}$", header, re.M)
+    if not tree or not stamp:
+        raise ValueError("--snapshot-commit is not a raw git commit object")
+    return {"revision": commit, "tree": tree[1], "commit_time": stamp[1],
+            "upstream_base": args.snapshot_upstream_base, "excludes": excludes}
+
+
+def source_tree():
+    return SNAPSHOT["tree"] if SNAPSHOT else git("rev-parse", "HEAD^{tree}")
+
+
+def commit_time(revision):
+    return SNAPSHOT["commit_time"] if SNAPSHOT else git("show", "-s", "--format=%ct", revision)
+
+
+def upstream_base(revision):
+    return SNAPSHOT["upstream_base"] if SNAPSHOT else git("merge-base", revision, "refs/remotes/upstream/main")
+
+
+def clean_snapshot(revision):
+    if SNAPSHOT is None:
+        raise ValueError("source has no .git and no verified snapshot identity")
+    if revision != SNAPSHOT["revision"]:
+        raise ValueError("snapshot commit object does not match --revision")
+    if snapshot_tree(SOURCE, SNAPSHOT["excludes"]).hex() != SNAPSHOT["tree"]:
+        raise ValueError("source snapshot does not match the pinned commit tree (modified, added or missing files)")
+
+
 def clean_revision(revision):
     if not re.fullmatch(r"[0-9a-f]{40}", revision):
         raise ValueError("--revision must be a full 40-character commit ID")
+    if not has_git():
+        return clean_snapshot(revision)
     if git("rev-parse", "HEAD") != revision:
         raise ValueError("checkout does not match --revision")
     if git("status", "--porcelain=v1", "--untracked-files=normal"):
@@ -89,7 +187,7 @@ def make_plan(revision, output, profile, jobs, trace_mode="off"):
     if not match:
         raise ValueError("cannot identify source release version")
     stamp = datetime.datetime.fromtimestamp(
-        int(git("show", "-s", "--format=%ct", revision)), datetime.timezone.utc
+        int(commit_time(revision)), datetime.timezone.utc
     ).strftime("%Y%m%d%H%M%S")
     version = f"{match[1]}.snap{stamp}.{revision[:12]}.{profile}"
     if trace_mode == "filemon":
@@ -120,19 +218,21 @@ def make_plan(revision, output, profile, jobs, trace_mode="off"):
         "sets": [*release, "packagesystem"],
     }
     plan = {
-        "schema": SCHEMA, "source_revision": revision, "source_tree": git("rev-parse", "HEAD^{tree}"),
+        "schema": SCHEMA, "source_revision": revision, "source_tree": source_tree(),
         "source_directory": str(SOURCE), "source_repository": "https://github.com/jordanhubbard/daemonarchy-src",
         "upstream_repository": "https://github.com/freebsd/freebsd-src",
-        "upstream_base": git("merge-base", revision, "refs/remotes/upstream/main"),
+        "upstream_base": upstream_base(revision),
         "profile": profile, "kernel": kernel, "package_version": version,
         "target": "amd64", "target_arch": "amd64", "jobs": jobs, "output": str(root),
         "configurations": {str(p.relative_to(SOURCE)): digest(p) for p in (config, kernel_config)},
         "environment": {"PATH": PATH, "MAKEOBJDIRPREFIX": str(root / "obj"),
                         "HOME": str(root / "home"), "TMPDIR": str(root / "tmp"),
-                        "LC_ALL": "C", "TZ": "UTC", "SOURCE_DATE_EPOCH": git("show", "-s", "--format=%ct", revision)},
+                        "LC_ALL": "C", "TZ": "UTC", "SOURCE_DATE_EPOCH": commit_time(revision)},
         "commands": commands, "release_directory_query": [*release, "-V", ".OBJDIR"],
         "publication": "unsigned-development-only", "acceptance": "not-qualified",
     }
+    if SNAPSHOT:
+        plan["source_snapshot"] = {"excludes": SNAPSHOT["excludes"], "upstream_base": "pinned-unverified"}
     if trace_mode != "off":
         plan["trace_mode"] = trace_mode
     plan["identity"] = hashlib.sha256(canonical(plan)).hexdigest()
@@ -511,6 +611,9 @@ def main():
     parser.add_argument("--trace-mode", choices=("off", "filemon"), default="off")
     parser.add_argument("--through", choices=PHASES, default="sets")
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--snapshot-commit", help="raw git commit object file for the revision (source without .git)")
+    parser.add_argument("--snapshot-upstream-base", help="pinned upstream merge-base commit (source without .git)")
+    parser.add_argument("--snapshot-exclude", action="append", help="non-source path allowed in a snapshot (repeatable)")
     parser.add_argument("--minimum-free-gib", type=int, default=80)
     parser.add_argument("--phase-timeout", type=int, default=21600)
     args = parser.parse_args()
@@ -519,6 +622,9 @@ def main():
     if args.operation in ("plan", "run") and not args.revision:
         parser.error("--revision is required for plan/run")
     try:
+        global SNAPSHOT
+        if args.operation in ("plan", "run"):
+            SNAPSHOT = load_snapshot(args)
         if args.operation == "verify":
             result = verify(Path(args.output))
         elif args.operation == "status":
