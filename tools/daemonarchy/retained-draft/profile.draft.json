@@ -5,7 +5,7 @@
   "worker_identity": "sha256:29d0ce36b8f96325b660670b5e4a2e99bd42e705472c2b4594f6955e04fe2171",
   "toolchain_identity": "sha256:7764b2dc50ffd525373292eb4cdf6d4fb8ef1945244626bd060de3141252c55f",
   "dependency_identity": "sha256:5b8c257af24528b3bf9cc46317f481475a540ff4913422f09ba056fd64c05206",
-  "test_policy_identity": "sha256:ab53881dd1e9715f346f08ba3441a35a5641217e66d394595bb960d947db0a1f",
+  "test_policy_identity": "sha256:737d6d434ea627b8bf2fdec2f1b7ec54a452d9138898129c8d07b2142ca93492",
   "release_policy_identity": "sha256:d6aa952ae0f5abf279a67472a609130e834fae151b543bafaa1ae6ee86968381",
   "tools": [
     {

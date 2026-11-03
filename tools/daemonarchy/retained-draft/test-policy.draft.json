@@ -1,6 +1,6 @@
 {
   "schema": "literate-ai/retained-project-test-policy@1",
-  "project_policy_identity": "sha256:966919ad95981f7b4ffdc2033188bfbece5afd2b0706925073e9ec551fb67742",
+  "project_policy_identity": "sha256:8f25f07344222f19bb5c0e08ec9d55ef1ce0fea7759719814b34685f3cb6b775",
   "cases": [
     {
       "id": "test_build.BuildTests.test_actual_release_tree_archives_preserve_symlinks_and_root_ownership",
