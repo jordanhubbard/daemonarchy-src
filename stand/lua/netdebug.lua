@@ -1,5 +1,4 @@
 -- SPDX-License-Identifier: BSD-2-Clause
--- Copyright (c) 2026 Daemonarchy contributors.
 
 local cli = require("cli")
 local core = require("core")

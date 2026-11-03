@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
-/* Copyright (c) 2026 Daemonarchy contributors. */
 #ifndef _NETCONSOLE_UNDI_H_
 #define _NETCONSOLE_UNDI_H_
 
