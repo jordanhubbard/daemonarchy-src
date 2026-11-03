@@ -122,6 +122,19 @@ uint64_t ap_cpuid;
 void *bootstack;
 static void *bootstacks[MAXCPU];
 
+/*
+ * Breadcrumb for diagnosing an AP that never checks in: the last stage the
+ * most recently started AP reached.  Stages 1 and 2 (entry and MMU enable)
+ * run with the MMU off and are not recorded, as that needs a cache-safe store
+ * that cannot be verified without hardware.  AP_STAGE_VIRTDONE is stored by
+ * mp_virtdone in locore.S and must be kept in sync.
+ */
+#define	AP_STAGE_NONE		0
+#define	AP_STAGE_VIRTDONE	3	/* MMU on, in the kernel's address space */
+#define	AP_STAGE_SECONDARY	4	/* entered init_secondary() */
+#define	AP_STAGE_IDENTIFIED	5	/* identify_cpu() done */
+volatile int ap_stage;
+
 /* Count of started APs, used to synchronize access to bootstack. */
 static volatile int aps_started;
 
@@ -224,6 +237,7 @@ init_secondary(uint64_t cpu)
 	pmap_t pmap0;
 	uint64_t mpidr;
 
+	atomic_store_int(&ap_stage, AP_STAGE_SECONDARY);
 	ptrauth_mp_start(cpu);
 
 	/*
@@ -253,6 +267,7 @@ init_secondary(uint64_t cpu)
 	pcpup = cpuid_to_pcpu[cpu];
 	pcpup->pc_midr = get_midr();
 	identify_cpu(cpu);
+	atomic_store_int(&ap_stage, AP_STAGE_IDENTIFIED);
 
 	/* Ensure the stores in identify_cpu have completed */
 	atomic_thread_fence_acq_rel();
@@ -523,12 +538,16 @@ enable_cpu_spin(uint64_t cpu, vm_paddr_t entry, vm_paddr_t release_paddr)
 static void
 start_cpu_failed(u_int cpuid, uint64_t target_cpu, vm_paddr_t release_addr)
 {
+	int stage;
+
+	stage = atomic_load_int(&ap_stage);
 	if (release_addr == 0 && psci_present && psci_callfn != NULL)
-		printf("CPU %u (%lx) failed to start "
-		    "(PSCI AFFINITY_INFO %d)\n", cpuid, target_cpu,
+		printf("CPU %u (%lx) failed to start (last stage %d, "
+		    "PSCI AFFINITY_INFO %d)\n", cpuid, target_cpu, stage,
 		    psci_call(PSCI_FNID_AFFINITY_INFO, target_cpu, 0, 0));
 	else
-		printf("CPU %u (%lx) failed to start\n", cpuid, target_cpu);
+		printf("CPU %u (%lx) failed to start (last stage %d)\n",
+		    cpuid, target_cpu, stage);
 }
 
 /*
@@ -569,6 +588,7 @@ start_cpu(u_int cpuid, uint64_t target_cpu, int domain, vm_paddr_t release_addr)
 	bootstacks[cpuid] = kmem_malloc_domainset(DOMAINSET_PREF(domain),
 	    MP_BOOTSTACK_SIZE, M_WAITOK | M_ZERO);
 
+	atomic_store_int(&ap_stage, AP_STAGE_NONE);
 	naps = atomic_load_int(&aps_started);
 	bootstack = (char *)bootstacks[cpuid] + MP_BOOTSTACK_SIZE;
 
