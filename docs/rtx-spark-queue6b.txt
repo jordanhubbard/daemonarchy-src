@@ -1,0 +1,31 @@
+# hwtrace queue 6b (run after 6a, re-queued with stick.py queue --reset-traces
+# or onto a second stick): the questions 6a leaves open.
+# 1. Is only the core at MPIDR 0x400 bad? Skip it and start the rest, stopping
+#    at the next failure (the report names the stage).
+# 2. Does continuing past a failed CPU (PR #53 behaviour) panic? Expect a
+#    panic: photograph the screen within the 60 s.
+
+[skip-400-stop]
+boot_verbose=YES
+hw.mp.skip_mpidr=400
+hw.mp.ap_timeout_ms=20000
+hwtrace.hold=120
+kern.panic_reboot_wait_time=60
+debug.trace_on_panic=1
+
+[skip-400-continue]
+boot_verbose=YES
+hw.mp.skip_mpidr=400
+hw.mp.stop_on_failure=0
+hw.mp.ap_timeout_ms=5000
+hwtrace.hold=120
+kern.panic_reboot_wait_time=60
+debug.trace_on_panic=1
+
+[continue-after-failure]
+boot_verbose=YES
+hw.mp.stop_on_failure=0
+hw.mp.ap_timeout_ms=5000
+hwtrace.hold=120
+kern.panic_reboot_wait_time=60
+debug.trace_on_panic=1

@@ -258,8 +258,25 @@ LENTRY(mpentry_common)
 	/* Disable interrupts */
 	msr	daifset, #DAIF_INTR
 
+	/*
+	 * Early breadcrumbs for the boot CPU, see ap_stage_early in
+	 * mp_machdep.c.  The MMU is off, so this is a Device-nGnRnE store that
+	 * goes straight to memory; the word sits in a cache line of its own
+	 * and the boot CPU cleans and invalidates that line before reading it.
+	 * x0 (the context id) must be preserved; x16 and x17 are free.
+	 */
+	adrp	x16, ap_stage_early
+	mov	w17, #1		/* AP_STAGE_ENTRY */
+	str	w17, [x16, :lo12:ap_stage_early]
+	dsb	sy
+
 	/* Enter the kernel exception level */
 	bl	enter_kernel_el
+
+	adrp	x16, ap_stage_early
+	mov	w17, #2		/* AP_STAGE_EL1 */
+	str	w17, [x16, :lo12:ap_stage_early]
+	dsb	sy
 
 	/* Set the context id */
 	msr	contextidr_el1, xzr
@@ -301,6 +318,18 @@ mp_virtdone:
 	adrp	x16, ap_stage
 	mov	w17, #3		/* AP_STAGE_VIRTDONE */
 	str	w17, [x16, :lo12:ap_stage]
+
+	/*
+	 * A CPU that arrives after the boot CPU gave up on the start sequence
+	 * (see ap_halted in mp_machdep.c) must not touch the boot stack, the
+	 * pcpu or the AP counters: park it.  x16 and x17 are free.
+	 */
+	adrp	x16, ap_halted
+	ldr	w17, [x16, :lo12:ap_halted]
+	cbz	w17, 2f
+3:	wfi
+	b	3b
+2:
 
 	/* Start using the AP boot stack */
 	adrp	x4, bootstack
