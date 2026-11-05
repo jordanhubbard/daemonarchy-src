@@ -565,9 +565,12 @@ virtqueue_notify(struct virtqueue *vq)
 	/* Ensure updated avail->idx is visible to host. */
 	bus_dmamap_sync(vq->vq_ring_dmat, vq->vq_ring_mapp,
 	    BUS_DMASYNC_PREWRITE);
-#if defined(__i386__) || defined(__amd64__)
+	/*
+	 * Full barrier: the store to avail->idx above must be ordered before
+	 * the load of avail_event/used->flags in vq_ring_must_notify_host().
+	 * bus_dmamap_sync() only orders stores on arm64 (dmb oshst).
+	 */
 	mb();
-#endif
 
 	if (vq_ring_must_notify_host(vq))
 		vq_ring_notify_host(vq);
@@ -963,9 +966,14 @@ vq_ring_enable_interrupt(struct virtqueue *vq, uint16_t ndesc)
 
 	bus_dmamap_sync(vq->vq_ring_dmat, vq->vq_ring_mapp,
 	    BUS_DMASYNC_PREWRITE);
-#if defined(__i386__) || defined(__amd64__)
+	/*
+	 * Full barrier: the store of used_event (or the cleared
+	 * NO_INTERRUPT flag) must be ordered before the load of used->idx in
+	 * virtqueue_nused(), or the host may skip the interrupt while we
+	 * miss the entry it just published (a lost wakeup).  This must not be
+	 * x86-only: bus_dmamap_sync() only orders stores on arm64 (dmb oshst).
+	 */
 	mb();
-#endif
 
 	/*
 	 * Enough items may have already been consumed to meet our threshold
