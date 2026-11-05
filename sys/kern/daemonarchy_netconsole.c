@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
-/* Copyright (c) 2026 Daemonarchy contributors. */
 /*
  * Diagnostic, polled console for a forced mountroot prompt.  The interface
  * belongs exclusively to debugnet until mountroot completes; it must not be

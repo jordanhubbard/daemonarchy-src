@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
-/* Copyright (c) 2026 Daemonarchy contributors. */
 
 #ifndef NC_REPORT_FIXTURE
 #include <stand.h>

@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
-/* Copyright (c) 2026 Daemonarchy contributors. */
 
 /*
  * Block map parsing and raw sector rewrites for the hardware-trace stick;

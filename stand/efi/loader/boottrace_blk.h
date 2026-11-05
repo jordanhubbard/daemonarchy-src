@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
-/* Copyright (c) 2026 Daemonarchy contributors. */
 
 /*
  * Raw-block writes for the hardware-trace stick.  The image builder

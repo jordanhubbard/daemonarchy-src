@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
-/* Copyright (c) 2026 Daemonarchy contributors. */
 /*
  * Early polled backend for Intel 8254x (e1000) functions, as emulated by
  * QEMU (82540EM, 8086:100e) and bhyve (82545EM, 8086:100f).  Legacy
