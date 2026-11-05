@@ -293,6 +293,15 @@ mp_virtdone:
 	blr	x26
 1:
 
+	/*
+	 * Leave a breadcrumb for the boot CPU, see ap_stage in mp_machdep.c.
+	 * The MMU is on so this is a coherent cacheable store.  x0 (the
+	 * context id) must be preserved, x16 and x17 are free.
+	 */
+	adrp	x16, ap_stage
+	mov	w17, #3		/* AP_STAGE_VIRTDONE */
+	str	w17, [x16, :lo12:ap_stage]
+
 	/* Start using the AP boot stack */
 	adrp	x4, bootstack
 	ldr	x4, [x4, :lo12:bootstack]

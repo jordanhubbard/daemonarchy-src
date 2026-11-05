@@ -122,6 +122,19 @@ uint64_t ap_cpuid;
 void *bootstack;
 static void *bootstacks[MAXCPU];
 
+/*
+ * Breadcrumb for diagnosing an AP that never checks in: the last stage the
+ * most recently started AP reached.  Stages 1 and 2 (entry and MMU enable)
+ * run with the MMU off and are not recorded, as that needs a cache-safe store
+ * that cannot be verified without hardware.  AP_STAGE_VIRTDONE is stored by
+ * mp_virtdone in locore.S and must be kept in sync.
+ */
+#define	AP_STAGE_NONE		0
+#define	AP_STAGE_VIRTDONE	3	/* MMU on, in the kernel's address space */
+#define	AP_STAGE_SECONDARY	4	/* entered init_secondary() */
+#define	AP_STAGE_IDENTIFIED	5	/* identify_cpu() done */
+volatile int ap_stage;
+
 /* Count of started APs, used to synchronize access to bootstack. */
 static volatile int aps_started;
 
@@ -224,6 +237,7 @@ init_secondary(uint64_t cpu)
 	pmap_t pmap0;
 	uint64_t mpidr;
 
+	atomic_store_int(&ap_stage, AP_STAGE_SECONDARY);
 	ptrauth_mp_start(cpu);
 
 	/*
@@ -253,6 +267,7 @@ init_secondary(uint64_t cpu)
 	pcpup = cpuid_to_pcpu[cpu];
 	pcpup->pc_midr = get_midr();
 	identify_cpu(cpu);
+	atomic_store_int(&ap_stage, AP_STAGE_IDENTIFIED);
 
 	/* Ensure the stores in identify_cpu have completed */
 	atomic_thread_fence_acq_rel();
@@ -513,6 +528,28 @@ enable_cpu_spin(uint64_t cpu, vm_paddr_t entry, vm_paddr_t release_paddr)
 	return (0);
 }
 
+/* How long to wait for a CPU to check in after it has been started. */
+#define	AP_START_TIMEOUT_MS	2000
+
+/*
+ * Report a CPU that was started but never checked in.  If PSCI started it,
+ * ask the firmware what it thinks the CPU is doing.
+ */
+static void
+start_cpu_failed(u_int cpuid, uint64_t target_cpu, vm_paddr_t release_addr)
+{
+	int stage;
+
+	stage = atomic_load_int(&ap_stage);
+	if (release_addr == 0 && psci_present && psci_callfn != NULL)
+		printf("CPU %u (%lx) failed to start (last stage %d, "
+		    "PSCI AFFINITY_INFO %d)\n", cpuid, target_cpu, stage,
+		    psci_call(PSCI_FNID_AFFINITY_INFO, target_cpu, 0, 0));
+	else
+		printf("CPU %u (%lx) failed to start (last stage %d)\n",
+		    cpuid, target_cpu, stage);
+}
+
 /*
  * Starts a given CPU. If the CPU is already running, i.e. it is the boot CPU,
  * do nothing. Returns true if the CPU is present and running.
@@ -523,6 +560,7 @@ start_cpu(u_int cpuid, uint64_t target_cpu, int domain, vm_paddr_t release_addr)
 	struct pcpu *pcpup;
 	vm_size_t size;
 	vm_paddr_t pa;
+	uint64_t deadline, freq;
 	int err, naps;
 
 	/* Check we are able to start this cpu */
@@ -550,6 +588,7 @@ start_cpu(u_int cpuid, uint64_t target_cpu, int domain, vm_paddr_t release_addr)
 	bootstacks[cpuid] = kmem_malloc_domainset(DOMAINSET_PREF(domain),
 	    MP_BOOTSTACK_SIZE, M_WAITOK | M_ZERO);
 
+	atomic_store_int(&ap_stage, AP_STAGE_NONE);
 	naps = atomic_load_int(&aps_started);
 	bootstack = (char *)bootstacks[cpuid] + MP_BOOTSTACK_SIZE;
 
@@ -579,9 +618,39 @@ start_cpu(u_int cpuid, uint64_t target_cpu, int domain, vm_paddr_t release_addr)
 		return (false);
 	}
 
-	/* Wait for the AP to switch to its boot stack. */
-	while (atomic_load_int(&aps_started) < naps + 1)
+	/*
+	 * Wait for the AP to switch to its boot stack.  Don't wait forever:
+	 * some firmware accepts CPU_ON for a CPU that then never reaches the
+	 * kernel, and hanging here loses the whole machine.
+	 *
+	 * Use the architected counter rather than DELAY(), as the timer
+	 * driver is not attached yet and DELAY() is then uncalibrated.
+	 */
+	freq = READ_SPECIALREG(cntfrq_el0);
+	if (freq == 0)
+		freq = 1000000;
+	deadline = READ_SPECIALREG(cntvct_el0) +
+	    freq * AP_START_TIMEOUT_MS / 1000;
+	while (atomic_load_int(&aps_started) < naps + 1) {
+		if (READ_SPECIALREG(cntvct_el0) > deadline) {
+			start_cpu_failed(cpuid, target_cpu, release_addr);
+			/*
+			 * The AP may still be alive and could come in late
+			 * using bootstack and the pcpu we gave it, so they are
+			 * deliberately not freed.  pcpu_destroy() unlinks the
+			 * pcpu and clears cpuid_to_pcpu[], so a late AP finds
+			 * no pcpu for its MPIDR and panics in init_secondary()
+			 * before it touches aps_started.  The CPU ID is
+			 * not consumed: callers only advance it on success.
+			 */
+			pcpu_destroy(pcpup);
+			dpcpu[cpuid - 1] = NULL;
+			bootstacks[cpuid] = NULL;
+			mp_ncpus--;
+			return (false);
+		}
 		cpu_spinwait();
+	}
 	CPU_SET(cpuid, &all_cpus);
 
 	return (true);
