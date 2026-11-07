@@ -837,7 +837,7 @@ static struct bt_map bt_mapv;
 static struct bt_blk bt_blkv;
 static bool bt_raw;			/* SLOTS.MAP accepted: raw writes */
 static char bt_mapwhy[96];
-static char bt_checked[64];		/* mapped file compared with FAT */
+static bool bt_slot_checked[BT_MAP_MAX];		/* mapped file compared with FAT */
 static char bt_cmp[4096];
 static bool bt_drop_fat;		/* test: FAT writes are lost */
 
@@ -945,7 +945,7 @@ bt_raw_setup(EFI_HANDLE h, EFI_FILE_PROTOCOL *root, size_t slen,
 	size_t len, n;
 
 	bt_raw = false;
-	bt_checked[0] = '\0';
+	memset(bt_slot_checked, 0, sizeof(bt_slot_checked));
 	memset(&bt_blkv, 0, sizeof(bt_blkv));
 	if (bt_read(root, "\\SLOTS.MAP", &len) != EFI_SUCCESS) {
 		strlcpy(bt_mapwhy, "no SLOTS.MAP (older stick)",
@@ -1010,8 +1010,10 @@ bt_stick_write(EFI_FILE_PROTOCOL *root, const char *path, const char *data,
 
 	e = bt_raw ? bt_map_find(&bt_mapv, path) : NULL;
 	/* First write of a slot this cycle: it must be where the map says. */
-	if (e != NULL && strcmp(bt_checked, path) != 0) {
-		strlcpy(bt_checked, path, sizeof(bt_checked));
+	if (e != NULL && !bt_slot_checked[e - bt_mapv.ent]) {
+		/* A raw-written slot must never be re-compared with the stale
+		 * firmware FAT cache when another slot has been written since. */
+		bt_slot_checked[e - bt_mapv.ent] = true;
 		if (bt_read(root, path, &n) == EFI_SUCCESS) {
 			n = MIN(MIN(n, e->size), sizeof(bt_cmp));
 			if (n == 0 || bt_blk_read(&bt_blkv, e, bt_cmp, n) !=
@@ -1118,7 +1120,7 @@ bt_acpi_emit(void *arg, const char *name, const void *data, size_t length,
 	 * in INDEX.TXT identify the valid prefix of each preallocated file. */
 	status = bt_stick_write(ctx->root, path, data != NULL ? data :
 	    "NOT CAPTURED\n", data != NULL ? length : 13);
-	if (status != EFI_SUCCESS || (data == NULL &&
+	if (!bt_raw || status != EFI_SUCCESS || (data == NULL &&
 	    (strcmp(name, "RSDP") == 0 || strcmp(name, "ROOT") == 0 ||
 	    strcmp(name, "APIC") == 0)))
 		ctx->failed = true;
@@ -1163,7 +1165,7 @@ bt_acpi_collect(EFI_FILE_PROTOCOL *root, unsigned epoch)
 	    &ctx) != 0)
 		ctx.failed = true;
 	status = bt_stick_write(root, "\\ACPI\\INDEX.TXT", ctx.report, ctx.used);
-	if (status != EFI_SUCCESS)
+	if (!bt_raw || status != EFI_SUCCESS)
 		ctx.failed = true;
 	printf("Hardware trace: loader ACPI capture %s\n",
 	    ctx.failed ? "FAILED; inspect ACPI/INDEX.TXT" : "saved and read back");
