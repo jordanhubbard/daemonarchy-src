@@ -7,7 +7,7 @@ turns the hang and the later panic into a boot on the CPUs that did start and
 records why the others did not. Read with
 `docs/application-note-rtx-spark.md` and `docs/aarch64.md` in the
 `daemonarchy` repository. The hwtrace queues are in
-`docs/rtx-spark-queue6a.txt` and `docs/rtx-spark-queue6b.txt` here.
+[queue 6a](rtx-spark-queue6a.txt) and [queue 6b](rtx-spark-queue6b.txt) here.
 
 ## 1. The reference repository
 
@@ -157,3 +157,36 @@ for in the dump's `dmesg`: `CPU 4 (400) checked in after N ms` (slow core) or
 `failed to start after N ms (early stage S, stage T, PSCI AFFINITY_INFO A)`.
 Queue 6b then asks whether only core 0x400 is bad and whether continuing past a
 failed core really panics. Do not pull power or the stick during the hold.
+
+## 2026-11-07: loader topology capture candidate
+
+The 1.6 ARM program adds opt-in `boottrace_capture_acpi=YES` to the EFI loader.
+It copies bounded, checksummed RSDP/root and APIC/PPTT/FACP/IORT/SRAT/SLIT/SPCR
+records before kernel entry into preallocated mapped `ACPI/` files. Only readable
+EFI RAM descriptors are accessed; no AML or live `/dev/mem` probe runs. The index
+is invalidated first and committed last, with epoch, lengths and hashes. Required
+RSDP/root/MADT capture or raw readback failure stops the experiment before boot.
+
+The raw writer now remembers validation of every slot within a cycle. Rechecking
+a previously raw-written slot against the firmware FAT cache can falsely reject
+the map and flush stale cache pages over earlier captures; the native EFI VM
+reproduced that failure before this fix. The foreign-complete-trace queue fix
+from b25ae0b6293 is included so an older normal boot does not end a fresh queue.
+
+Host sanitizers and native FreeBSD ARM64 parser cases cover ACPI v1/v2, corrupt
+checksums, invalid lengths, oversized roots and unreadable addresses. Native
+FreeBSD ARM64 builds the actual EFI loaders with warnings treated as errors.
+QEMU/AAVMF with KVM executes the Lua loader, persists the table snapshot, and
+stops; offline disk inspection verifies hashes/checksums and four enabled GICC
+entries. This qualifies that loader path on the VM, not a Spark CPU-start fix,
+full VM kernel boot or physical firmware reset/power-cycle persistence.
+
+The first physical candidate retains the matching 1.5.1 kernel/world and a single
+four-CPU control. Its purpose is to obtain the laptop's enabled flags and actual
+topology before another CPU4 experiment. The current arm64 MADT start path does
+not inspect GICC enabled flags; whether that omission explains this laptop's
+hang remains an open hypothesis until its own table is returned. No early
+kernel NVRAM or disk persistence is inferred from this loader capture.
+
+The companion product repository owns the bounded userspace collector, offline
+`tools/hwtrace/acpi-summary.py` decoder, image layout and Pi 4 baseline/media tools.
