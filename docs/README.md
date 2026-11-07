@@ -32,3 +32,5 @@ existing native controller procedures.
 required gates pass. Keep upstream-oriented fixes separately reviewable.
 Use an explicit `--repo jordanhubbard/daemonarchy-src` for GitHub commands:
 the GitHub CLI may otherwise select the fork's FreeBSD upstream automatically.
+
+- [RTX Spark bring-up and loader topology capture](rtx-spark-bringup.md)
