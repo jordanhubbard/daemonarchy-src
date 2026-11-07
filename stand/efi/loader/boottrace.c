@@ -1222,7 +1222,14 @@ bt_cycle(void)
 			    "%u steps\n\n", h->seq, h->status, h->steps);
 			bt_format(false);
 			bt_out_append(&len, "%s", bt_report);
-			complete = h->status == DBT_STATUS_COMPLETE;
+			/*
+			 * Only a queued experiment that reached init ends the
+			 * loop.  A complete trace from a boot outside the queue
+			 * (left in NVRAM by an earlier campaign or a normal
+			 * boot) is filed, and the queue proceeds.
+			 */
+			complete = h->status == DBT_STATUS_COMPLETE &&
+			    pending[0] != '\0';
 		} else
 			bt_out_append(&len, "nvram: %s\n", error == ENOENT ?
 			    "no trace (the kernel never reached EFI runtime "
