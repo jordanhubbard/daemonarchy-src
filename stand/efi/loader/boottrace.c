@@ -1162,10 +1162,12 @@ bt_acpi_collect(EFI_FILE_PROTOCOL *root, unsigned epoch)
 	if (bt_acpi_snapshot((uintptr_t)address, bt_acpi_read, bt_acpi_emit,
 	    &ctx) != 0)
 		ctx.failed = true;
+	status = bt_stick_write(root, "\\ACPI\\INDEX.TXT", ctx.report, ctx.used);
+	if (status != EFI_SUCCESS)
+		ctx.failed = true;
 	printf("Hardware trace: loader ACPI capture %s\n",
 	    ctx.failed ? "FAILED; inspect ACPI/INDEX.TXT" : "saved and read back");
-	status = bt_stick_write(root, "\\ACPI\\INDEX.TXT", ctx.report, ctx.used);
-	return (!ctx.failed && status == EFI_SUCCESS);
+	return (!ctx.failed);
 }
 
 static int
