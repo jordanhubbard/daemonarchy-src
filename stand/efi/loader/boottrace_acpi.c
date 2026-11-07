@@ -45,6 +45,8 @@ load(uint64_t address, uint8_t *out, size_t *length,
 		return ("table length outside capture limit");
 	if (read(arg, address, out, *length) != 0)
 		return ("table outside readable firmware memory");
+	if (u32(out + 4) != *length)
+		return ("table changed during capture");
 	if (!checksum(out, *length))
 		return ("checksum mismatch");
 	return (NULL);

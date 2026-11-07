@@ -14,6 +14,7 @@
 #include <sys/daemonarchy_boottrace.h>
 #include <efi.h>
 #include <efilib.h>
+#include <Guid/Acpi.h>
 #include <Protocol/BlockIo.h>
 #include <Protocol/SimpleFileSystem.h>
 
@@ -1155,7 +1156,7 @@ bt_acpi_collect(EFI_FILE_PROTOCOL *root, unsigned epoch)
 		return (false);
 	address = efi_get_table(&guid);
 	if (address == NULL) {
-		EFI_GUID oldguid = EFI_ACPI_TABLE_GUID;
+		EFI_GUID oldguid = ACPI_TABLE_GUID;
 		address = efi_get_table(&oldguid);
 	}
 	if (bt_acpi_snapshot((uintptr_t)address, bt_acpi_read, bt_acpi_emit,
