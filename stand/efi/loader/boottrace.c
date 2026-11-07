@@ -1120,7 +1120,8 @@ bt_acpi_emit(void *arg, const char *name, const void *data, size_t length,
 	 * in INDEX.TXT identify the valid prefix of each preallocated file. */
 	status = bt_stick_write(ctx->root, path, data != NULL ? data :
 	    "NOT CAPTURED\n", data != NULL ? length : 13);
-	if (!bt_raw || status != EFI_SUCCESS || (data == NULL &&
+	if (!bt_raw || bt_ldr.verify != DBT_LV_OK ||
+	    status != EFI_SUCCESS || (data == NULL &&
 	    (strcmp(name, "RSDP") == 0 || strcmp(name, "ROOT") == 0 ||
 	    strcmp(name, "APIC") == 0)))
 		ctx->failed = true;
@@ -1148,7 +1149,8 @@ bt_acpi_collect(EFI_FILE_PROTOCOL *root, unsigned epoch)
 	    "Daemonarchy loader ACPI capture v1 epoch=%u\n", epoch);
 	/* Invalidate the prior index before touching this snapshot. */
 	if (!bt_raw || bt_stick_write(root, "\\ACPI\\INDEX.TXT",
-	    "INCOMPLETE CAPTURE\n", 19) != EFI_SUCCESS)
+	    "INCOMPLETE CAPTURE\n", 19) != EFI_SUCCESS ||
+	    !bt_raw || bt_ldr.verify != DBT_LV_OK)
 		return (false);
 	ctx.mapsize = sizeof(ctx.map);
 	status = BS->GetMemoryMap(&ctx.mapsize, (void *)ctx.map, &key,
@@ -1165,7 +1167,7 @@ bt_acpi_collect(EFI_FILE_PROTOCOL *root, unsigned epoch)
 	    &ctx) != 0)
 		ctx.failed = true;
 	status = bt_stick_write(root, "\\ACPI\\INDEX.TXT", ctx.report, ctx.used);
-	if (!bt_raw || status != EFI_SUCCESS)
+	if (!bt_raw || bt_ldr.verify != DBT_LV_OK || status != EFI_SUCCESS)
 		ctx.failed = true;
 	printf("Hardware trace: loader ACPI capture %s\n",
 	    ctx.failed ? "FAILED; inspect ACPI/INDEX.TXT" : "saved and read back");
