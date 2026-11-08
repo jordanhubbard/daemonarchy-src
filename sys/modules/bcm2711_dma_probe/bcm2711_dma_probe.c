@@ -265,13 +265,14 @@ struct pressure_owner {
 	bus_dma_tag_t tag, physical;
 	bus_dmamap_t holders[HOLD_COUNT], pending;
 	char *buffer;
+	size_t allocation_length;
 	unsigned created, loaded, callbacks, unlocks;
-	bool deferred, prepared;
+	bool deferred, prepared, error_case;
 	unsigned expected_pages;
 	int callback_error;
 };
 static struct pressure_owner *retained;
-struct sync_result { int calls, error; };
+struct sync_result { int calls, error, segments; };
 
 static void
 sync_callback(void *arg, bus_dma_segment_t *segments, int count, int error)
@@ -280,6 +281,7 @@ sync_callback(void *arg, bus_dma_segment_t *segments, int count, int error)
 
 	result->calls++;
 	result->error = error;
+	result->segments = count;
 }
 
 static void
@@ -375,7 +377,7 @@ pressure_cleanup(struct pressure_owner *owner)
 		owner->physical = NULL;
 	}
 	if (owner->buffer != NULL)
-		contigfree(owner->buffer, LENGTH, M_DMATEST);
+		contigfree(owner->buffer, owner->allocation_length, M_DMATEST);
 	cv_destroy(&owner->completed);
 	mtx_destroy(&owner->mutex);
 	free(owner, M_DMATEST);
@@ -404,7 +406,8 @@ pressure_prepare(void)
 	mtx_init(&owner->mutex, "DMA pressure callback", NULL, MTX_DEF);
 	cv_init(&owner->completed, "DMA pressure callback");
 	retained = owner;
-	owner->buffer = high_alloc(LENGTH);
+	owner->allocation_length = LENGTH;
+	owner->buffer = high_alloc(owner->allocation_length);
 	if (owner->buffer == NULL) {
 		error = ENOMEM;
 		goto cleanup;
@@ -448,7 +451,7 @@ pressure_run(void)
 	int error = 0, cleanup_error, result;
 	unsigned i;
 
-	if (owner == NULL || !owner->prepared || owner->deferred ||
+	if (owner == NULL || !owner->prepared || owner->error_case || owner->deferred ||
 	    owner->expected_pages == 0)
 		return (EINVAL);
 	for (i = 0; i < HOLD_COUNT; i++) {
@@ -518,6 +521,88 @@ cleanup:
 }
 
 static int
+error_prepare(void)
+{
+	struct pressure_owner *owner;
+	struct bcm2712_dma_policy policy;
+	struct bcm2712_dma_root_window window = {0, BCM2711_DMA_TEST_OFFSET,
+	    BCM2711_DMA_TEST_OFFSET, BCM2712_DMA_RAM, 0x43000000};
+	bus_dma_tag_t root, physical;
+	int error, cleanup_error;
+
+	error = bcm2711_dma_test_tags(&root, &physical);
+	if (error != 0) return (error);
+	owner = malloc(sizeof(*owner), M_DMATEST, M_WAITOK | M_ZERO);
+	mtx_init(&owner->mutex, "DMA error owner", NULL, MTX_DEF);
+	cv_init(&owner->completed, "DMA error owner");
+	retained = owner;
+	owner->allocation_length = 3 * PAGE_SIZE;
+	owner->buffer = high_alloc(owner->allocation_length);
+	if (owner->buffer == NULL) { error = ENOMEM; goto cleanup; }
+	error = bus_dma_tag_create(physical, PAGE_SIZE, 0, PRIVATE_LIMIT,
+	    BUS_SPACE_MAXADDR, NULL, NULL, 3 * PAGE_SIZE, 4, PAGE_SIZE, 0,
+	    NULL, NULL, &owner->physical);
+	if (error != 0) goto cleanup;
+	error = bcm2712_dma_policy_root(&policy, &window, 1);
+	if (error != 0) goto cleanup;
+	error = bus_dma_tag_create_bcm2712_ram(owner->physical, &policy,
+	    PAGE_SIZE, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
+	    2 * PAGE_SIZE, 1, PAGE_SIZE, 0, pressure_lock, owner, &owner->tag);
+	if (error != 0) goto cleanup;
+	error = bus_dmamap_create(owner->tag, 0, &owner->pending);
+	if (error != 0) goto cleanup;
+	owner->prepared = owner->error_case = true;
+	strlcpy(status, "PREPARED size/segment errors; snapshot private-zone accounting before run6", sizeof(status));
+	return (0);
+cleanup:
+	cleanup_error = pressure_cleanup(owner);
+	if (cleanup_error == 0) retained = NULL;
+	return (error != 0 ? error : cleanup_error);
+}
+
+static int
+error_run(void)
+{
+	struct pressure_owner *owner = retained;
+	struct sync_result result;
+	int error = 0, code, cleanup_error;
+	size_t length, i;
+
+	if (owner == NULL || !owner->prepared || !owner->error_case)
+		return (EINVAL);
+	memset(owner->buffer, 0x44, owner->allocation_length);
+	for (length = 2 * PAGE_SIZE; length <= 3 * PAGE_SIZE; length += PAGE_SIZE) {
+		bzero(&result, sizeof(result));
+		code = bus_dmamap_load(owner->tag, owner->pending, owner->buffer,
+		    length, sync_callback, &result, BUS_DMA_NOWAIT);
+		if (code != EFBIG || result.calls != 1 || result.error != EFBIG ||
+		    result.segments != 0) { error = EIO; break; }
+		bus_dmamap_unload(owner->tag, owner->pending);
+		for (i = 0; i < owner->allocation_length; i++)
+			if ((uint8_t)owner->buffer[i] != 0x44) error = EIO;
+		if (error != 0) break;
+	}
+	if (error == 0) {
+		bzero(&result, sizeof(result));
+		code = bus_dmamap_load(owner->tag, owner->pending, owner->buffer,
+		    PAGE_SIZE, sync_callback, &result, BUS_DMA_NOWAIT);
+		if (code != 0 || result.calls != 1 || result.error != 0 ||
+		    result.segments != 1) error = EIO;
+		if (error == 0) {
+			bus_dmamap_sync(owner->tag, owner->pending, BUS_DMASYNC_PREWRITE);
+			bus_dmamap_sync(owner->tag, owner->pending, BUS_DMASYNC_POSTWRITE);
+		}
+		bus_dmamap_unload(owner->tag, owner->pending);
+	}
+	cleanup_error = pressure_cleanup(owner);
+	if (cleanup_error == 0) retained = NULL;
+	if (error == 0) error = cleanup_error;
+	if (error == 0)
+		strlcpy(status, "PASS two-page segment EFBIG, overmaxsize EFBIG, exactly-one zero-segment errors, same-map one-page sync recovery and owner cleanup", sizeof(status));
+	return (error);
+}
+
+static int
 run_control(SYSCTL_HANDLER_ARGS)
 {
 	int command = 0, error;
@@ -525,7 +610,7 @@ run_control(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &command, 0, req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
-	if (command < 1 || command > 4)
+	if (command < 1 || command > 6)
 		return (EINVAL);
 	sx_xlock(&run_sx);
 	if (unloading) {
@@ -540,11 +625,15 @@ run_control(SYSCTL_HANDLER_ARGS)
 		} else error = ENOENT;
 	} else if (command == 4) {
 		error = pressure_run();
+	} else if (command == 6) {
+		error = error_run();
 	} else if (retained != NULL || io_retained != NULL) {
 		error = EBUSY;
 	} else {
 		strlcpy(status, "running", sizeof(status));
-		error = command == 1 ? high_bio() : pressure_prepare();
+		if (command == 1) error = high_bio();
+		else if (command == 2) error = pressure_prepare();
+		else error = error_prepare();
 	}
 	if (error != 0)
 		snprintf(status, sizeof(status), "FAIL command=%d error=%d retained=%d", command, error, retained != NULL || io_retained != NULL);
@@ -602,7 +691,7 @@ modevent(module_t module, int event, void *arg)
 		if (node == NULL) { error = ENOMEM; goto load_failed; }
 		if (SYSCTL_ADD_PROC(&sysctl_ctx, SYSCTL_CHILDREN(node), OID_AUTO,
 		    "run", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
-		    run_control, "I", "1=high BIO,2=prepare,3=reap,4=queue after observed-zone accounting") == NULL ||
+		    run_control, "I", "1=highBIO,2=pool prepare,3=reap,4=queue,5=error prepare,6=errors") == NULL ||
 		    SYSCTL_ADD_PROC(&sysctl_ctx, SYSCTL_CHILDREN(node), OID_AUTO,
 		    "status", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
 		    read_status, "A", "Last completed diagnostic result") == NULL ||
