@@ -46,7 +46,7 @@ static bool parent_missing,claimed;
 static device_t xref_owner;
 static unsigned of_publications;
 static int of_publish_error;
-static bool of_publish_drop;
+static bool of_publish_drop,of_publish_wrong,late_owner;
 static struct intr_irqsrc parent_sources[64];
 static void *device_get_softc(device_t d) { assert(d==&mip);return d->softc; }
 static const char *device_get_nameunit(device_t d) { (void)d;return "mip-test"; }
@@ -125,12 +125,12 @@ static int intr_msi_register(device_t d,uint32_t xref) {
  /* Registration can synchronously expose us to the first real consumer. */
  assert(bcm2712_mip_alloc_msix(d,&child,&pic,&src)==0);
  assert(bcm2712_mip_release_msix(d,&child,src)==0);
- registrations++;return 0;
+ registrations++;if(late_owner)xref_owner=&other;return 0;
 }
 static int OF_device_register_xref(phandle_t xref,device_t d) {
  assert(xref==100 && d==&mip && sc.ready && registrations==1 && claimed);
  if(of_publish_error)return of_publish_error;
- of_publications++;if(!of_publish_drop)xref_owner=d;return 0;
+ of_publications++;if(!of_publish_drop)xref_owner=of_publish_wrong?&other:d;return 0;
 }
 static void reset(void) {
  assert(!allocations);memset(&sc,0,sizeof(sc));mip.softc=&sc;mip.node=1;parent.node=2;
@@ -139,7 +139,7 @@ static void reset(void) {
  pcell_t a[]={42,0,128,1,64};memcpy(ranges,a,sizeof(a));
  offset=msicells=0;offsetlen=4;msicellslen=-1;reglen=32;rangelen=20;icells=3;
  releases=writes=registrations=parent_allocations=of_publications=0;
- xref_owner=NULL;of_publish_error=0;of_publish_drop=false;alloc_error=release_error=claim_error=publish_error=0;
+ xref_owner=NULL;of_publish_error=0;of_publish_drop=of_publish_wrong=late_owner=false;alloc_error=release_error=claim_error=publish_error=0;
  drop_offset=parent_error_at=-1;parent_missing=claimed=false;memset(parent_sources,0,sizeof(parent_sources));
 }
 static void discard_retained_test_device(void) {
@@ -211,6 +211,11 @@ int main(void) {
  assert(bcm2712_mip_attach(&mip)==0 && sc.ready && claimed && registrations==1 && !of_publications && xref_owner==NULL && bcm2712_mip_cleanup(&mip)==EBUSY);discard_retained_test_device();
  reset();of_publish_drop=true;
  assert(bcm2712_mip_attach(&mip)==0 && sc.ready && claimed && registrations==1 && of_publications==1 && xref_owner==NULL && bcm2712_mip_cleanup(&mip)==EBUSY);discard_retained_test_device();
+ reset();late_owner=true;
+ assert(bcm2712_mip_attach(&mip)==0 && sc.ready && claimed && registrations==1 && !of_publications && xref_owner==&other && bcm2712_mip_cleanup(&mip)==EBUSY);discard_retained_test_device();
+ reset();of_publish_wrong=true;
+ assert(bcm2712_mip_attach(&mip)==0 && sc.ready && claimed && registrations==1 && of_publications==1 && xref_owner==&other && bcm2712_mip_cleanup(&mip)==EBUSY);discard_retained_test_device();
+ puts("PASS: late owner collision/wrong-device readback retain registry owners without OF overwrite");
  puts("PASS: OFW publication only after MSI registry, conflicting owner preflight, failure/quarantine stays undiscoverable and registered owners retained");
  puts("PASS: complete production MIP0 provider: all64 slots, full-width bitmap, owner/group/alignment/map/release/busy faults, raw PCI target, geometry, checked parent failures, MMIO readback and retained ownership");
 }

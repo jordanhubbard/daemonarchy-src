@@ -150,3 +150,30 @@ delivery or native concurrency. BCM2712 PCIe host, RP1 BAR/MSI-X nexus and clock
 remain separate missing prerequisites; MIP preparation alone does not provide
 RP1 operation. The selected PCIe/RP1 DMA ranges require real address translation;
 the BCM2711 identity-DMA host cannot be enabled by a compatible-string change.
+
+## Checked registry and OFW publication checkpoint
+
+`intr_msi_validate_provider(expected, xref)` checks the actual MSI registry
+under its existing lock. It rejects NULL/zero inputs, an absent exact MSI xref,
+a mismatched expected device and duplicate exact MSI xrefs. It returns no
+private PIC pointer, allocates no vector and does not prove electrical MSI
+operation. A PCIe consumer must also establish the selected provider's identity
+and published readiness; mere device attachment is insufficient.
+
+MIP now checks its OFW xref for a conflicting owner before any hardware claim
+or write, and publishes that identity only after successful MSI registration.
+The existing ready-before-MSI-publication invariant remains intact. Failures
+before registration, including retained failed attachments, remain undiscoverable
+through OFW. If a late identity collision, OF publication error or wrong-device
+readback occurs after MSI registration, the already registered usable MSI owner
+must remain ready and retained: no unregister/unreserve API exists. The OF
+identity cannot qualify the selected consumer in that case, and the checked
+registry query rejects a mismatched device. Cleanup remains busy.
+
+The separate OF lookup/register/readback operations rely on the selected unique
+phandle and serialized Newbus attach with one provider publisher. They are not
+an atomic compare-and-publish API for arbitrary competing OFW writers. Public
+production controls cover the early owner conflict, MSI registration failure,
+late competing owner, failed/NULL/wrong OF readback and retained registered
+owners; both GCC and Clang sanitized controls pass. Native compile/runtime
+and BCM2712 MSI electrical qualification remain separate gates.
