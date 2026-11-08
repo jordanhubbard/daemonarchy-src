@@ -777,9 +777,12 @@ gpiobus_shutdown(device_t dev)
 static void
 gpiobus_new_pass(device_t dev)
 {
+	struct gpiobus_softc *sc;
+
 	if (!gpiobus_ready(dev))
 		return;
-	if (GPIOBUS_SOFTC(dev)->sc_deferred_provider)
+	sc = GPIOBUS_SOFTC(dev);
+	if (sc->sc_deferred_provider)
 		bus_attach_children(dev);
 	else
 		bus_generic_new_pass(dev);
@@ -788,9 +791,12 @@ gpiobus_new_pass(device_t dev)
 static void
 gpiobus_driver_added(device_t dev, driver_t *driver)
 {
+	struct gpiobus_softc *sc;
+
 	if (!gpiobus_ready(dev))
 		return;
-	if (GPIOBUS_SOFTC(dev)->sc_deferred_provider)
+	sc = GPIOBUS_SOFTC(dev);
+	if (sc->sc_deferred_provider)
 		bus_attach_children(dev);
 	else
 		bus_generic_driver_added(dev, driver);
@@ -897,6 +903,7 @@ gpiobus_child_deleted(device_t dev, device_t child)
 static int
 gpiobus_rescan(device_t dev)
 {
+	struct gpiobus_softc *sc;
 
 	/*
 	 * Re-scan is supposed to remove and add children, but if someone has
@@ -906,7 +913,8 @@ gpiobus_rescan(device_t dev)
 	 */
 	if (!gpiobus_ready(dev))
 		return (ENXIO);
-	if (!GPIOBUS_SOFTC(dev)->sc_deferred_provider)
+	sc = GPIOBUS_SOFTC(dev);
+	if (!sc->sc_deferred_provider)
 		bus_enumerate_hinted_children(dev);
 	bus_attach_children(dev);
 	return (0);

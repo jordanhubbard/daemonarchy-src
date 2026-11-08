@@ -424,6 +424,7 @@ ofw_gpiobus_probe(device_t dev)
 static int
 ofw_gpiobus_attach(device_t dev)
 {
+	struct gpiobus_softc *sc;
 	int err;
 	phandle_t child;
 
@@ -433,7 +434,8 @@ ofw_gpiobus_attach(device_t dev)
 	err = gpiobus_add_gpioc(dev);
 	if (err != 0)
 		return (gpiobus_attach_failed(dev, err));
-	if (GPIOBUS_SOFTC(dev)->sc_deferred_provider) {
+	sc = GPIOBUS_SOFTC(dev);
+	if (sc->sc_deferred_provider) {
 		bus_attach_children(dev);
 		return (0);
 	}

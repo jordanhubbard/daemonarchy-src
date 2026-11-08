@@ -48,7 +48,6 @@ typedef unsigned driver_t;
 #define GPIOMAXNAME 64
 static size_t strlcpy(char *d,const char *s,size_t len) { size_t n=strlen(s);assert(n<len);memcpy(d,s,n+1);return n; }
 static int GPIO_PIN_GETNAME(device_t d,uint32_t p,char *out) { (void)d;(void)p;strcpy(out,"default");return 0; }
-#define GPIOBUS_SOFTC(d) ((struct gpiobus_softc *)(d)->softc)
 #define GPIOBUS_IVAR(d) ((struct gpiobus_ivar *)(d)->ivars)
 #define KASSERT(test,msg) assert(test)
 #define GPIOBUS_DONTWAIT 2
@@ -368,6 +367,8 @@ def main():
     with tempfile.TemporaryDirectory(prefix='gpiobus-lifetime-') as tmp:
         src=Path(tmp)/'control.c';binary=Path(tmp)/'control'
         constants=re.search(r'^#define GPIOBUS_FLAG_DEFER_PROVIDER .+$',header,re.M).group(0)+'\n'
+        # Preserve production macro precedence and the void* Newbus API.
+        constants+=re.search(r'^#define\s+GPIOBUS_SOFTC\(d\).+$',header,re.M).group(0)+'\n'
         acpi=(ROOT/'sys/dev/gpio/acpi_gpiobus.c').read_text()
         acpitypes='\n'.join(block(acpi,r'^struct '+name+r'\s*\n?\{') for name in ['acpi_gpiobus_softc','acpi_gpiobus_ctx'])
         acpifuncs='\n'.join(block(acpi,r'^static (?:int|ACPI_STATUS)\s+'+name+r'\([^;]*?\n\{') for name in ['acpi_gpiobus_space_handler','acpi_gpiobus_attach','acpi_gpiobus_detach'])
