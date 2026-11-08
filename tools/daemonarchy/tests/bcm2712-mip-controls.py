@@ -43,6 +43,10 @@ static pcell_t msicells;
 static unsigned allocations,releases,writes,registrations,parent_allocations;
 static int alloc_error,release_error,claim_error,parent_error_at,publish_error,drop_offset;
 static bool parent_missing,claimed;
+static device_t xref_owner;
+static unsigned of_publications;
+static int of_publish_error;
+static bool of_publish_drop;
 static struct intr_irqsrc parent_sources[64];
 static void *device_get_softc(device_t d) { assert(d==&mip);return d->softc; }
 static const char *device_get_nameunit(device_t d) { (void)d;return "mip-test"; }
@@ -74,7 +78,7 @@ static int OF_getencprop(int node,const char *name,void *out,int len) {
 }
 static bool OF_hasprop(int node,const char *name) { assert(node==1 && !strcmp(name,"msi-controller"));return true; }
 static int OF_node_from_xref(uint32_t x) { return x==42?2:0; }
-static device_t OF_device_from_xref(uint32_t x) { return x==42 && !parent_missing?&parent:NULL; }
+static device_t OF_device_from_xref(uint32_t x) { return x==100?xref_owner:(x==42 && !parent_missing?&parent:NULL); }
 static uint32_t OF_xref_from_node(int node) { assert(node==1);return 100; }
 static struct resource *bus_alloc_resource_any(device_t d,int type,int *rid,int flags) {
  assert(d==&mip && type==SYS_RES_MEMORY && *rid==0 && flags==RF_ACTIVE);
@@ -109,6 +113,7 @@ static int GIC_ALLOC_MSIX(device_t d,unsigned start,unsigned count,struct intr_i
  *out=&parent_sources[parent_allocations++];return 0;
 }
 static int intr_msi_register(device_t,uint32_t);
+static int OF_device_register_xref(phandle_t,device_t);
 '''
 TEST=r'''
 static struct bcm2712_mip_softc sc;
@@ -122,13 +127,19 @@ static int intr_msi_register(device_t d,uint32_t xref) {
  assert(bcm2712_mip_release_msix(d,&child,src)==0);
  registrations++;return 0;
 }
+static int OF_device_register_xref(phandle_t xref,device_t d) {
+ assert(xref==100 && d==&mip && sc.ready && registrations==1 && claimed);
+ if(of_publish_error)return of_publish_error;
+ of_publications++;if(!of_publish_drop)xref_owner=d;return 0;
+}
 static void reset(void) {
  assert(!allocations);memset(&sc,0,sizeof(sc));mip.softc=&sc;mip.node=1;parent.node=2;
  memset(&mem,0,sizeof(mem));mem.start=MIP_CPU_BASE;mem.size=192;
  pcell_t r[]={0x10,0x130000,0,0xc0,0xff,0xfffff000,0,0x1000};memcpy(regs,r,sizeof(r));
  pcell_t a[]={42,0,128,1,64};memcpy(ranges,a,sizeof(a));
  offset=msicells=0;offsetlen=4;msicellslen=-1;reglen=32;rangelen=20;icells=3;
- releases=writes=registrations=parent_allocations=0;alloc_error=release_error=claim_error=publish_error=0;
+ releases=writes=registrations=parent_allocations=of_publications=0;
+ xref_owner=NULL;of_publish_error=0;of_publish_drop=false;alloc_error=release_error=claim_error=publish_error=0;
  drop_offset=parent_error_at=-1;parent_missing=claimed=false;memset(parent_sources,0,sizeof(parent_sources));
 }
 static void discard_retained_test_device(void) {
@@ -140,7 +151,7 @@ int main(void) {
  uint64_t addr;uint32_t data;
  reset();assert(bcm2712_mip_probe(&mip)==0);msicellslen=4;
  assert(bcm2712_mip_alloc(&mip,&child,1,1,&pic,slots)==ENXIO);
- assert(bcm2712_mip_attach(&mip)==0 && sc.ready && registrations==1 && writes==6 && parent_allocations==64);
+ assert(bcm2712_mip_attach(&mip)==0 && sc.ready && registrations==1 && writes==6 && parent_allocations==64 && of_publications==1 && OF_device_from_xref(100)==&mip);
  assert(mem.words[MIP_MASK_VPU_L/4]==UINT32_MAX && mem.words[MIP_MASK_VPU_H/4]==UINT32_MAX &&
  mem.words[MIP_CFG_L/4]==UINT32_MAX && mem.words[MIP_CFG_H/4]==UINT32_MAX &&
  mem.words[MIP_MASK_HOST_L/4]==0 && mem.words[MIP_MASK_HOST_H/4]==0);
@@ -181,6 +192,7 @@ int main(void) {
   case 17:msicellslen=4;msicells=1;break;case 18:msicellslen=8;break;
   }
   int error=bcm2712_mip_attach(&mip);
+  assert(of_publications==0 && xref_owner==NULL);
   if(failure<9 || failure>=12) { assert(error!=0 && !allocations && !registrations && !writes && !claimed); }
   else {
    assert(error==0 && allocations==1 && sc.claimed && !sc.ready && !registrations);
@@ -193,6 +205,13 @@ int main(void) {
  reset();claim_error=EOPNOTSUPP;release_error=EBUSY;
  assert(bcm2712_mip_attach(&mip)==0 && !sc.claimed && allocations==1 && !sc.ready);
  release_error=0;assert(bcm2712_mip_cleanup(&mip)==0);
+ reset();xref_owner=&other;
+ assert(bcm2712_mip_attach(&mip)==EEXIST && !allocations && !writes && !claimed && !registrations && !of_publications && xref_owner==&other);
+ reset();of_publish_error=EIO;
+ assert(bcm2712_mip_attach(&mip)==0 && sc.ready && claimed && registrations==1 && !of_publications && xref_owner==NULL && bcm2712_mip_cleanup(&mip)==EBUSY);discard_retained_test_device();
+ reset();of_publish_drop=true;
+ assert(bcm2712_mip_attach(&mip)==0 && sc.ready && claimed && registrations==1 && of_publications==1 && xref_owner==NULL && bcm2712_mip_cleanup(&mip)==EBUSY);discard_retained_test_device();
+ puts("PASS: OFW publication only after MSI registry, conflicting owner preflight, failure/quarantine stays undiscoverable and registered owners retained");
  puts("PASS: complete production MIP0 provider: all64 slots, full-width bitmap, owner/group/alignment/map/release/busy faults, raw PCI target, geometry, checked parent failures, MMIO readback and retained ownership");
 }
 '''

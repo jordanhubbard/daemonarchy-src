@@ -216,7 +216,8 @@ static int
 bcm2712_mip_attach(device_t dev)
 {
 	struct bcm2712_mip_softc *sc = device_get_softc(dev);
-	phandle_t node = ofw_bus_get_node(dev), parent;
+	phandle_t node = ofw_bus_get_node(dev), parent, xref;
+	device_t owner;
 	pcell_t reg[8], ranges[5], offset, cells;
 	static const unsigned registers[] = { MIP_MASK_VPU_L, MIP_MASK_VPU_H,
 	    MIP_CFG_L, MIP_CFG_H, MIP_MASK_HOST_L, MIP_MASK_HOST_H };
@@ -254,6 +255,14 @@ bcm2712_mip_attach(device_t dev)
 	sc->parent = OF_device_from_xref(ranges[0]);
 	if (sc->parent == NULL || !ofw_bus_is_compatible(sc->parent, "arm,gic-400"))
 		return (ENXIO);
+	/* simplebus does not publish OFW device identities.  Do not overwrite
+	 * an already owned xref, and do this before claiming/writing hardware. */
+	xref = OF_xref_from_node(node);
+	if (xref <= 0)
+		return (EINVAL);
+	owner = OF_device_from_xref(xref);
+	if (owner != NULL && owner != dev)
+		return (EEXIST);
 	sc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->mem == NULL)
 		return (ENXIO);
@@ -287,10 +296,22 @@ bcm2712_mip_attach(device_t dev)
 	}
 	/* Publish only fully usable state; registration makes callbacks visible. */
 	sc->ready = true;
-	error = intr_msi_register(dev, OF_xref_from_node(node));
+	error = intr_msi_register(dev, xref);
 	if (error != 0) {
 		sc->ready = false;
 		goto fail;
+	}
+	/* The PIC registry is already live.  Keep its usable owner if a later
+	 * identity publication fails; no unregister/unreserve API exists. */
+	owner = OF_device_from_xref(xref);
+	if (owner != NULL && owner != dev)
+		error = EEXIST;
+	else
+		error = OF_device_register_xref(xref, dev);
+	if (error != 0 || OF_device_from_xref(xref) != dev) {
+		device_printf(dev, "OFW identity unavailable: retaining registered MSI owner (%d)\n",
+		    error != 0 ? error : EIO);
+		return (0);
 	}
 	return (0);
  fail:
