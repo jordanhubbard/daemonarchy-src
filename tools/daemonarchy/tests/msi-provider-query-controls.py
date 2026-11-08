@@ -170,6 +170,20 @@ def main():
     command = [args.cc, "-std=gnu11", "-g", "-O1", "-Wall", "-Wextra", "-Werror",
                "-fsanitize=address,undefined", "-fno-omit-frame-pointer",
                str(out / "control.c"), "-o", str(out / "control")]
+    # Match the existing busdma control's diagnostic feature probe: newer
+    # local Clang warns about incomplete GCC installs, older hosted Clang
+    # rejects that warning name. Never pass an unsupported suppression.
+    diagnostic_probe = None
+    if "clang" in Path(args.cc).name:
+        suppression = "-Wno-gcc-install-dir-libstdcxx"
+        probe = subprocess.run([args.cc, "-Werror", suppression, "-x", "c",
+                                "-fsyntax-only", "-"], input="",
+                               text=True, capture_output=True)
+        diagnostic_probe = {"supported": probe.returncode == 0,
+                            "returncode": probe.returncode,
+                            "stderr": probe.stderr}
+        if probe.returncode == 0:
+            command.insert(1, suppression)
     subprocess.run(command, check=True)
     run = subprocess.run([str(out / "control")], check=True, text=True, capture_output=True)
     print(run.stdout, end="")
@@ -183,6 +197,7 @@ def main():
               "compiler_path": str(Path(shutil.which(args.cc)).resolve()),
               "compiler_sha256": hashlib.sha256(Path(shutil.which(args.cc)).read_bytes()).hexdigest(),
               "command": command,
+              "diagnostic_probe": diagnostic_probe,
               "binary_sha256": hashlib.sha256((out / "control").read_bytes()).hexdigest()}
     (out / "result.json").write_text(json.dumps(result, indent=2) + "\n")
 
