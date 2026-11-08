@@ -3,8 +3,8 @@
 This follow-on starts at reset-provider checkpoint `0d7c421fd08bcbc7c2cd2aa389b32a525ef296d1`.
 It implements the selected Pi500 RP1 RUN hog through the existing AON GPIO
 provider. It changes neither the qualified SD checkpoint nor its sealed images.
-Host production-function controls pass; native compilation and BCM2712 pad/RP1
-acceptance remain open. No physical board or media was changed.
+Host production-function controls and a fresh native ARM64 GENERIC build pass.
+BCM2712 pad/RP1 acceptance remains open. No physical board or media was changed.
 
 ## Selected binding and ownership
 
@@ -97,6 +97,33 @@ legacy publication, NULL/uninitialized/quarantined reservations, name bounds,
 ACPICA handler failures and retry. Address/undefined sanitizers reproduced the
 old ivars UAF before repair. Bounded fakes do not establish native Newbus
 concurrency, native compilation or electrical behavior. CI runs these controls;
-a fresh allocated-worker kernel build and later native hardware test remain
-required before any BCM2712 acceptance. PCIe/MSI/RP1 nexus/clocks remain separate
-missing prerequisites described in the reset-provider document.
+a later native hardware test remains required before any BCM2712 acceptance.
+PCIe/MSI/RP1 nexus/clocks remain separate missing prerequisites described in the
+reset-provider document.
+
+## Native build checkpoint
+
+Sealed implementation `52e65a0c0101f6702171d0482e04996ea8f2fb93` compiled and
+linked on the allocated FreeBSD ARM64 worker from an empty object directory.
+The kernel SHA256 is
+`2bfb3f49d7972e59d3cc73d90fb15160e3f5c01d4b35b453a4dc3231a7c6e649`.
+Downloaded source, GPIO bus/ACPI/OFW objects, dependent driver objects and kernel
+hashes were independently checked against the native log; the linked deferred
+factory and readiness methods are present.
+
+The first native build exposed use of the original `GPIOBUS_SOFTC` macro with
+an unparenthesized cast followed by `->`. Its failed archive and diagnostics
+are retained. The corrected implementation uses typed locals; the host harness
+now imports the exact production macro and rejects the preceding implementation
+with the same compiler error. The second build uses a new source archive and
+empty objects. This compilation result does not qualify GPIO electrical state
+or RP1 release.
+
+Fresh images containing that exact kernel passed native Pi4 FDT/SD-root and
+GENET networking at 2 GB (26 checks) and 8 GB (27 checks), including independent
+1 MiB transfers in both directions, durable diagnostics and natural guest reset.
+The same kernel passed the 8 GB UEFI/USB-root control (20 checks), with the
+firmware memory cap disabled. All three controls verified unchanged source
+images. These BCM2711 compatibility runs do not exercise the BCM2712 AON provider
+or establish native GPIO bus concurrency. New image kernel/loader/configuration
+and root ownership were also read back on the allocated worker.
