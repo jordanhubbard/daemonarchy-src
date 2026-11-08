@@ -86,8 +86,16 @@ def main():
     if not (out / "arm64").exists():
         (out / "arm64").symlink_to(ROOT / "sys/arm64", target_is_directory=True)
     cc = [args.cc, "-std=gnu11", "-g", "-O1", "-Wall", "-Wextra", "-Werror", "-Wno-unused-function", "-Wno-unused-variable", "-Wno-unused-parameter", "-Wno-sign-compare", "-fsanitize=address,undefined", "-fno-omit-frame-pointer", "-I", str(out), str(out / "control.c"), str(ROOT / "sys/arm64/broadcom/bcm2712_dma_policy.c"), str(ROOT / "sys/arm64/broadcom/bcm2712_dma_ram.c"), "-o", str(out / "control")]
+    # New Clang diagnoses this host's incomplete GCC installation, while
+    # hosted older Clang does not recognize that diagnostic name.  Probe
+    # support with unknown-warning diagnostics fatal before adding it.
     if "clang" in Path(args.cc).name:
-        cc.insert(1, "-Wno-gcc-install-dir-libstdcxx")
+        suppression = "-Wno-gcc-install-dir-libstdcxx"
+        probe = subprocess.run([args.cc, "-Werror", suppression, "-x", "c",
+                                "-fsyntax-only", "-"], input="",
+                               text=True, capture_output=True)
+        if probe.returncode == 0:
+            cc.insert(1, suppression)
     subprocess.run(cc, check=True)
     subprocess.run([str(out / "control")], check=True)
     hashes = {path: hashlib.sha256((ROOT/path).read_bytes()).hexdigest() for path in ["sys/arm64/arm64/busdma_bounce.c", "sys/arm64/arm64/busdma_machdep.c", "sys/kern/subr_busdma_bounce.c", "sys/kern/subr_bus_dma.c", "sys/arm64/broadcom/bcm2712_dma_ram.c", "sys/arm64/broadcom/bcm2712_dma_policy.c", "sys/arm64/broadcom/bcm2712_dma_policy.h", "sys/arm64/broadcom/bcm2712_dma_ram.h", "sys/arm64/include/bus_dma.h", "sys/arm64/include/bus_dma_impl.h", "sys/sys/bus_dma.h", "sys/conf/files.arm64", "tools/daemonarchy/tests/bcm2712-busdma-controls.py", "tools/daemonarchy/tests/bcm2712-busdma-prefix.c", "tools/daemonarchy/tests/bcm2712-busdma-test.c"]}
