@@ -15,6 +15,8 @@ on:
       - 'sys/modules/daemonarchy_earlynet/**'
       - 'sys/conf/files.amd64'
       - 'sys/conf/files'
+      - 'sys/dev/fdt/fdt_pinctrl.c'
+      - 'sys/dev/fdt/fdt_pinctrl.h'
       - 'sys/dev/sdhci/sdhci_fdt_bcm2712.c'
       - 'sys/dev/sdhci/sdhci_bcm2712_policy.h'
       - 'sys/conf/options'
@@ -42,6 +44,8 @@ on:
       - 'sys/modules/daemonarchy_earlynet/**'
       - 'sys/conf/files.amd64'
       - 'sys/conf/files'
+      - 'sys/dev/fdt/fdt_pinctrl.c'
+      - 'sys/dev/fdt/fdt_pinctrl.h'
       - 'sys/dev/sdhci/sdhci_fdt_bcm2712.c'
       - 'sys/dev/sdhci/sdhci_bcm2712_policy.h'
       - 'sys/conf/options'
@@ -86,6 +90,14 @@ jobs:
             tools/daemonarchy/tests/bcm2712-sdhci-policy.c \
             -o "${{ runner.temp }}/bcm2712-sdhci-policy"
           "${{ runner.temp }}/bcm2712-sdhci-policy"
+      - name: Checked FDT pinctrl faults (not native provider acceptance)
+        run: |
+          clang -std=c17 -D_DEFAULT_SOURCE -Wall -Wextra -Werror \
+            -fsanitize=address,undefined -fno-omit-frame-pointer \
+            -Itools/daemonarchy/tests/fdt-pinctrl-stubs -idirafter sys \
+            sys/dev/fdt/fdt_pinctrl.c tools/daemonarchy/tests/fdt-pinctrl-checked.c \
+            -o "${{ runner.temp }}/fdt-pinctrl-checked"
+          "${{ runner.temp }}/fdt-pinctrl-checked"
       - name: Loader setup interactions (not EFI acceptance)
         run: >-
           python3 tools/daemonarchy/tests/run-loader-debug-setup.py

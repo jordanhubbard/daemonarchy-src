@@ -411,7 +411,7 @@ bcm2712_sdhci_attach(device_t dev)
 	}
 	if (OF_hasprop(node, "pinctrl-0")) {
 		stage = "default pinctrl";
-		error = fdt_pinctrl_configure_by_name(dev, "default");
+		error = fdt_pinctrl_configure_by_name_checked(dev, "default");
 		if (error != 0)
 			goto fail;
 	}

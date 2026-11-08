@@ -68,6 +68,37 @@ actual Newbus detach/resume behavior, pre-attach pinmux restoration and
 physical power sequencing remain unqualified. The pinctrl framework does not
 provide a saved prior pinmux state for this attachment to restore.
 
+## Checked pinctrl dependency contract
+
+This branch switches the BCM2712 glue to the opt-in
+`fdt_pinctrl_configure_by_name_checked()` API. The original best-effort helpers
+retain their behavior for existing consumers. Checked calls resolve every xref
+in a declared state before invoking any provider, reject malformed cell/string
+lists, and propagate provider errors. Missing states/names return `ENOENT`;
+missing providers return `ENXIO`. A valid empty `pinctrl-N` remains a successful
+no-op. If a provider itself fails after earlier providers ran, there is no
+pinmux rollback mechanism; the error is returned and attachment fails.
+
+The host fault-injection test compiles the actual `fdt_pinctrl.c` translation
+unit against mock OF/provider services, rather than a reimplementation. It
+proves that a missing second provider invokes neither provider, real provider
+errors survive, malformed names (including a bad suffix after a matching name)
+never configure hardware, empty states work, and legacy calls remain best-effort.
+ASan/UBSan also check bounded parsing and allocation cleanup.
+
+```sh
+clang -std=c17 -D_DEFAULT_SOURCE -Wall -Wextra -Werror \
+  -fsanitize=address,undefined -fno-omit-frame-pointer \
+  -Itools/daemonarchy/tests/fdt-pinctrl-stubs -idirafter sys \
+  sys/dev/fdt/fdt_pinctrl.c tools/daemonarchy/tests/fdt-pinctrl-checked.c \
+  -o /private/output/pinctrl-checked
+/private/output/pinctrl-checked
+```
+
+This checked-API change has host helper-test evidence. The older accepted native
+build below predates it and does not qualify the changed helper/glue objects.
+A new native build and actual BCM2712 provider/hardware acceptance remain open.
+
 ## Validation and remaining gates
 
 The small host control exercises the actual shared CFG/clock policy helpers:

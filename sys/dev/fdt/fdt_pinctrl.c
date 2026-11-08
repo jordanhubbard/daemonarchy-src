@@ -25,6 +25,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/malloc.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -77,6 +78,84 @@ fdt_pinctrl_configure_by_name(device_t client, const char * name)
 		return (fdt_pinctrl_configure(client, i));
 	else
 		return (ENOENT);
+}
+
+/*
+ * Unlike the legacy helpers, checked calls require every referenced provider
+ * to exist before any provider is invoked. Provider errors stop the sequence;
+ * configuration already applied by earlier providers cannot be rolled back.
+ */
+int
+fdt_pinctrl_configure_checked(device_t client, u_int index)
+{
+	device_t *providers;
+	phandle_t node, *configs;
+	int error, i, len, nconfigs;
+	char name[32];
+
+	node = ofw_bus_get_node(client);
+	snprintf(name, sizeof(name), "pinctrl-%u", index);
+	len = OF_getproplen(node, name);
+	if (len < 0)
+		return (ENOENT);
+	if (len % sizeof(*configs) != 0)
+		return (EINVAL);
+	nconfigs = OF_getencprop_alloc_multi(node, name, sizeof(*configs),
+	    (void **)&configs);
+	if (nconfigs < 0)
+		return (EIO);
+	if (nconfigs == 0)
+		return (0); /* Empty property is documented as valid. */
+	providers = mallocarray(nconfigs, sizeof(*providers), M_TEMP, M_WAITOK);
+	error = 0;
+	for (i = 0; i < nconfigs; i++) {
+		providers[i] = OF_device_from_xref(configs[i]);
+		if (providers[i] == NULL) {
+			error = ENXIO;
+			goto out;
+		}
+	}
+	for (i = 0; i < nconfigs; i++) {
+		error = FDT_PINCTRL_CONFIGURE(providers[i], configs[i]);
+		if (error != 0)
+			break;
+	}
+out:
+	free(providers, M_TEMP);
+	OF_prop_free(configs);
+	return (error);
+}
+
+int
+fdt_pinctrl_configure_by_name_checked(device_t client, const char *name)
+{
+	char *names;
+	int error, found, i, len, nameslen, offset;
+
+	if (name == NULL || name[0] == '\0')
+		return (EINVAL);
+	nameslen = OF_getprop_alloc(ofw_bus_get_node(client), "pinctrl-names",
+	    (void **)&names);
+	if (nameslen <= 0)
+		return (ENOENT);
+	error = 0;
+	found = -1;
+	/* Validate the whole string list, including entries after a match. */
+	for (i = 0, offset = 0; offset < nameslen; i++, offset += len + 1) {
+		len = strnlen(names + offset, nameslen - offset);
+		if (len == 0 || len == nameslen - offset) {
+			error = EINVAL;
+			break;
+		}
+		if (strcmp(name, names + offset) == 0 && found == -1)
+			found = i;
+	}
+	OF_prop_free(names);
+	if (error != 0)
+		return (error);
+	if (found == -1)
+		return (ENOENT);
+	return (fdt_pinctrl_configure_checked(client, found));
 }
 
 static int
