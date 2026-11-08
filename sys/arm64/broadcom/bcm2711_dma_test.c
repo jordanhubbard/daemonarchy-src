@@ -8,6 +8,7 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <machine/bus.h>
@@ -57,13 +58,15 @@ bcm2711_dma_test_create(bus_dma_tag_t parent, bus_dma_tag_t *out)
 	};
 	int error;
 
+	if (out == NULL)
+		return (EINVAL);
 	*out = NULL;
 	if (!bcm2711_dma_test_requested() || ready)
 		return (ENXIO);
 	error = bcm2712_dma_policy_root(&policy, &window, 1);
 	if (error != 0)
 		return (error);
-	/* The forthcoming opt-in constructor must be present after backend merge.
+	/* The production opt-in constructor owns translation and parent constraints.
 	 * Ordinary USB descendants use ordinary bus_dma_tag_create inheritance.
 	 */
 	return (bus_dma_tag_create_bcm2712_ram(parent, &policy, 1, 0,
@@ -96,7 +99,7 @@ bcm2711_dma_test_publish(device_t dev, bus_dma_tag_t tag,
 int
 bcm2711_dma_test_tags(bus_dma_tag_t *translated, bus_dma_tag_t *physical)
 {
-	if (!ready)
+	if (!ready || translated == NULL || physical == NULL)
 		return (ENXIO);
 	*translated = translated_tag;
 	*physical = physical_tag;
@@ -152,7 +155,7 @@ bcm2711_dma_test_usb_load(void *buffer, size_t length,
 	}
 	witness.callbacks++;
 	if (length == 0 || length > witness_length - (address - witness_start) ||
-	    error != 0 || segments == NULL || count <= 0 ||
+	    error != 0 || segments == NULL || count <= 0 || count > 64 ||
 	    ((address - witness_start) & 511) != 0 || (length & 511) != 0) {
 		witness.errors++;
 		mtx_unlock_spin(&witness_mtx);
@@ -172,7 +175,10 @@ bcm2711_dma_test_usb_load(void *buffer, size_t length,
 		if (witness.first_device == 0)
 			witness.first_device = segments[i].ds_addr;
 		witness.last_device = segments[i].ds_addr;
-		total += segments[i].ds_len;
+		if (segments[i].ds_len > length || total > length - segments[i].ds_len)
+			witness.errors++;
+		else
+			total += segments[i].ds_len;
 	}
 	if (total != length)
 		witness.errors++;
