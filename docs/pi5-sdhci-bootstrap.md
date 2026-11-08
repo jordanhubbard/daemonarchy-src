@@ -95,9 +95,13 @@ clang -std=c17 -D_DEFAULT_SOURCE -Wall -Wextra -Werror \
 /private/output/pinctrl-checked
 ```
 
-This checked-API change has host helper-test evidence. The older accepted native
-build below predates it and does not qualify the changed helper/glue objects.
-A new native build and actual BCM2712 provider/hardware acceptance remain open.
+This checked-API change has host helper-test evidence. The historical accepted
+native build below predates it and does not qualify the changed helper/glue
+objects. The combined source also includes the D0 pinctrl/AON GPIO providers,
+regulator failure cleanup and ACPI xHCI DMA-aperture support. Their individual
+controls do not establish a clean combined native kernel or BCM2712 attachment.
+See [SD provider preparation](pi5-sd-providers.md) and
+[ACPI xHCI DMA reachability](pi4-acpi-xhci-dma.md) for those inputs and gates.
 
 ## Validation and remaining gates
 
@@ -121,7 +125,9 @@ retained with the accepted build. A compiler exit or an old aggregate object
 tree alone is not selected-source evidence. Framework per-unit admission
 and native hardware acceptance remain separate gates.
 
-The accepted native check completed on FreeBSD 16-CURRENT ARM64 with FreeBSD
+### Historical native baseline before provider integration
+
+The earlier accepted native check completed on FreeBSD 16-CURRENT ARM64 with FreeBSD
 clang 21.1.8. It exported source base
 `b417aa10e466440c5c166f4e0b2ff4dcb52e32fd` plus the reviewed glue files,
 configured an empty GENERIC object directory, and completed
@@ -138,8 +144,9 @@ description. The policy controls also passed natively and on Linux ARM64.
 | Stripped boot `kernel` | `79ebe4bfcb5f46bbe61c4611d0875beb876b6a523f5b7b187f3c49b0ee463eeb` |
 | Extracted GENERIC configuration | `be073065fb6024d3a5d9bd130b1d920ef03a6b7df635d01154cfee0bb26b1fda` |
 
-This is a conventional clean native build with the existing worker toolchain,
-not a new claim of compiler, per-unit packaging or Standard receipt admission.
+This records a conventional clean native build of the earlier glue inputs with
+the existing worker toolchain. It does not qualify the combined provider/ACPI
+changes, compiler custody, per-unit packaging or Standard receipt admission.
 
 The Pi 4/CM4 simulator does not model BCM2712's host/CFG banks, pinctrl, supply
 providers or GPIO wiring. A Pi 4 boot can check a new kernel's basic artifact

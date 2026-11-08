@@ -29,7 +29,8 @@ contains no host-specific capture paths.
 The ACPI frontend walks namespace parents to the nearest _DMA and accepts one
 fixed, zero-based, untranslated memory aperture with a consistent nonzero,
 page-aligned length. This prevents bus-DMA from rounding an aperture endpoint
-up beyond the firmware limit. It requires a corresponding _CRS. Empty, translated, disjoint,
+up beyond the firmware limit. It requires a corresponding _CRS. Empty,
+translated, disjoint,
 non-memory, non-fixed and malformed resource sets fail attachment explicitly.
 The initial supported grammar is deliberately bounded. With no _DMA, the
 inherited DMA tag remains selected. This follows the standard resource purpose
@@ -50,7 +51,8 @@ removed before mappings and parent tag are freed. The owned-tag frontend also
 keeps an independent Newbus USB-child handle: real USB detach clears the bus's
 bdev pointer while leaving that child and its parent-softc ivars alive. Cleanup
 must successfully delete this saved child before releasing final resources;
-deleting it unsuccessfully retains the handle and enters quarantine. Halt, interrupt teardown or
+deleting it unsuccessfully retains the handle and enters quarantine. Halt,
+interrupt teardown or
 resource-release failures preserve the remaining resources for a retry. A busy
 child preserves the running controller and all its owners.
 
@@ -60,7 +62,8 @@ attachment, records the original failure, and prints `USB unavailable` with both
 errors. This state retains owners for a later detach retry; it does not claim
 usable USB. Partial cleanup failures after a previously successful attachment
 also enter this state. Unattached USB children are disabled and later-pass,
-driver-added, rescan and power callbacks cannot reattach or revive them. A normal failure with completed cleanup still returns an error.
+driver-added, rescan and power callbacks cannot reattach or revive them. A normal
+failure with completed cleanup still returns an error.
 The no-override attach path retains its existing failure policy.
 
 Core initialization flags distinguish successful USB DMA setup from command
@@ -81,7 +84,8 @@ bus-DMA services. Input fields come from the exact captured descriptor. Cases
 cover its 3 GiB limit, a higher ancestor, no _DMA, malformed/unsupported
 resources, DMA-tag allocation failure, failures before and after core
 initialization, child/halt/interrupt/resource-release failures, retained failed
-attachment, busy parent-tag destruction after a previously successful attach, partial-page
+attachment, busy parent-tag destruction after a previously successful attach,
+partial-page
 resource rejection, disabled child/later-pass/power guards, and retry without
 double teardown. It models USB detach clearing bdev while the Newbus child and
 its ivars remain; failed deletion preserves them and a later retry deletes the

@@ -2,9 +2,10 @@
 
 This follow-on supplies the pin-control and voltage-settling portions of the
 initial on-SoC SD path missing from source `73260396`. It does not establish
-BCM2712 hardware operation. The AON GPIO provider and checked pinctrl consumer
-are separate changes that must be integrated before a candidate can resolve
-all its dependencies. No physical board or physical media was changed.
+BCM2712 hardware operation. This combined source includes the AON GPIO provider,
+checked pinctrl consumer and failed-regulator lifetime cleanup described below.
+Their presence does not prove native attachment or that the selected DTB's
+providers resolve at runtime. No physical board or physical media was changed.
 
 The enrolled Pi500 DTB has SHA256
 `400b2da08abb8fd0ffd65085d1e0e1e6c6d01cadd27385403ea3a3fd5a1537f4`.
@@ -73,8 +74,9 @@ operation. Enable timing retains its existing startup-delay semantics. Missing
 settling time defaults to zero. Malformed cells and unsigned values exceeding
 INT_MAX fail parsing instead of becoming a negative delay. Both enable and
 voltage callbacks initialize the returned delay to zero before any failure;
-the checked voltage framework consumes the returned value even on an error. This change does
-not implement directional settling-time properties or analog regulator physics.
+the checked voltage framework consumes the returned value even on an error.
+This change does not implement directional settling-time properties or analog
+regulator physics.
 
 ## Controls and remaining acceptance
 
@@ -101,12 +103,11 @@ It verifies software behavior in those controls. It does not exercise Newbus
 attachment, real clock/reset/pad hardware, GPIO electrical levels, actual elapsed
 voltage settling or a BCM2712 card transaction.
 
-A fresh combined native build must include these changes, the AON GPIO provider
-and the opt-in checked pinctrl consumer. Then repeat the existing Pi4 FDT and
-ACPI/USB compatibility controls against the exact new kernel. Those controls
+The combined source requires a fresh clean native build, followed by the
+existing Pi4 FDT and ACPI/USB compatibility controls against the exact new
+kernel. Those controls
 cannot qualify BCM2712 SD providers. Physical Pi500 boot, SD command/data traffic,
 voltage/power sequencing, card detect and removal remain open acceptance gates.
-
 
 ## AON GPIO bootstrap consumer
 
@@ -133,6 +134,7 @@ register masks, barriers, preset ordering, active-low ownership, malformed
 input refusal and cleanup behavior in the test model. They do not prove native
 Newbus failure recovery or electrical timing. A clean native integration build
 and physical GPIO/SD evidence remain required.
+
 ## Failed regulator initialization ownership
 
 The GPIO regulator now opts into `REGULATOR_FLAGS_DEFER_SYSCTL`. Existing
