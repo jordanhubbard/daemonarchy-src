@@ -118,10 +118,11 @@ comparison establish native DMA execution.
 The source workflow watches the policy and runs sanitized controls.
 Those controls also compile the `_KERNEL`/`-nostdinc` path against the actual
 repository ARM64 headers; Clang uses a FreeBSD ARM64 compile-only target. This
-checks include closure and does not replace a fresh native GENERIC build. The optional
-FDT source entry compiles the pure functions, without registering a device or
-calling them on live DMA. The following step remains a separately reviewed
-ARM64 busdma backend: physical bounce/sync state, all load forms, WAITOK deferred
+checks include closure and does not replace a fresh native GENERIC build.
+The original step1 entry was optional FDT. The
+[translated RAM busdma follow-on](pi5-translated-ram-busdma.md) makes the pure
+policy a standard ARM64 dependency without registering a device. That backend
+is a separately reviewed software candidate: physical bounce/sync state, all load forms, WAITOK deferred
 callbacks, device-domain constraints, child-tag inheritance and retained owner
 lifetime must all be implemented and tested. Rewriting only successful callback
 addresses would bypass or duplicate translation on deferred paths. PCIe/RP1

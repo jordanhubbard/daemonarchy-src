@@ -86,6 +86,9 @@ int common_bus_dma_tag_create(struct bus_dma_tag_common *parent,
     bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
     void *lockfuncarg, size_t sz, void **dmat);
 
+bus_addr_t bus_dma_bounce_domain_limit(bus_dma_tag_t);
+bool bus_dma_bounce_ram_translated(bus_dma_tag_t);
+
 extern struct bus_dma_impl bus_dma_bounce_impl;
 
 #endif
