@@ -44,3 +44,5 @@ the GitHub CLI may otherwise select the fork's FreeBSD upstream automatically.
 - [ACPI xHCI DMA reachability with full system RAM](pi4-acpi-xhci-dma.md)
 
 - [Pinned FreeBSD CI bootstrap and asset custody](freebsd-vm-ci-bootstrap.md)
+
+- [Native translated DMA simulator diagnostic fixture](bcm2711-translated-dma-native-test.md)
