@@ -14,6 +14,9 @@ on:
       - 'sys/dev/daemonarchy/**'
       - 'sys/modules/daemonarchy_earlynet/**'
       - 'sys/conf/files.amd64'
+      - 'sys/conf/files'
+      - 'sys/dev/sdhci/sdhci_fdt_bcm2712.c'
+      - 'sys/dev/sdhci/sdhci_bcm2712_policy.h'
       - 'sys/conf/options'
       - 'tools/daemonarchy/**'
       - 'sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC'
@@ -38,6 +41,9 @@ on:
       - 'sys/dev/daemonarchy/**'
       - 'sys/modules/daemonarchy_earlynet/**'
       - 'sys/conf/files.amd64'
+      - 'sys/conf/files'
+      - 'sys/dev/sdhci/sdhci_fdt_bcm2712.c'
+      - 'sys/dev/sdhci/sdhci_bcm2712_policy.h'
       - 'sys/conf/options'
       - 'tools/daemonarchy/**'
       - 'sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC'
@@ -73,6 +79,13 @@ jobs:
             stand/efi/loader/boottrace_acpi.c tools/daemonarchy/tests/boottrace-acpi.c \
             -o "${{ runner.temp }}/boottrace-acpi"
           "${{ runner.temp }}/boottrace-acpi"
+      - name: BCM2712 bootstrap CFG and clock policy (not controller acceptance)
+        run: |
+          clang -std=c17 -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -fno-omit-frame-pointer -Isys/dev/sdhci \
+            tools/daemonarchy/tests/bcm2712-sdhci-policy.c \
+            -o "${{ runner.temp }}/bcm2712-sdhci-policy"
+          "${{ runner.temp }}/bcm2712-sdhci-policy"
       - name: Loader setup interactions (not EFI acceptance)
         run: >-
           python3 tools/daemonarchy/tests/run-loader-debug-setup.py
