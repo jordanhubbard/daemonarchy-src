@@ -124,8 +124,8 @@ allocation/free ownership, domain rollback, partial pool allocation failures,
 reference overflow, fictitious pages and poisoned template source lifetime.
 These are production-function controls, not a native scheduler or hardware run.
 
-Before adoption, the remaining gates are a fresh empty-object native GENERIC
-build including the backend and its dependency closure, actual native busdma
+The native checkpoint below covers the fresh empty-object GENERIC build.
+Before adoption, the remaining gates include actual native busdma
 execution with a nonzero offset, real device reads/writes through ordinary
 child tags, forced high-physical-page bounce copies and deferred/error owner
 controls, plus unchanged Pi4 FDT/GENET and ACPI/USB controls. A test frontend
@@ -133,3 +133,22 @@ must pair the production translated tag with an actual corresponding inbound
 hardware/model window before any device children are published. Changing DT
 cells alone does not invoke this API. BCM2712/RP1 electrical MSI, controller,
 cache-coherency, reset and native hardware acceptance remain open.
+
+## Native compile checkpoint
+
+Sealed implementation `4179e2cee4aeea0f902fd182ba48a35cc11fc2e8` passes a
+fresh allocated-worker FreeBSD ARM64 GENERIC build from empty objects. The
+linked kernel includes the constructor, affine helper and existing policy;
+all five affected object dependency closures were retained. Downloaded kernel,
+objects and twelve source/header inputs were independently checked against the
+sealed source. Twelve installed tools, thirty runtime libraries and 278 compiler
+resource headers remained unchanged across the build; canonical SDK admission
+remains open.
+
+Kernel SHA256 is
+`7bd12ede5b0980eba4072477cd16a1fa6456e975a440de9dfb9bf8d0b34d3687`;
+`kernel.full` is
+`c2ee5acd821bb18306510aa72221fd9df235162e7267139bdf44d8a1730cc1b1`.
+This is native compilation/link evidence. It does not establish kernel boot,
+actual translated device DMA, deferred/native concurrency or BCM2712/RP1
+hardware acceptance. Those runtime gates remain separate.
