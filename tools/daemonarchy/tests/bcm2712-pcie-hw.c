@@ -46,7 +46,7 @@ static void delay(void *arg,unsigned usec){struct unit *u=arg;assert(usec<=10000
 static int dependencies(void *arg){struct unit *u=arg;int error=fault(u);if(error)return error;u->dependencies++;return 0;}
 static int publish(void *arg){struct unit *u=arg;int error=fault(u);if(error)return error;assert(u->dependencies==2 && u->pulses==1 && u->bridge_calls==3 && u->mdio_pos==8 && u->delay_us>=100500);u->publications++;return u->partial_child?EIO:0;}
 static const struct bcm2712_pcie_ops ops={read_reg,write_reg,reset,delay,dependencies,publish};
-static void initialize(struct unit *u){memset(u,0,sizeof(*u));u->regs[0x4068/4]=0x80;u->regs[0x4008/4]=0x78000000;u->regs[0xbc/4]=0x42U<<16;}
+static void initialize(struct unit *u){memset(u,0,sizeof(*u));u->regs[0x4068/4]=0x80;u->regs[0x4008/4]=0x78000000;u->regs[0x416c/4]=(1U<<7)|(1U<<17);u->regs[0xbc/4]=0x42U<<16;}
 int main(void){
  struct bcm2712_pcie_dt d=selected_dt();struct bcm2712_pcie_plan plan,poison;
  memset(&plan,0xa5,sizeof(plan));assert(bcm2712_pcie_plan_make(&d,&plan)==0);
@@ -74,8 +74,18 @@ int main(void){
  assert(bcm2712_pcie_encode_outbound(&extreme,&ob)==EOVERFLOW && memcmp(&ob,&obs,sizeof(ob))==0);
  extreme=(struct bcm2712_pcie_window){UINT64_MAX-4095,0,8192};ib=ibs;
  assert(bcm2712_pcie_encode_inbound(&extreme,&ib)==EINVAL && memcmp(&ib,&ibs,sizeof(ib))==0);
+
+ uint32_t index=0xa5a5a5a5,offset=0xa5a5a5a5;
+ assert(bcm2712_pcie_config_address(0,0,0,4092,4,&index,&offset)==0 && index==0 && offset==4092);
+ assert(bcm2712_pcie_config_address(255,31,7,4095,1,&index,&offset)==0 && index==0x0ffff000 && offset==0x8fff);
+ for(unsigned bad=0;bad<9;bad++){
+  unsigned bus=1,slot=0,fn=0,reg=0,width=4;
+  switch(bad){case 0:bus=256;break;case 1:slot=32;break;case 2:fn=8;break;case 3:width=0;break;case 4:width=8;break;case 5:reg=4096;break;case 6:reg=4093;break;case 7:bus=0;slot=1;break;case 8:bus=0;fn=1;break;}
+  index=offset=0xa5a5a5a5;
+  assert(bcm2712_pcie_config_address(bus,slot,fn,reg,width,&index,&offset)==EINVAL && index==0xa5a5a5a5 && offset==0xa5a5a5a5);
+ }
  puts("PASS selected raw-cell plan, exact64-bit windows, envelope tail, QoS, malformed shape/output rollback");
- struct unit u;struct bcm2712_pcie_state state={0};initialize(&u);assert(bcm2712_pcie_start(&plan,&ops,&u,&state)==0 && state.published && state.link && !state.retained && state.generation==2 && state.lanes==4);assert((u.regs[0x4008/4]&0xf8000000)==0x78000000);unsigned total=u.calls;assert(bcm2712_pcie_start(&plan,&ops,&u,&state)==EBUSY && u.calls==total);
+ struct unit u;struct bcm2712_pcie_state state={0};initialize(&u);assert(bcm2712_pcie_start(&plan,&ops,&u,&state)==0 && state.published && state.link && !state.retained && state.generation==2 && state.lanes==4);assert((u.regs[0x4008/4]&0xf8000000)==0x78000000);assert((u.regs[0x416c/4]&((1U<<7)|(1U<<17)))==(1U<<17));unsigned total=u.calls;assert(bcm2712_pcie_start(&plan,&ops,&u,&state)==EBUSY && u.calls==total);
  for(unsigned fail=1;fail<=total;fail++){
   initialize(&u);u.fail_at=fail;state=(struct bcm2712_pcie_state){0};assert(bcm2712_pcie_start(&plan,&ops,&u,&state)==EIO && !state.published && !u.publications && state.retained==(fail!=1));
   if(state.touched){unsigned calls=u.calls;assert(bcm2712_pcie_start(&plan,&ops,&u,&state)==EBUSY && u.calls==calls);}

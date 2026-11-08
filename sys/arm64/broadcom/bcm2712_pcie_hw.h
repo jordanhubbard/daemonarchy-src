@@ -33,6 +33,8 @@ struct bcm2712_pcie_dt {
 	/* Nonzero means an unsupported property/profile was observed. */
 	unsigned unsupported;
 };
+int bcm2712_pcie_config_address(unsigned, unsigned, unsigned, unsigned,
+    unsigned, uint32_t *, uint32_t *);
 struct bcm2712_pcie_window { uint64_t pci, cpu, length; };
 struct bcm2712_pcie_outbound {
 	uint32_t pci_lo, pci_hi, base_limit, base_hi, limit_hi;

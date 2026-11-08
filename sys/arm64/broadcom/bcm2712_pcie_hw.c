@@ -87,6 +87,20 @@ bcm2712_pcie_encode_inbound(const struct bcm2712_pcie_window *w,
 	return (0);
 }
 
+int
+bcm2712_pcie_config_address(unsigned bus, unsigned slot, unsigned function,
+    unsigned reg, unsigned width, uint32_t *index, uint32_t *offset)
+{
+	if (index == NULL || offset == NULL || bus > 255 || slot > 31 ||
+	    function > 7 || (width != 1 && width != 2 && width != 4) ||
+	    reg > 4096 - width || (reg & (width - 1)) != 0 ||
+	    (bus == 0 && (slot != 0 || function != 0)))
+		return (EINVAL);
+	*index = bus << 20 | slot << 15 | function << 12;
+	*offset = bus == 0 ? reg : 0x8000 + reg;
+	return (0);
+}
+
 static uint64_t
 pair(const uint32_t *v)
 {
@@ -296,8 +310,8 @@ bcm2712_pcie_start(const struct bcm2712_pcie_plan *p,
 	/* Bit12 is reserved-zero on affected revisions; check then apply the
 	 * maintained best-effort outstanding-request fallback, not a fake fix. */
 	TRY(o->read(c,0x416c,4,&value));
-	value = (value & ~(1U<<17)) | (1U<<13) | (1U<<12) | (1U<<11);
-	TRY(write_check(o,c,0x416c,4,value,(1U<<17)|(1U<<13)|(1U<<11)));
+	value = (value & ~(1U<<7)) | (1U<<13) | (1U<<12) | (1U<<11);
+	TRY(write_check(o,c,0x416c,4,value,(1U<<7)|(1U<<13)|(1U<<11)));
 	TRY(o->read(c,0x416c,4,&value));
 	if ((value & (1U<<12)) == 0) {
 		s->qos_fallback = 1;

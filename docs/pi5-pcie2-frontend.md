@@ -53,6 +53,10 @@ checked rescal pulse, bridge reset and SerDes settling, explicit inverted PERST,
 checked windows, 54MHz MDIO sequence, UBUS timeouts and QoS, Gen2/x4 ceiling,
 bounded link wait and final dependency check. It preserves SCB size fields on
 BCM2712; the references' BCM2711 memory-controller sizing does not apply here.
+QoS forwarding suppression uses the active pinned Linux bit7 field at
+`0x416c`, preserving unrelated bit17. The unused OpenBSD header definition
+used bit17; its snapshot does not execute that QoS setup, and it is not the
+reference for this field. Seeded-bit controls retain this review correction.
 There is no internal BCM2711 MSI-controller registration or RAM adjustment to
 the raw external MIP target.
 
