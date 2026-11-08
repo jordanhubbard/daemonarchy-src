@@ -3,9 +3,9 @@
 This isolated follow-on starts from GPIO ownership checkpoint
 `07cca79102c3a9030469b8f33b3a6a45301f6c44`. It supplies the selected MIP0
 MSI provider and a checked GICv2 range-reservation prerequisite. Host production
-controls are available. A fresh native dependency-closure build and Pi4
-compatibility controls are required; BCM2712/MSI delivery, PCIe and RP1 hardware
-operation remain unqualified. No physical boot state or media was changed.
+controls, a fresh native dependency-closure build and renewed Pi4 compatibility
+controls pass. BCM2712/MSI delivery, PCIe and RP1 hardware operation remain
+unqualified. No physical boot state or media was changed.
 
 ## Maintained source and selected binding
 
@@ -117,7 +117,36 @@ controls. The optional FDT source entry includes the new driver; fresh native
 GENERIC compilation must include the generated interface and GIC dependencies.
 No aggregate kernel build runs on the operator desktop.
 
-The checked GIC change also requires renewed Pi4 FDT/network and ACPI/USB
-compatibility controls. Earlier sealed-image results are not evidence for these
-new GIC bytes. BCM2712 PCIe host, RP1 BAR/MSI-X nexus and clocks remain separate
-missing prerequisites; MIP preparation alone does not provide RP1 operation.
+## Native build and compatibility checkpoint
+
+Sealed implementation `524d75132ad0beece864daf45431068490609f8e` passes a fresh
+allocated-worker ARM64 GENERIC build from empty objects, including the generated
+GIC interface, GIC implementation and MIP driver. Kernel SHA256 is
+`7a76572b232ea1db5d086cbc00bb3b5bd7c53d694d247b5d192e8dfd41f1094a`.
+Source and downloaded object/kernel hashes match all 33 native records; the
+checked reservation descriptor and linked provider methods are present. Twelve
+installed tools, 30 dynamic libraries and 278 compiler resource headers were
+inventoried before and after the build with unchanged identities. This binds
+the installed bootstrap; canonical SDK admission remains open.
+
+Fresh images containing this exact kernel pass all five renewed Pi4 controls:
+
+| Control | 2 GB | 8 GB |
+| --- | --- | --- |
+| FDT/SD root and native GENET | 26 checks | 27 checks |
+| FDT/USB-only EFI boot, USB root and native GENET | 34 checks | 35 checks |
+| UEFI/ACPI USB root, firmware memory cap disabled | — | 20 checks |
+
+Networking controls verify independent 1 MiB transfers in both directions,
+round-trip hashes, zero packet errors and durable diagnostics. All seven probes
+complete successfully; SD controls retain 15 files and USB networking controls
+retain 18. USB-only controls verify the EFI USB load path and the mounted root's
+GEOM chain to `da0`, with no SD disk attached. All five controls observe natural
+guest reset and unchanged input images. Native image readback also verifies the
+actual UFS kernel/loader, configuration and root ownership.
+
+These runs establish compatibility on the new shared GIC bytes, not BCM2712 MSI
+delivery or native concurrency. BCM2712 PCIe host, RP1 BAR/MSI-X nexus and clocks
+remain separate missing prerequisites; MIP preparation alone does not provide
+RP1 operation. The selected PCIe/RP1 DMA ranges require real address translation;
+the BCM2711 identity-DMA host cannot be enabled by a compatible-string change.
