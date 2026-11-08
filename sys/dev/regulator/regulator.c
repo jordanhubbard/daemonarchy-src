@@ -346,60 +346,12 @@ regnode_find_by_id(device_t dev, intptr_t id)
 	return (NULL);
 }
 
-/*
- * Create and initialize regulator object, but do not register it.
- */
-struct regnode *
-regnode_create(device_t pdev, regnode_class_t regnode_class,
-    struct regnode_init_def *def)
+/* Publish diagnostic pointers only while their complete owner is live. */
+static void
+regnode_publish_sysctls(struct regnode *regnode)
 {
-	struct regnode *regnode;
 	struct sysctl_oid *regnode_oid;
 
-	KASSERT(def->name != NULL, ("regulator name is NULL"));
-	KASSERT(def->name[0] != '\0', ("regulator name is empty"));
-
-	REG_TOPO_SLOCK();
-	if (regnode_find_by_name(def->name) != NULL)
-		panic("Duplicated regulator registration: %s\n", def->name);
-	REG_TOPO_UNLOCK();
-
-	/* Create object and initialize it. */
-	regnode = malloc(sizeof(struct regnode), M_REGULATOR,
-	    M_WAITOK | M_ZERO);
-	kobj_init((kobj_t)regnode, (kobj_class_t)regnode_class);
-	sx_init(&regnode->lock, "Regulator node lock");
-
-	/* Allocate softc if required. */
-	if (regnode_class->size > 0) {
-		regnode->softc = malloc(regnode_class->size, M_REGULATOR,
-		    M_WAITOK | M_ZERO);
-	}
-
-
-	/* Copy all strings unless they're flagged as static. */
-	if (def->flags & REGULATOR_FLAGS_STATIC) {
-		regnode->name = def->name;
-		regnode->parent_name = def->parent_name;
-	} else {
-		regnode->name = strdup(def->name, M_REGULATOR);
-		if (def->parent_name != NULL)
-			regnode->parent_name = strdup(def->parent_name,
-			    M_REGULATOR);
-	}
-
-	/* Rest of init. */
-	TAILQ_INIT(&regnode->consumers_list);
-	regnode->id = def->id;
-	regnode->pdev = pdev;
-	regnode->flags = def->flags;
-	regnode->parent = NULL;
-	regnode->std_param = def->std_param;
-#ifdef FDT
-	regnode->ofw_node = def->ofw_node;
-#endif
-
-	sysctl_ctx_init(&regnode->sysctl_ctx);
 	regnode_oid = SYSCTL_ADD_NODE(&regnode->sysctl_ctx,
 	    SYSCTL_STATIC_CHILDREN(_hw_regulator),
 	    OID_AUTO, regnode->name,
@@ -458,8 +410,105 @@ regnode_create(device_t pdev, regnode_class_t regnode_class,
 	    regnode, 0, regnode_uvolt_sysctl,
 	    "I",
 	    "Current voltage (in uV)");
+}
+
+/*
+ * Create and initialize regulator object, but do not register it.
+ */
+struct regnode *
+regnode_create(device_t pdev, regnode_class_t regnode_class,
+    struct regnode_init_def *def)
+{
+	struct regnode *regnode;
+
+	KASSERT(def->name != NULL, ("regulator name is NULL"));
+	KASSERT(def->name[0] != '\0', ("regulator name is empty"));
+
+	REG_TOPO_SLOCK();
+	if (regnode_find_by_name(def->name) != NULL)
+		panic("Duplicated regulator registration: %s\n", def->name);
+	REG_TOPO_UNLOCK();
+
+	/* Create object and initialize it. */
+	regnode = malloc(sizeof(struct regnode), M_REGULATOR,
+	    M_WAITOK | M_ZERO);
+	kobj_init((kobj_t)regnode, (kobj_class_t)regnode_class);
+	sx_init(&regnode->lock, "Regulator node lock");
+
+	/* Allocate softc if required. */
+	if (regnode_class->size > 0) {
+		regnode->softc = malloc(regnode_class->size, M_REGULATOR,
+		    M_WAITOK | M_ZERO);
+	}
+
+
+	/* Copy all strings unless they're flagged as static. */
+	if (def->flags & REGULATOR_FLAGS_STATIC) {
+		regnode->name = def->name;
+		regnode->parent_name = def->parent_name;
+	} else {
+		regnode->name = strdup(def->name, M_REGULATOR);
+		if (def->parent_name != NULL)
+			regnode->parent_name = strdup(def->parent_name,
+			    M_REGULATOR);
+	}
+
+	/* Rest of init. */
+	TAILQ_INIT(&regnode->consumers_list);
+	regnode->id = def->id;
+	regnode->pdev = pdev;
+	regnode->flags = def->flags;
+	regnode->parent = NULL;
+	regnode->std_param = def->std_param;
+#ifdef FDT
+	regnode->ofw_node = def->ofw_node;
+#endif
+
+	sysctl_ctx_init(&regnode->sysctl_ctx);
+	if ((regnode->flags & REGULATOR_FLAGS_DEFER_SYSCTL) == 0)
+		regnode_publish_sysctls(regnode);
 
 	return (regnode);
+}
+
+/*
+ * Discard an exclusively producer-owned node which has not been published.
+ * A failed SYSCTL drain must leave every referenced allocation alive. Do not
+ * hold the topology lock while draining: a running handler may acquire it.
+ */
+int
+regnode_destroy_unpublished(struct regnode *regnode)
+{
+	struct regnode *entry;
+	int error;
+
+	REG_TOPO_SLOCK();
+	TAILQ_FOREACH(entry, &regnode_list, reglist_link) {
+		if (entry == regnode) {
+			REG_TOPO_UNLOCK();
+			return (EBUSY);
+		}
+	}
+	REGNODE_XLOCK(regnode);
+	error = regnode->ref_cnt != 0 || regnode->enable_cnt != 0 ||
+	    !TAILQ_EMPTY(&regnode->consumers_list) ? EBUSY : 0;
+	REGNODE_UNLOCK(regnode);
+	REG_TOPO_UNLOCK();
+	if (error != 0)
+		return (error);
+	if (!TAILQ_EMPTY(&regnode->sysctl_ctx)) {
+		error = sysctl_ctx_free(&regnode->sysctl_ctx);
+		if (error != 0)
+			return (error);
+	}
+	sx_destroy(&regnode->lock);
+	if ((regnode->flags & REGULATOR_FLAGS_STATIC) == 0) {
+		free(__DECONST(char *, regnode->name), M_REGULATOR);
+		free(__DECONST(char *, regnode->parent_name), M_REGULATOR);
+	}
+	free(regnode->softc, M_REGULATOR);
+	kobj_delete((kobj_t)regnode, M_REGULATOR);
+	return (0);
 }
 
 /* Register regulator object. */
@@ -488,6 +537,8 @@ regnode_register(struct regnode *regnode)
 	OF_device_register_xref(OF_xref_from_node(regnode->ofw_node),
 	    regnode->pdev);
 #endif
+	if (regnode->flags & REGULATOR_FLAGS_DEFER_SYSCTL)
+		regnode_publish_sysctls(regnode);
 	return (regnode);
 }
 
