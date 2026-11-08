@@ -30,6 +30,10 @@
 #else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
+#ifdef __aarch64__
+#include "opt_bcm2711_dma_test.h"
+#endif
+
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/types.h>
@@ -70,6 +74,10 @@ static void	usb_dma_tag_create(struct usb_dma_tag *, usb_size_t, usb_size_t);
 static void	usb_dma_tag_destroy(struct usb_dma_tag *);
 static void	usb_dma_lock_cb(void *, bus_dma_lock_op_t);
 static void	usb_pc_alloc_mem_cb(void *, bus_dma_segment_t *, int, int);
+#ifdef BCM2711_DMA_TEST
+#include <arm64/broadcom/bcm2711_dma_test.h>
+#endif
+
 static void	usb_pc_load_mem_cb(void *, bus_dma_segment_t *, int, int);
 static void	usb_pc_common_mem_cb(void *, bus_dma_segment_t *, int, int,
 		    uint8_t);
@@ -442,6 +450,12 @@ usb_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
 	uint8_t owned;
 
 	pc = arg;
+#ifdef BCM2711_DMA_TEST
+	/* Observe the actual backend callback without changing its outcome. */
+	if (isload)
+		bcm2711_dma_test_usb_load(pc->buffer, pc->page_offset_end,
+		    segs, nseg, error);
+#endif
 	uptag = pc->tag_parent;
 
 	/*

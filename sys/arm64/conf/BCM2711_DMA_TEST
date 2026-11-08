@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Diagnostic simulator profile; never a physical BCM2712/RP1 attachment.
+include GENERIC
+ident BCM2711_DMA_TEST
+options BCM2711_DMA_TEST
+options INVARIANTS
+options INVARIANT_SUPPORT

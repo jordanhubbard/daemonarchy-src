@@ -25,6 +25,8 @@
  * this driver is taken from the Raspberry Pi 4 Broadcom 2838 chip.
  */
 
+#include "opt_bcm2711_dma_test.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/endian.h>
@@ -48,6 +50,10 @@
 
 #include <machine/bus.h>
 #include <machine/intr.h>
+#ifdef BCM2711_DMA_TEST
+#include <machine/bus_dma.h>
+#include <arm64/broadcom/bcm2711_dma_test.h>
+#endif
 
 #include "pcib_if.h"
 #include "msi_if.h"
@@ -618,6 +624,9 @@ bcm_pcib_attach(device_t dev)
 	bus_size_t size;
 	uint32_t hardware_rev, bridge_state, link_state, tmp;
 	int error, tries;
+#ifdef BCM2711_DMA_TEST
+	bus_dma_tag_t test_tag = NULL, physical_tag = NULL;
+#endif
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -650,6 +659,24 @@ bcm_pcib_attach(device_t dev)
 
 	mtx_init(&sc->config_mtx, "bcm_pcib: config_mtx", NULL, MTX_DEF);
 
+#ifdef BCM2711_DMA_TEST
+	if (bcm2711_dma_test_requested()) {
+		/* Refuse actual BCM hardware: this test targets the unchanged QEMU
+		 * root port's genuine ID, not a physical-device compatibility.
+		 */
+		if (!ofw_bus_is_compatible(dev, "brcm,bcm2711-pcie") ||
+		    bcm_pcib_read_config(dev, 0, 0, 0, PCIR_DEVVENDOR, 4) !=
+		    0x000c1b36) {
+			error = ENXIO;
+			goto failed;
+		}
+		physical_tag = sc->dmat;
+		error = bcm2711_dma_test_create(physical_tag, &test_tag);
+		if (error != 0)
+			goto failed;
+	}
+#endif
+
 	bcm_pcib_reset_controller(sc);
 
 	hardware_rev = bcm_pcib_read_reg(sc, REG_CONTROLLER_HW_REV) & 0xffff;
@@ -661,7 +688,12 @@ bcm_pcib_attach(device_t dev)
 	 * the system memory to the controller.
 	 */
 	bcm_pcib_set_reg(sc, REG_DMA_WINDOW_LOW, REG_VALUE_DMA_WINDOW_LOW);
+#ifdef BCM2711_DMA_TEST
+	bcm_pcib_set_reg(sc, REG_DMA_WINDOW_HIGH, test_tag != NULL ?
+	    BCM2711_DMA_TEST_WINDOW_HIGH : REG_VALUE_DMA_WINDOW_HIGH);
+#else
 	bcm_pcib_set_reg(sc, REG_DMA_WINDOW_HIGH, REG_VALUE_DMA_WINDOW_HIGH);
+#endif
 	bcm_pcib_set_reg(sc, REG_DMA_CONFIG, REG_VALUE_DMA_WINDOW_CONFIG);
 
 	bcm_pcib_set_reg(sc, REG_BRIDGE_GISB_WINDOW, 0);
@@ -745,11 +777,33 @@ bcm_pcib_attach(device_t dev)
 	if (error != 0)
 		goto failed;
 
+#ifdef BCM2711_DMA_TEST
+	if (test_tag != NULL) {
+		/* Readback before any PCI child can allocate DMA or run a device. */
+		error = bcm2711_dma_test_publish(dev, test_tag, physical_tag,
+		    bcm_pcib_read_reg(sc, REG_DMA_WINDOW_LOW),
+		    bcm_pcib_read_reg(sc, REG_DMA_WINDOW_HIGH));
+		if (error != 0)
+			goto failed;
+		sc->dmat = test_tag;
+		/* Keep the original physical ownership until guest reset as well
+		 * as the backend's own parent reference. No test module frees it.
+		 */
+	}
+#endif
+
 	/* Done. */
 	device_add_child(dev, "pci", DEVICE_UNIT_ANY);
 	bus_attach_children(dev);
 	return (0);
 failed:
+#ifdef BCM2711_DMA_TEST
+	if (test_tag != NULL) {
+		/* No PCI children were published on these failure paths. */
+		if (bus_dma_tag_destroy(test_tag) != 0)
+			panic("unpublished diagnostic DMA tag retained owners");
+	}
+#endif
 	pci_host_generic_destroy_fdt(dev);
 	return (error);
 }

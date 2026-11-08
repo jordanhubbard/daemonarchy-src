@@ -80,6 +80,13 @@
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
 #endif			/* USB_GLOBAL_INCLUDE_FILE */
+#ifdef __aarch64__
+#include "opt_bcm2711_dma_test.h"
+#ifdef BCM2711_DMA_TEST
+#include <arm64/broadcom/bcm2711_dma_test.h>
+#endif
+#endif
+
 
 #include <dev/usb/controller/xhci.h>
 #include <dev/usb/controller/xhcireg.h>
@@ -336,6 +343,9 @@ xhci_start_controller(struct xhci_softc *sc)
 	XWRITE4(sc, oper, XHCI_DCBAAP_HI, (uint32_t)(addr >> 32));
 	XWRITE4(sc, oper, XHCI_DCBAAP_LO, (uint32_t)addr);
 	XWRITE4(sc, oper, XHCI_DCBAAP_HI, (uint32_t)(addr >> 32));
+#ifdef BCM2711_DMA_TEST
+	bcm2711_dma_test_ring("DCBAAP", addr);
+#endif
 
 	/* set up event table size */
 	DPRINTF("ERSTSZ=0x%08x -> 0x%08x\n",
@@ -382,6 +392,9 @@ xhci_start_controller(struct xhci_softc *sc)
 
 	XWRITE4(sc, runt, XHCI_ERSTBA_LO(0), (uint32_t)addr);
 	XWRITE4(sc, runt, XHCI_ERSTBA_HI(0), (uint32_t)(addr >> 32));
+#ifdef BCM2711_DMA_TEST
+	bcm2711_dma_test_ring("ERSTBA", addr);
+#endif
 
 	/* set up interrupter registers */
 	temp = XREAD4(sc, runt, XHCI_IMAN(0));
@@ -396,6 +409,9 @@ xhci_start_controller(struct xhci_softc *sc)
 
 	XWRITE4(sc, oper, XHCI_CRCR_LO, ((uint32_t)addr) | XHCI_CRCR_LO_RCS);
 	XWRITE4(sc, oper, XHCI_CRCR_HI, (uint32_t)(addr >> 32));
+#ifdef BCM2711_DMA_TEST
+	bcm2711_dma_test_ring("CRCR", addr);
+#endif
 
 	phwr->hwr_commands[XHCI_MAX_COMMANDS - 1].qwTrb0 = htole64(addr);
 
