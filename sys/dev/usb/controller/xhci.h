@@ -492,6 +492,9 @@ enum xhci_quirks {
 	XHCI_QUIRK_DMA_32B				= 0x00000002,
 };
 
+#define XHCI_INIT_DMA		0x01
+#define XHCI_INIT_CMD_LOCKS	0x02
+
 struct xhci_softc {
 	struct xhci_hw_softc	sc_hw;
 	/* base device */
@@ -512,6 +515,12 @@ struct xhci_softc {
 	struct resource		*sc_io_res;
 	struct resource		*sc_irq_res;
 	struct resource		*sc_msix_res;
+	/* Optional owned parent tag for firmware-described DMA apertures. */
+	bus_dma_tag_t		sc_owned_dma_tag;
+	device_t		sc_owned_dma_child;
+	int			sc_owned_dma_failed;
+	uint8_t			sc_owned_dma_started;
+	uint8_t			sc_init_flags;
 
 	void			*sc_intr_hdl;
 	bus_size_t		sc_io_size;

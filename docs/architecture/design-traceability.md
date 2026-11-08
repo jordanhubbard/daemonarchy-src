@@ -1,6 +1,6 @@
 # Source authority and acceptance map
 
-<!-- literate-ai:authority-reviewed sha256:e45847dd5b88a1ef01c906fac21ba38ac95fcc5ee5e0b329f4e2160a235ef640 -->
+<!-- literate-ai:authority-reviewed sha256:4d329e6de441fa85fe2f88c9a1f4cfb184ecd69744481a995a26cdfeab271b20 -->
 
 `PROJECT.md` owns the full original-source development requirements. The
 [source-unit guide](../user/source-units.md) maps the first concrete parser/header/utility
