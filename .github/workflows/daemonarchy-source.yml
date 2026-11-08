@@ -35,6 +35,7 @@ on:
       - 'sys/arm64/include/bus_dma_impl.h'
       - 'sys/arm64/broadcom/bcm2712_dma_ram.*'
       - 'sys/arm64/broadcom/bcm2712_pcie*'
+      - 'sys/dev/pci/pci_host_generic*'
       - 'sys/kern/subr_busdma_bounce.c'
       - 'sys/kern/subr_bus_dma.c'
       - 'sys/kern/subr_intr.c'
@@ -92,6 +93,7 @@ on:
       - 'sys/arm64/include/bus_dma_impl.h'
       - 'sys/arm64/broadcom/bcm2712_dma_ram.*'
       - 'sys/arm64/broadcom/bcm2712_pcie*'
+      - 'sys/dev/pci/pci_host_generic*'
       - 'sys/kern/subr_busdma_bounce.c'
       - 'sys/kern/subr_bus_dma.c'
       - 'sys/kern/subr_intr.c'
@@ -172,6 +174,7 @@ jobs:
           python3 tools/daemonarchy/tests/bcm2712-dma-policy-independent.py --cc clang
           python3 tools/daemonarchy/tests/bcm2712-busdma-controls.py --cc clang
           python3 tools/daemonarchy/tests/bcm2712-pcie-controls.py --cc clang
+          python3 tools/daemonarchy/tests/bcm2712-pcie-wrapper.py --cc clang
       - name: GPIO regulator producer lifetime (not native concurrency acceptance)
         run: python3 tools/daemonarchy/tests/run-regnode-lifetime.py --cc clang
       - name: ACPI USB DMA aperture and lifetime (not controller acceptance)

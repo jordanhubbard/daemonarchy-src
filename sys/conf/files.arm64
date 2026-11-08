@@ -880,3 +880,4 @@ arm64/broadcom/bcm2712_dma_policy.c	standard
 arm64/broadcom/bcm2712_dma_ram.c	standard
 
 arm64/broadcom/bcm2712_pcie_hw.c	optional fdt pci
+arm64/broadcom/bcm2712_pcie.c	optional fdt pci

@@ -3,9 +3,10 @@
 This follow-on is confined to the enrolled Pi500 D0 DT snapshot SHA256
 `400b2da08abb8fd0ffd65085d1e0e1e6c6d01cadd27385403ea3a3fd5a1537f4`,
 node `/axi/pcie@1000120000`. The current checkpoint provides a pure checked
-plan, window encoders and startup state engine, plus checked MIP publication.
-The Newbus host wrapper is still being implemented. This checkpoint does not
-register a host bridge, enumerate a device or qualify BCM2712/RP1 hardware.
+plan, window encoders and startup state engine, checked MIP publication and
+a selected Newbus host wrapper. The wrapper registers a PCI root port only
+after checked dependencies and startup; actual BCM2712 enumeration, electrical
+behavior and RP1 peripherals remain unqualified.
 
 ## Snapshot admission and custody
 
@@ -72,8 +73,11 @@ The first dependency failure touches no hardware. Once a reset/write may have
 occurred, any error retains the owner and suppresses successful publication.
 There is no blind rescal retry or assumed reverse electrical rollback. A failed
 publication attempt also retains its owners because a child may have partially
-attached. The wrapper must disable/delete or retain the actual child safely,
-guard subsequent Newbus passes and refuse unsupported lifecycle operations.
+attached. The wrapper disables and retains a failed child, guards subsequent Newbus
+passes, and refuses detach/suspend/resume/shutdown with EBUSY. It does not
+attempt hardware-dependent child teardown behind a closed config gate. Current
+FreeBSD pci_attach fails only before scanning; injected partial attach controls
+cover the more conservative retained-owner boundary, not an observed DMA bug.
 Host error/AER interrupt service is not established by link enumeration.
 
 ## Controls and boundary
@@ -95,7 +99,7 @@ API/actual-DTB comparisons pass without changing vector expectations.
 
 The checked provider/query checkpoint `f8b858de609e2fe1d75dd2dfa2b40b8b9e100198`
 passes a fresh empty-object native ARM64 GENERIC build. That checkpoint excludes
-this engine and the unfinished wrapper; kernel SHA256 is
+this engine and wrapper; kernel SHA256 is
 `bbe5d60a1e869a4d989613589689a02c85133f963b87075da4ed65dced305f42`.
 It establishes compilation/link closure, not provider runtime or hardware MSI.
 The translated RAM backend has a separate accepted native BCM2711 proxy run;
@@ -110,3 +114,57 @@ or attached directly with an incorrect inherited DMA domain. A successful root
 port establishes PCI enumeration only until an explicit RP1 nexus/domain port
 exists. Fresh integrated native builds, renewed Pi4 compatibility and attended
 BCM2712 cold/warm measurements remain required before broader qualification.
+
+
+## Newbus wrapper and inherited contracts
+
+`bcm2712_pcie.c` retains the full ISC reference notice and the FreeBSD generic
+FDT host driver's BSD notice. Its softc begins with `generic_pcie_fdt_softc`,
+whose own first member is `generic_pcie_core_softc`. It initializes domain
+`ecam=2`, buses 0..255, custom configuration access, exact MEM/PMEM ranges,
+three resource managers, a noncoherent translated DMA tag and an empty generic
+OFW PCI child list. SUPPORTDEV+LATE follows the selected reset/MIP/GPIO bus and
+hog publication passes. The direct RP1 simple-bus node is validated but is not
+misrepresented as a standard PCI BDF node or published with the root DMA domain.
+
+The complete selected root schema and reset/GPIO/MIP nodes are checked before
+resource allocation or hardware operations. Only NULL starts actual OFW property
+enumeration. Published GPIO identity proves the driver's reserved/applied RUN
+hog contract; the host never acquires or changes that pin. MIP requires both
+its actual OF device identity and the exact MSI registry query. Reset handles
+are leased before hardware and retained after any possibly completed write.
+
+Before hardware, all allocation errors propagate and unwind in checked order.
+Unexpected domain/resource-list lookup errors cannot be treated as absence.
+Each failed cleanup stops while backing resources and parent lifetime remain
+available; a retained failure reports unavailable and blocks new allocations,
+config accesses and later Newbus attach passes. Successful touched owners are
+kernel-lifetime until a separately reviewed quiescence contract exists.
+
+The ordinary owned physical DMA parent has no BCM2711 memory cap. The production
+RAM constructor receives the validated 64GiB aperture, preserving tag inheritance
+and physical restrictions; that aperture does not assert installed RAM size.
+Inherited generic methods return this translated tag to PCI descendants.
+Parent resource-list RIDs100/101 are claimed only after an ENOENT lookup, and
+exact CPU backing windows feed generic map/unmap; the four-byte hardware envelope
+tail is excluded. Generic setup/free helpers are not used because they ignore
+errors needed by this ownership contract.
+
+Configuration locks index/data together, validates width/alignment/bounds, and
+checks live link status before every endpoint access to avoid access after link
+loss. Root configuration remains separately accessible while ready. MSI/MSI-X
+allocations/maps require ready plus the selected provider; releases remain
+available to retained owners. Returned MSI addresses are staged and validated
+inside the raw doorbell aperture without RAM translation. External MIP handles
+vectors; there is no BCM2711 internal MSI provider.
+
+`tools/daemonarchy/tests/bcm2712-pcie-wrapper.py` compiles the entire production
+wrapper/class table with typed injected Newbus services and actual inherited
+containing/translate/map/unmap/get_dma_tag bodies. It checks the retained provider
+fixture; optional `--dtb` verifies those properties against the original blob.
+Controls cover missing/unpublished providers before MMIO, first-property
+iteration, software fault unwind, retained cleanup/retry, lookup errors, PMEM
+mapping/tail exclusion, live-link loss, raw MSI, false child success and guarded
+partial publication. GCC, Clang18 and Clang23 ASan/UBSan controls pass. These
+primitive substitutes establish control flow only. Integrated native build and
+renewed Pi4 compatibility remain separate gates; no BCM2712 execution is claimed.
