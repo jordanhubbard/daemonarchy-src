@@ -159,6 +159,7 @@ jobs:
       - name: BCM2712 GPIO MMIO and provider faults (not hardware acceptance)
         run: |
           python3 tools/daemonarchy/tests/bcmstb-gpio-controls.py --cc clang --sanitize
+          python3 tools/daemonarchy/tests/bcmstb-gpio-binding.py --cc clang
           python3 tools/daemonarchy/tests/gpiobus-lifetime-controls.py --cc clang --sanitize
           python3 tools/daemonarchy/tests/pi5-sd-provider-controls.py --cc clang
       - name: BCM STB reset and calibration faults (not hardware acceptance)

@@ -555,6 +555,17 @@ bcmstb_gpio_shutdown(device_t dev)
 	return (sc->ready ? bus_generic_shutdown(dev) : ENXIO);
 }
 
+/* Only the owned gpiobus child shares the controller's OFW identity. */
+static phandle_t
+bcmstb_gpio_get_node(device_t dev, device_t child)
+{
+	struct bcmstb_gpio_softc *sc = device_get_softc(dev);
+
+	if (child == NULL || child != sc->busdev)
+		return (-1);
+	return (ofw_bus_get_node(dev));
+}
+
 static device_method_t bcmstb_gpio_methods[] = {
 	DEVMETHOD(device_probe, bcmstb_gpio_probe),
 	DEVMETHOD(device_attach, bcmstb_gpio_attach),
@@ -566,6 +577,7 @@ static device_method_t bcmstb_gpio_methods[] = {
 	DEVMETHOD(bus_driver_added, bcmstb_gpio_driver_added),
 	DEVMETHOD(bus_rescan, bcmstb_gpio_rescan),
 	DEVMETHOD(gpio_get_bus, bcmstb_gpio_get_bus),
+	DEVMETHOD(ofw_bus_get_node, bcmstb_gpio_get_node),
 	DEVMETHOD(gpio_pin_max, bcmstb_gpio_pin_max),
 	DEVMETHOD(gpio_pin_getname, bcmstb_gpio_pin_getname),
 	DEVMETHOD(gpio_pin_getcaps, bcmstb_gpio_pin_getcaps),
@@ -582,5 +594,10 @@ static driver_t bcmstb_gpio_driver = {
 };
 EARLY_DRIVER_MODULE(bcmstbgpio, simplebus, bcmstb_gpio_driver, NULL, NULL,
     BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
+/* FDT-only provider: keep bcmstbgpio identity and bind its OFW child
+ * explicitly, as the existing AXP PMU GPIO controllers do. */
+extern driver_t ofw_gpiobus_driver;
+EARLY_DRIVER_MODULE(ofw_gpiobus, bcmstbgpio, ofw_gpiobus_driver, NULL, NULL,
+    BUS_PASS_BUS);
 MODULE_DEPEND(bcmstbgpio, gpiobus, 1, 1, 1);
 MODULE_VERSION(bcmstbgpio, 1);

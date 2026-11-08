@@ -267,6 +267,9 @@ test_gpio_operations(void)
 	bus_reg[0] = 0x7d517c00;
 	assert(bcmstb_gpio_attach(&gpio) == 0);
 	assert(bcmstb_gpio_get_bus(&gpio) == &bus);
+	assert(bcmstb_gpio_get_node(&gpio, &bus) == gpio.node);
+	assert(bcmstb_gpio_get_node(&gpio, &pinctrl) == (phandle_t)-1);
+	assert(bcmstb_gpio_get_node(&gpio, NULL) == (phandle_t)-1);
 	assert(bcmstb_gpio_pin_max(&gpio, &maxpin) == 0 && maxpin == 63);
 	assert(registers.words[GIO_MASK(0) / 4] == 0 && registers.words[GIO_MASK(1) / 4] == 0);
 	assert(bcmstb_gpio_map_gpios(&gpio, 40, 10, 2, cells, &pin, &flags) == 0);

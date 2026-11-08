@@ -127,3 +127,32 @@ firmware memory cap disabled. All three controls verified unchanged source
 images. These BCM2711 compatibility runs do not exercise the BCM2712 AON provider
 or establish native GPIO bus concurrency. New image kernel/loader/configuration
 and root ownership were also read back on the allocated worker.
+
+## Measured OFW child binding correction
+
+The first selected-profile native execution of frontend source
+`0231dc1c617c5dad88a96b9af508ed45d4810922` stopped at AON GPIO attachment with
+ENXIO. No GPIO bus child attached; PCIe correctly refused unpublished GPIO
+readiness before its hardware sequence. The earlier BCM2711 compatibility
+controls did not attach this provider and could not expose this dependency.
+
+The controller's devclass is `bcmstbgpio`, while the original OFW/plain GPIO
+bus drivers register only on devclass `gpio`. The controller has no inherited
+`gpio` devclass. Actual Newbus lookup therefore finds no eligible child driver.
+Explicit registration alone is insufficient: OFW GPIO probing asks its parent
+for the child's node, and the original missing method returns the default -1.
+
+The bounded correction follows existing AXP PMU GPIO controllers: register
+`ofw_gpiobus_driver` explicitly on `bcmstbgpio`, and return the controller node
+only for its saved, non-NULL owned gpiobus child. Other children remain unmapped.
+There is no plain fallback or controller rename. GPIO reservation, ordered hog
+application and provider publication after readiness remain unchanged.
+
+`bcmstb-gpio-binding.py` compiles the actual Newbus lookup/probe functions,
+OFW GPIO probe/default-node function and selected controller node method.
+It reproduces the frozen-source missing-driver ENXIO, registration-only OFW
+identity refusal, and fixed own-child success. The complete production GPIO/hog
+harness additionally exercises its real node method. GCC, Clang18 and Clang23
+address/undefined sanitizer controls pass. Fresh allocated native compilation
+and selected-profile execution remain pending for these corrected bytes; the
+host lookup result is not GPIO electrical or RP1 hardware qualification.

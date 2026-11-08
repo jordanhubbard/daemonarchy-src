@@ -36,6 +36,13 @@ def main():
                str(ROOT / 'tools/daemonarchy/tests/bcmstb-gpio.c'), '-o', str(binary)]
         if args.sanitize:
             cmd[1:1] = ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
+        if 'clang' in Path(args.cc).name:
+            suppression = '-Wno-gcc-install-dir-libstdcxx'
+            probe = subprocess.run([args.cc, '-Werror', suppression, '-x', 'c',
+                                    '-fsyntax-only', '-'], input='', text=True,
+                                   capture_output=True)
+            if probe.returncode == 0:
+                cmd.insert(1, suppression)
         subprocess.run(cmd, check=True)
         subprocess.run([str(binary)], check=True)
 
