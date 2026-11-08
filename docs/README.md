@@ -39,4 +39,5 @@ the GitHub CLI may otherwise select the fork's FreeBSD upstream automatically.
 - [BCM2712 reset prerequisites for RP1](pi5-rp1-reset-prerequisites.md)
 - [Selected D0 AON GPIO hog ownership](pi5-aon-gpio-hogs.md)
 - [Selected BCM2712 MIP0 MSI provider](pi5-mip-msi.md)
+- [BCM2712 DMA address-domain policy](pi5-dma-policy.md)
 - [ACPI xHCI DMA reachability with full system RAM](pi4-acpi-xhci-dma.md)
