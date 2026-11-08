@@ -604,6 +604,13 @@ uart_pl011_bus_receive(struct uart_softc *sc)
 		uart_rx_put(sc, rx);
 	}
 
+	/* Quiesce the receive interrupt even if the software ring is full. */
+	while ((ints & FR_RXFE) == 0) {
+		(void)__uart_getreg(bas, UART_DR);
+		uart_barrier(bas);
+		ints = __uart_getreg(bas, UART_FR);
+	}
+
 	uart_unlock(sc->sc_hwmtx);
 
 	return (0);

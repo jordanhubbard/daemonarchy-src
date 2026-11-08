@@ -32,6 +32,16 @@ on:
       - 'sys/arm64/arm64/busdma_bounce.c'
       - 'sys/arm64/arm64/busdma_machdep.c'
       - 'sys/arm64/arm64/pmap.c'
+      - 'sys/dev/uart/uart_dev_pl011.c'
+      - 'sys/dev/uart/uart_core.c'
+      - 'sys/dev/uart/uart_bus.h'
+      - 'sys/dev/uart/uart_if.m'
+      - 'sys/dev/uart/uart_tty.c'
+      - 'sys/dev/uart/uart.h'
+      - 'sys/sys/serial.h'
+      - 'sys/sys/ttydisc.h'
+      - 'sys/sys/_termios.h'
+      - 'sys/sys/bus.h'
       - 'sys/arm64/include/bus_dma.h'
       - 'sys/arm64/include/bus_dma_impl.h'
       - 'sys/arm64/broadcom/bcm2712_dma_ram.*'
@@ -91,6 +101,16 @@ on:
       - 'sys/arm64/arm64/busdma_bounce.c'
       - 'sys/arm64/arm64/busdma_machdep.c'
       - 'sys/arm64/arm64/pmap.c'
+      - 'sys/dev/uart/uart_dev_pl011.c'
+      - 'sys/dev/uart/uart_core.c'
+      - 'sys/dev/uart/uart_bus.h'
+      - 'sys/dev/uart/uart_if.m'
+      - 'sys/dev/uart/uart_tty.c'
+      - 'sys/dev/uart/uart.h'
+      - 'sys/sys/serial.h'
+      - 'sys/sys/ttydisc.h'
+      - 'sys/sys/_termios.h'
+      - 'sys/sys/bus.h'
       - 'sys/arm64/include/bus_dma.h'
       - 'sys/arm64/include/bus_dma_impl.h'
       - 'sys/arm64/broadcom/bcm2712_dma_ram.*'
@@ -180,6 +200,8 @@ jobs:
           python3 tools/daemonarchy/tests/bcm2712-pcie-wrapper.py --cc clang
       - name: ARM64 direct-map lookup (not native MMU acceptance)
         run: python3 tools/daemonarchy/tests/arm64-dmap-lookup.py --cc clang
+      - name: PL011 finite receive overflow (not hardware latency acceptance)
+        run: python3 tools/daemonarchy/tests/pl011-rx-controls.py --cc clang
       - name: GPIO regulator producer lifetime (not native concurrency acceptance)
         run: python3 tools/daemonarchy/tests/run-regnode-lifetime.py --cc clang
       - name: ACPI USB DMA aperture and lifetime (not controller acceptance)
