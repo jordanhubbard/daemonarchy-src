@@ -105,6 +105,7 @@ gpioregulator_regnode_enable(struct regnode *regnode, bool enable, int *udelay)
 	bool active;
 	int error;
 
+	*udelay = 0;
 	sc = regnode_get_softc(regnode);
 
 	if (sc->def->enable_pin_valid == 1) {
@@ -129,6 +130,7 @@ gpioregulator_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
 	const struct gpioregulator_state *state;
 	int error, n;
 
+	*udelay = 0;
 	sc = regnode_get_softc(regnode);
 	state = NULL;
 

@@ -26,6 +26,16 @@ struct bcmstbpinctrl_pin {
 };
 
 static const struct bcmstbpinctrl_pin bcmstbpinctrl_d0_pins[] = {
+	/* Additional enabled firmware defaults; D0 register facts from Linux. */
+	{ "gpio1", 0, 0, 4, 5, { "gpio" } },
+	{ "gpio2", 0, 1, 4, 6, { [0] = "gpio", [7] = "vc_spi0" } },
+	{ "gpio3", 0, 2, 4, 7, { [0] = "gpio", [6] = "vc_spi0" } },
+	{ "gpio4", 0, 3, 4, 8, { [0] = "gpio", [6] = "vc_spi0" } },
+	{ "gpio24", 2, 0, 5, 6, { [0] = "gpio", [4] = "uart0" } },
+	{ "gpio25", 2, 1, 5, 7, { [0] = "gpio", [4] = "uart0" } },
+	{ "gpio26", 2, 2, 5, 8, { [0] = "gpio", [4] = "uart0" } },
+	{ "gpio27", 2, 3, 5, 9, { [0] = "gpio", [4] = "uart0" } },
+	{ "gpio29", 2, 5, 5, 11, { "gpio" } },
 	{ "gpio20", 1, 4, 5, 2, { "gpio" } },
 	{ "gpio28", 2, 4, 5, 10, { "gpio" } },
 	{ "gpio30", 2, 6, 5, 12, { "gpio", "sd2" } },
