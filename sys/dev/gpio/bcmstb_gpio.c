@@ -33,11 +33,11 @@
 #include <sys/mutex.h>
 #include <sys/rman.h>
 #include <machine/bus.h>
+#include <dev/ofw/openfirm.h>
 #include <dev/fdt/fdt_pinctrl.h>
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-#include <dev/ofw/openfirm.h>
 #include "gpio_if.h"
 
 #define BCM2712_AON_GPIO_BASE UINT64_C(0x107d517c00)
