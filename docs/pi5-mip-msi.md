@@ -175,5 +175,36 @@ phandle and serialized Newbus attach with one provider publisher. They are not
 an atomic compare-and-publish API for arbitrary competing OFW writers. Public
 production controls cover the early owner conflict, MSI registration failure,
 late competing owner, failed/NULL/wrong OF readback and retained registered
-owners; both GCC and Clang sanitized controls pass. Native compile/runtime
+owners; both GCC and Clang sanitized controls pass. Native provider execution
 and BCM2712 MSI electrical qualification remain separate gates.
+
+
+### Fresh native compilation of the publication prerequisite
+
+Sealed source `f8b858de609e2fe1d75dd2dfa2b40b8b9e100198` passes a clean,
+allocated-worker ARM64 GENERIC compilation and link with the checked registry
+query and MIP OFW publication. The stripped kernel SHA256 is
+`bbe5d60a1e869a4d989613589689a02c85133f963b87075da4ed65dced305f42`;
+`kernel.full` is
+`d5c31b4208e7193eabb3394a374839fe7743c75b12b5d53b81bfb678032f61e6`.
+Independent source/header readback matches all 17 selected records, and the
+linked `intr_msi_validate_provider` symbol is present. Actual changed objects
+are bound as follows:
+
+| Object | SHA256 |
+| --- | --- |
+| `subr_intr.o` | `27f5beff86601687b85c3207d495789d11415c396ba9ad3be0de28be7ae818da` |
+| `bcm2712_mip.o` | `9be0ebda51f86f48fd29e295df02064da872b054214f492cf21d16df410c2871` |
+
+Seven actual object dependency closures were checked: RAM admission, range
+policy, bounce backend, machine dispatch, MI busdma, interrupt registry and MIP
+provider (33, 32, 158, 106, 130, 170 and 105 source/header entries respectively).
+The before/after identities of 12 installed tools, 30 runtime libraries and
+278 compiler resource headers remain unchanged. These are observed bootstrap
+identities, not canonical SDK admission.
+
+This checkpoint qualifies compilation and linkage only. It does not renew the
+earlier kernel's Pi4 runtime results on these new kernel bytes, establish
+native MIP interrupt delivery, or qualify BCM2712 PCIe/RP1 hardware. The
+selected serialized OFW publication assumption remains required. The
+unfinished frontend/register engine is excluded from this sealed source.
