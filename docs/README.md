@@ -40,3 +40,5 @@ the GitHub CLI may otherwise select the fork's FreeBSD upstream automatically.
 - [Selected D0 AON GPIO hog ownership](pi5-aon-gpio-hogs.md)
 - [Selected BCM2712 MIP0 MSI provider](pi5-mip-msi.md)
 - [ACPI xHCI DMA reachability with full system RAM](pi4-acpi-xhci-dma.md)
+
+- [Pinned FreeBSD CI bootstrap and asset custody](freebsd-vm-ci-bootstrap.md)
