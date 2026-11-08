@@ -41,3 +41,5 @@ the GitHub CLI may otherwise select the fork's FreeBSD upstream automatically.
 - [Selected BCM2712 MIP0 MSI provider](pi5-mip-msi.md)
 - [BCM2712 DMA address-domain policy](pi5-dma-policy.md)
 - [ACPI xHCI DMA reachability with full system RAM](pi4-acpi-xhci-dma.md)
+
+- [Pinned FreeBSD CI bootstrap and asset custody](freebsd-vm-ci-bootstrap.md)
