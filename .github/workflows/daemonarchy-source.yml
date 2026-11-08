@@ -164,6 +164,8 @@ jobs:
           python3 tools/daemonarchy/tests/bcm2712-dma-policy-controls.py --cc clang --sanitize
           python3 tools/daemonarchy/tests/bcm2712-dma-policy-independent.py --cc clang
           python3 tools/daemonarchy/tests/bcm2712-busdma-controls.py --cc clang
+      - name: Native DMA diagnostic controller guards (not native DMA acceptance)
+        run: python3 tools/daemonarchy/tests/test-bcm2711-dma-native-control.py
       - name: GPIO regulator producer lifetime (not native concurrency acceptance)
         run: python3 tools/daemonarchy/tests/run-regnode-lifetime.py --cc clang
       - name: ACPI USB DMA aperture and lifetime (not controller acceptance)

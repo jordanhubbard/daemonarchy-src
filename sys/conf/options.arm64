@@ -46,3 +46,6 @@ SOC_ROCKCHIP_RK3328		opt_soc.h	# Depends on SOC_ROCKCHIP
 SOC_ROCKCHIP_RK3399		opt_soc.h	# Depends on SOC_ROCKCHIP
 SOC_ROCKCHIP_RK3568		opt_soc.h	# Depends on SOC_ROCKCHIP
 SOC_XILINX_ZYNQ			opt_soc.h
+
+# Explicit simulator-only diagnostic profile, off in normal GENERIC.
+BCM2711_DMA_TEST	opt_bcm2711_dma_test.h

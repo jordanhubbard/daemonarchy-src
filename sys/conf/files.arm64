@@ -878,3 +878,4 @@ arm64/broadcom/bcmstb_reset.c		optional fdt hwreset
 arm64/broadcom/bcm2712_mip.c		optional fdt
 arm64/broadcom/bcm2712_dma_policy.c	standard
 arm64/broadcom/bcm2712_dma_ram.c	standard
+arm64/broadcom/bcm2711_dma_test.c	optional bcm2711_dma_test fdt

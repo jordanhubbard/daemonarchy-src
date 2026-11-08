@@ -34,4 +34,9 @@ SRCS=	bus_if.h device_if.h usb_if.h \
 	xhci_pci.c xhci.c \
 	pci_if.h
 
+
+.if ${MACHINE_CPUARCH} == "aarch64"
+SRCS+= opt_bcm2711_dma_test.h
+.endif
+
 .include <bsd.kmod.mk>
