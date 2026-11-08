@@ -103,7 +103,7 @@ def interrupts(names, counts):
 
 
 def xhci_interrupt_progress(before, after):
-    choose = lambda rows: [row for row in rows if re.search(r'(?:^|[ :])xhci0(?:$|[ ,])', row['name'])]
+    choose = lambda rows: [row for row in rows if not row['name'].startswith('stray ') and re.search(r'(?:^|[ :])xhci0(?:$|[ ,])', row['name'])]
     first, last = choose(before), choose(after)
     if len(first) != 1 or len(last) != 1:
         raise ValueError('Expected exactly one actual native xhci0 IRQ slot')
@@ -112,8 +112,18 @@ def xhci_interrupt_progress(before, after):
         raise ValueError('Actual xhci0 IRQ identity changed')
     if new['count'] <= old['count']:
         raise ValueError('Actual xhci0 interrupt counter did not increase')
+    stray_index = old['index']+1
+    if stray_index >= len(before):
+        raise ValueError('Missing paired stray IRQ slot')
+    old_stray, new_stray = before[stray_index], after[stray_index]
+    if (old_stray['name'] != 'stray '+old['name'] or
+            new_stray['name'] != old_stray['name'] or
+            new_stray['count'] < old_stray['count']):
+        raise ValueError('Paired stray IRQ identity/counter differs')
     return {'index': old['index'], 'name': old['name'], 'before': old['count'],
-            'after': new['count'], 'delta': new['count']-old['count']}
+            'after': new['count'], 'delta': new['count']-old['count'],
+            'stray_before': old_stray['count'], 'stray_after': new_stray['count'],
+            'stray_delta': new_stray['count']-old_stray['count']}
 
 
 def pattern(seed, round_number):

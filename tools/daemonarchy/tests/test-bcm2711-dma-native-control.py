@@ -117,8 +117,9 @@ class ControllerControls(unittest.TestCase):
         with self.assertRaises(ValueError): namespace['remote']('true')
 
     def interrupt_blobs(self, count=7):
-        names = bytes(39)+b'gic0,s143: xhci0'.ljust(38, b' ')+b'\0'+bytes(39)
-        return names, struct.pack('<QQQ', 0, count, 0)
+        names = (bytes(39)+b'gic0,s143: xhci0'.ljust(38, b' ')+b'\0'+
+                 b'stray gic0,s143: xhci0'.ljust(38, b' ')+b'\0'+bytes(39))
+        return names, struct.pack('<QQQQ', 0, count, 2, 0)
 
     def test_native_interrupt_slots_padding_and_u_long64(self):
         names, counts = self.interrupt_blobs((1 << 40)+7)
@@ -127,7 +128,10 @@ class ControllerControls(unittest.TestCase):
         self.assertEqual(rows[1], {'index': 1, 'name': 'gic0,s143: xhci0', 'count': (1 << 40)+7})
         before = control.interrupts(*self.interrupt_blobs(7))
         after = control.interrupts(*self.interrupt_blobs(29))
-        self.assertEqual(control.xhci_interrupt_progress(before, after)['delta'], 22)
+        result = control.xhci_interrupt_progress(before, after)
+        self.assertEqual(result['delta'], 22)
+        self.assertEqual(result['stray_before'], 2)
+        self.assertEqual(result['stray_delta'], 0)
 
     def test_native_interrupt_vector_or_padding_refuses(self):
         names, counts = self.interrupt_blobs()
