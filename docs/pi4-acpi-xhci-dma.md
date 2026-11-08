@@ -93,7 +93,24 @@ child exactly once before DMA teardown.
 These controls prove authored control flow, not the kernel bus-DMA allocator or
 hardware behavior.
 
-A fresh native kernel compile and an uncapped 8 GiB guest boot with this exact
-kernel are still required. The final runtime gate must show full system memory,
-USB acceptance, controller DMA addresses below the declared 3 GiB limit and
-clean reset, without the dma32 override. No physical Pi was changed or tested.
+The [integrated native build](pi5-sd-providers.md#integrated-native-build-and-pi4-compatibility-controls)
+compiles and links this implementation in a fresh FreeBSD ARM64 GENERIC kernel,
+SHA256 `8ec36736678f4de5308164fe6dfe990119b6ff042bf6eec6887ddd3ee84c60c9`.
+The unchanged 2 GiB UEFI/USB control passes all 19 checks. A fresh uncapped
+8 GiB model boot passes all 20 checks, including durable guest-memory bounds,
+with no `hw.physmem` or `hw.usb.xhci.dma32` override. Dmesg reports the actual
+ACPI aperture ending at `0xbfffffff`; all seven probes, clean USB/UFS storage,
+four active CPUs, ten durable files and synchronized reset pass. Original
+image bytes remain unchanged. Guest `hw.physmem` is 8,419,028,992 bytes;
+full-memory stress and physical hardware remain open.
+No physical Pi was changed or tested.
+
+A second fresh 20-check run adds only read-only QMP physical-memory reads; it
+also passes without stopping the guest or changing guest memory/registers.
+Seventy-six complete post-kernel-handoff samples show command ring
+`0x315d5f00`, device-context array `0x395d7000`, event-ring segment table
+`0x315d5000`, and event dequeue pointers through `0x315d5d20`, all below
+`0xc0000000`. The controller is running (`USBCMD=0xd`, status zero), and
+firmware BAR2 remains `0x11` with high word zero. This demonstrates actual
+controller DMA reachability during the full-memory bootstrap; it is not a
+sustained whole-RAM or peripheral stress qualification.

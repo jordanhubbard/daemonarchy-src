@@ -103,10 +103,8 @@ It verifies software behavior in those controls. It does not exercise Newbus
 attachment, real clock/reset/pad hardware, GPIO electrical levels, actual elapsed
 voltage settling or a BCM2712 card transaction.
 
-The combined source requires a fresh clean native build, followed by the
-existing Pi4 FDT and ACPI/USB compatibility controls against the exact new
-kernel. Those controls
-cannot qualify BCM2712 SD providers. Physical Pi500 boot, SD command/data traffic,
+The combined source passes the clean native build and Pi4 compatibility
+controls recorded below. Those controls cannot qualify BCM2712 SD providers. Physical Pi500 boot, SD command/data traffic,
 voltage/power sequencing, card detect and removal remain open acceptance gates.
 
 ## AON GPIO bootstrap consumer
@@ -132,8 +130,8 @@ words, and releases the resource/mutex. The actual production driver is built
 against bounded OF/MMIO/kernel-service stubs for fault controls. They prove
 register masks, barriers, preset ordering, active-low ownership, malformed
 input refusal and cleanup behavior in the test model. They do not prove native
-Newbus failure recovery or electrical timing. A clean native integration build
-and physical GPIO/SD evidence remain required.
+Newbus failure recovery or electrical timing. The native integration build is
+recorded below; physical GPIO/SD evidence remains required.
 
 ## Failed regulator initialization ownership
 
@@ -170,5 +168,29 @@ allocation, SYSCTL, OF and GPIO services. It checks deferred publication,
 registration/initialization failures, partial pin acquisition, successful retry,
 correct malloc/OF owners, static strings, and busy diagnostic-context retry.
 Clang and GCC ASan/UBSan controls pass. This does not establish live SYSCTL
-concurrency, native kernel linking, hardware rollback or physical rail behavior;
-the newly integrated source still requires a clean native build.
+concurrency, hardware rollback or physical rail behavior. Native linking is
+recorded separately below.
+
+## Integrated native build and Pi4 compatibility controls
+
+A sealed export at `91204d3c8f22504eb4a346e5304d682618aea0d6` was built in
+an empty object directory on native FreeBSD 16 ARM64 with Clang 21.1.8. The
+first build failed because the generated pinctrl interface needed OFW handle
+definitions earlier; its evidence is retained. The corrected, fresh second
+export passes all changed-driver compilation, GENERIC link and strip.
+Independently read-back stripped kernel SHA256 is
+`8ec36736678f4de5308164fe6dfe990119b6ff042bf6eec6887ddd3ee84c60c9`;
+unstripped kernel SHA256 is
+`4581f18d274a92ff7456535bd88662cda8416e4a1330ce3ea1f26a9df235cab4`.
+The nine changed object files and their compiler input paths were checked
+independently. Later documentation and optional dependency gates leave the
+implementation bytes unchanged. Native config verifies the final GENERIC
+compiled closure equals that build and verifies removal of each required option.
+
+Fresh regular-file images retain that exact kernel and the established EFI
+loader; native UFS readback checks kernel/loader hashes, root ownership and
+loader configuration. The 2 GiB Pi4 FDT control passes all 15 checks; its UEFI
+PCIe/USB control passes all 19 checks. Both activate four CPUs, save all seven
+probes and ten durable files, synchronize and reset, and preserve input images.
+The USB dmesg reports the actual `_DMA` limit `0xbfffffff`. These are BCM2711
+compatibility controls; they do not execute the BCM2712 providers.
