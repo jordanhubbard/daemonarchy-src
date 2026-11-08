@@ -15,6 +15,7 @@ import re
 import secrets
 import shlex
 import socket
+import struct
 import subprocess
 import xml.etree.ElementTree as ET
 
@@ -24,6 +25,8 @@ OFFSET = 1 << 36
 MODEL_SHA256 = '08d5088766b2670847f0ec1c57cc7aeceb24f6c3fc98caff6ed2f6265718d834'
 KERNEL_SHA256 = 'da51c55c69c3ab171d391cf49e6273de8d120885cbbaf5097984888825b55629'
 MODULE_SHA256 = 'e313842268d53a9194c3f20c9fe267dda843b69480602bdf12e59c8aa01e3342'
+MAXCOMLEN = 19  # Frozen sys/sys/param.h; paired with the pinned native kernel.
+INTRNAME_STRIDE = 2 * MAXCOMLEN + 1
 PRIVATE_LIMIT = 0x1fffffff
 
 
@@ -76,6 +79,41 @@ def check_free(value):
     if (value['free_bpages'] != value['total_bpages'] or
             value['reserved_bpages'] != 0 or value['active_bpages'] != 0):
         raise ValueError('Native pool retains active/reserved/consumed pages')
+
+
+def interrupts(names, counts):
+    # Pinned ARM64 ABI: u_long is 64-bit little endian. subr_intr.c's
+    # INTRNAME_LEN = 2*MAXCOMLEN+1, with MAXCOMLEN 19 in sys/param.h.
+    if not counts or len(counts) % 8 or len(counts) // 8 > 65536:
+        raise ValueError('Invalid bounded ARM64 interrupt-count vector')
+    slots = len(counts) // 8
+    if len(names) % slots or len(names) // slots != INTRNAME_STRIDE:
+        raise ValueError('Interrupt-name stride differs from pinned39-byte ABI')
+    result = []
+    for index, count in enumerate(struct.unpack('<'+'Q'*slots, counts)):
+        raw = names[index*INTRNAME_STRIDE:(index+1)*INTRNAME_STRIDE]
+        if raw == bytes(INTRNAME_STRIDE):
+            name = ''  # Unused slots are not delimiters between active names.
+        else:
+            if raw[-1] != 0 or any(value < 32 or value > 126 for value in raw[:-1]):
+                raise ValueError('Malformed padded native interrupt name')
+            name = raw[:-1].decode('ascii').rstrip(' ')
+        result.append({'index': index, 'name': name, 'count': count})
+    return result
+
+
+def xhci_interrupt_progress(before, after):
+    choose = lambda rows: [row for row in rows if re.search(r'(?:^|[ :])xhci0(?:$|[ ,])', row['name'])]
+    first, last = choose(before), choose(after)
+    if len(first) != 1 or len(last) != 1:
+        raise ValueError('Expected exactly one actual native xhci0 IRQ slot')
+    old, new = first[0], last[0]
+    if len(before) != len(after) or old['index'] != new['index'] or old['name'] != new['name']:
+        raise ValueError('Actual xhci0 IRQ identity changed')
+    if new['count'] <= old['count']:
+        raise ValueError('Actual xhci0 interrupt counter did not increase')
+    return {'index': old['index'], 'name': old['name'], 'before': old['count'],
+            'after': new['count'], 'delta': new['count']-old['count']}
 
 
 def pattern(seed, round_number):
@@ -243,6 +281,17 @@ def run(args):
         return raw[first+len(begin)+1:last].strip()
     def transfer(source, target):
         return record(['scp', *connection, '-P', str(args.ssh_port), source, target])
+    def interrupt_snapshot(stage):
+        remote_names = '/var/tmp/dma-intrnames-'+stage+'.bin'
+        remote_counts = '/var/tmp/dma-intrcnt-'+stage+'.bin'
+        script = ('sysctl -b hw.intrnames > '+shlex.quote(remote_names)+
+                  ' && sysctl -b hw.intrcnt > '+shlex.quote(remote_counts))
+        remote('/rescue/rescue', 'sh', '-c', script)
+        names, counts = root/('intrnames-'+stage+'.bin'), root/('intrcnt-'+stage+'.bin')
+        transfer('root@127.0.0.1:'+remote_names, str(names))
+        transfer('root@127.0.0.1:'+remote_counts, str(counts))
+        return {'records': interrupts(names.read_bytes(), counts.read_bytes()),
+                'names_sha256': digest(names), 'counts_sha256': digest(counts)}
     def sysctl(name):
         return remote('sysctl', '-n', name)
     def snapshot():
@@ -321,6 +370,7 @@ def run(args):
             raise ValueError('Actual guest module SCP roundtrip differs')
         results['guest_module_roundtrip_sha256'] = digest(module_roundtrip)
         remote('/rescue/rescue', 'kldload', remote_module)
+        results['interrupts_before'] = interrupt_snapshot('before')
         results['high_before'] = operation(1)
         page_size = int(sysctl('hw.pagesize'))
         before = snapshot()
@@ -357,11 +407,10 @@ def run(args):
             raise ValueError('Missing actual high-buffer USB completion witnesses')
         if re.search(r'CAM status:|g_vfs_done\(.*error|panic:', results['dmesg']):
             raise ValueError('Native storage/owner error in kernel log')
-        results['interrupts'] = remote('vmstat', '-i')
-        if not any('xhci' in line and len(line.split()) >= 2 and line.split()[-2].isdigit() and int(line.split()[-2]) > 0 for line in results['interrupts'].splitlines()):
-            raise ValueError('Missing positive native xHCI interrupt count')
+        results['interrupts_after'] = interrupt_snapshot('after')
+        results['interrupt_progress'] = xhci_interrupt_progress(results['interrupts_before']['records'], results['interrupts_after']['records'])
         remote('/rescue/rescue', 'kldunload', 'bcm2711_dma_probe')
-        remote('sync')
+        remote('/rescue/rescue', 'sync')
         results['passed'] = True
     except BaseException as error:
         results['error'] = repr(error)

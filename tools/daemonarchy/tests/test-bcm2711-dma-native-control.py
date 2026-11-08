@@ -6,6 +6,7 @@ import ast
 import secrets
 import shlex
 import subprocess
+import struct
 import importlib.util
 import json
 from pathlib import Path
@@ -114,6 +115,37 @@ class ControllerControls(unittest.TestCase):
         self.assertEqual(namespace['remote']('printf', '%s', 'actual shell output'), 'actual shell output')
         namespace['record'] = lambda argv, timeout: 'unframed output'
         with self.assertRaises(ValueError): namespace['remote']('true')
+
+    def interrupt_blobs(self, count=7):
+        names = bytes(39)+b'gic0,s143: xhci0'.ljust(38, b' ')+b'\0'+bytes(39)
+        return names, struct.pack('<QQQ', 0, count, 0)
+
+    def test_native_interrupt_slots_padding_and_u_long64(self):
+        names, counts = self.interrupt_blobs((1 << 40)+7)
+        rows = control.interrupts(names, counts)
+        self.assertEqual(rows[0]['name'], '')
+        self.assertEqual(rows[1], {'index': 1, 'name': 'gic0,s143: xhci0', 'count': (1 << 40)+7})
+        before = control.interrupts(*self.interrupt_blobs(7))
+        after = control.interrupts(*self.interrupt_blobs(29))
+        self.assertEqual(control.xhci_interrupt_progress(before, after)['delta'], 22)
+
+    def test_native_interrupt_vector_or_padding_refuses(self):
+        names, counts = self.interrupt_blobs()
+        for bad_names, bad_counts in ((names, b''), (names, counts[:-1]),
+                                     (names[:-1], counts), (bytes(120), counts),
+                                     (names[:39]+b'A\0'+names[41:], counts),
+                                     (names[:39]+b'\xff'+names[40:], counts),
+                                     (names[:-1]+b'X', counts)):
+            with self.assertRaises(ValueError): control.interrupts(bad_names, bad_counts)
+
+    def test_native_interrupt_missing_duplicate_changed_or_no_progress_refuses(self):
+        before = control.interrupts(*self.interrupt_blobs(7))
+        for after in (control.interrupts(*self.interrupt_blobs(7)),
+                      control.interrupts(*self.interrupt_blobs(3)),
+                      [dict(row, name='other') for row in before],
+                      [dict(row, index=9) if row['name'] else row for row in before],
+                      before+[dict(before[1])]):
+            with self.assertRaises(ValueError): control.xhci_interrupt_progress(before, after)
 
     def test_kernel_pattern_unsigned_byte_contract(self):
         value = control.pattern(0x0123456789abcdef, 7)
