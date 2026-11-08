@@ -31,6 +31,7 @@ on:
       - 'sys/arm64/broadcom/bcm2712_dma_policy.*'
       - 'sys/arm64/arm64/busdma_bounce.c'
       - 'sys/arm64/arm64/busdma_machdep.c'
+      - 'sys/arm64/arm64/pmap.c'
       - 'sys/arm64/include/bus_dma.h'
       - 'sys/arm64/include/bus_dma_impl.h'
       - 'sys/arm64/broadcom/bcm2712_dma_ram.*'
@@ -89,6 +90,7 @@ on:
       - 'sys/arm64/broadcom/bcm2712_dma_policy.*'
       - 'sys/arm64/arm64/busdma_bounce.c'
       - 'sys/arm64/arm64/busdma_machdep.c'
+      - 'sys/arm64/arm64/pmap.c'
       - 'sys/arm64/include/bus_dma.h'
       - 'sys/arm64/include/bus_dma_impl.h'
       - 'sys/arm64/broadcom/bcm2712_dma_ram.*'
@@ -176,6 +178,8 @@ jobs:
           python3 tools/daemonarchy/tests/bcm2712-busdma-controls.py --cc clang
           python3 tools/daemonarchy/tests/bcm2712-pcie-controls.py --cc clang
           python3 tools/daemonarchy/tests/bcm2712-pcie-wrapper.py --cc clang
+      - name: ARM64 direct-map lookup (not native MMU acceptance)
+        run: python3 tools/daemonarchy/tests/arm64-dmap-lookup.py --cc clang
       - name: GPIO regulator producer lifetime (not native concurrency acceptance)
         run: python3 tools/daemonarchy/tests/run-regnode-lifetime.py --cc clang
       - name: ACPI USB DMA aperture and lifetime (not controller acceptance)

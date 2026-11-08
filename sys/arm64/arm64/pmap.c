@@ -374,6 +374,14 @@ extern pt_entry_t pagetable_l0_ttbr1[];
 static vm_paddr_t physmap[PHYSMAP_SIZE];
 static u_int physmap_idx;
 
+/*
+ * The physical intervals actually mapped by pmap_bootstrap_dmap().  Unlike
+ * physmap, these are not rebuilt after allocation exclusions.  Direct mappings
+ * remain present when their attributes or page-table granularity change.
+ */
+static vm_paddr_t dmap_mapped[PHYSMAP_SIZE];
+static u_int dmap_mapped_idx;
+
 static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "VM/pmap parameters");
 
@@ -1348,6 +1356,7 @@ pmap_bootstrap_dmap(vm_size_t kernlen)
 
 	for (i = 0; i < physmap_idx; i += 2) {
 		bs_state.pa = physmap[i] & ~L3_OFFSET;
+		dmap_mapped[i] = bs_state.pa;
 		bs_state.va = bs_state.pa - dmap_phys_base + DMAP_MIN_ADDRESS;
 
 		/* Create L3 mappings at the start of the region */
@@ -1390,12 +1399,14 @@ pmap_bootstrap_dmap(vm_size_t kernlen)
 		/* Create L3 mappings at the end of the region */
 		pmap_bootstrap_l3_page(&bs_state, i);
 		MPASS(bs_state.pa == physmap[i + 1]);
+		dmap_mapped[i + 1] = bs_state.pa;
 
 		if (bs_state.pa > dmap_phys_max) {
 			dmap_phys_max = bs_state.pa;
 			dmap_max_addr = bs_state.va;
 		}
 	}
+	dmap_mapped_idx = physmap_idx;
 
 	pmap_s1_invalidate_all_kernel();
 
@@ -2534,8 +2545,10 @@ bool NO_PERTHREAD_SSP
 pmap_klookup(vm_offset_t va, vm_paddr_t *pa)
 {
 	pt_entry_t *pte, tpte;
+	vm_paddr_t dpa;
 	register_t intr;
 	uint64_t par;
+	u_int i;
 
 	/*
 	 * Disable interrupts so we don't get interrupted between asking
@@ -2549,6 +2562,26 @@ pmap_klookup(vm_offset_t va, vm_paddr_t *pa)
 		if (pa != NULL)
 			*pa = (par & PAR_PA_MASK) | (va & PAR_LOW_MASK);
 		return (true);
+	}
+
+	/*
+	 * A break-before-make update of the DMAP can invalidate the direct
+	 * mapping of a page-table page as well as the address being looked up.
+	 * Walking that table through the DMAP would fault recursively.  Once
+	 * bootstrap has published the complete DMAP, its mapped intervals let
+	 * us recognize these mappings without accessing their page tables.
+	 * Keep the exact intervals: the DMAP bounds alone also include holes.
+	 */
+	if (bs_state.dmap_valid && VIRT_IN_DMAP(va)) {
+		dpa = va - DMAP_MIN_ADDRESS + dmap_phys_base;
+		for (i = 0; i < dmap_mapped_idx; i += 2) {
+			if (dpa >= dmap_mapped[i] && dpa < dmap_mapped[i + 1]) {
+				if (pa != NULL)
+					*pa = dpa;
+				return (true);
+			}
+		}
+		return (false);
 	}
 
 	/*
