@@ -33,6 +33,7 @@
 #include <sys/rman.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/limits.h>
 #include <sys/gpio.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -54,6 +55,7 @@ struct gpioregulator_init_def {
 	struct gpiobus_pin		*enable_pin;
 	int				enable_pin_valid;
 	int				startup_delay_us;
+	int				settling_time_us;
 	int				nstates;
 	struct gpioregulator_state	*states;
 	int				npins;
@@ -147,7 +149,11 @@ gpioregulator_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
 			return (error);
 	}
 
-	*udelay = sc->def->startup_delay_us;
+	/*
+	 * Keep the existing startup delay floor for compatibility. The core
+	 * consumes this returned delay before the next consumer operation.
+	 */
+	*udelay = MAX(sc->def->startup_delay_us, sc->def->settling_time_us);
 
 	return (0);
 }
@@ -192,6 +198,25 @@ DEFINE_CLASS_1(gpioregulator_regnode, gpioregulator_regnode_class,
     gpioregulator_regnode_methods, sizeof(struct gpioregulator_reg_sc),
     regnode_class);
 
+/* Both DT properties are unsigned cells, while the regnode delay is int. */
+static int
+gpioregulator_parse_delay(phandle_t node, const char *name, int *delay)
+{
+	uint32_t value;
+	int len;
+
+	*delay = 0;
+	len = OF_getproplen(node, name);
+	if (len < 0)
+		return (0);
+	if (len != sizeof(value) ||
+	    OF_getencprop(node, name, &value, sizeof(value)) != sizeof(value) ||
+	    value > INT_MAX)
+		return (EINVAL);
+	*delay = value;
+	return (0);
+}
+
 static int
 gpioregulator_parse_fdt(struct gpioregulator_softc *sc)
 {
@@ -226,12 +251,15 @@ gpioregulator_parse_fdt(struct gpioregulator_softc *sc)
 		mask |= sc->init_def.states[n].mask;
 	}
 
-	/* "startup-delay-us" property (optional) */
-	len = OF_getencprop(node, "startup-delay-us",
-	    &sc->init_def.startup_delay_us,
-	    sizeof(sc->init_def.startup_delay_us));
-	if (len <= 0)
-		sc->init_def.startup_delay_us = 0;
+	/* Delay properties are optional; malformed or overflowing cells fail. */
+	error = gpioregulator_parse_delay(node, "startup-delay-us",
+	    &sc->init_def.startup_delay_us);
+	if (error != 0)
+		goto done;
+	error = gpioregulator_parse_delay(node, "regulator-settling-time-us",
+	    &sc->init_def.settling_time_us);
+	if (error != 0)
+		goto done;
 
 	/* "enable-gpio" property (optional) */
 	error = gpio_pin_get_by_ofw_property(sc->dev, node, "enable-gpio",
