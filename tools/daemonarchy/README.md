@@ -484,6 +484,29 @@ wrong-boot refusal, missing-peer and idle deadlines, and default exit behavior.
 These peers supply controller regression evidence, not native kernel transport,
 physical NIC, panic or release acceptance.
 
+## Checked MSI provider publication
+
+`intr_msi_validate_provider(expected, xref)` checks the allocation registry under
+its list mutex without allocating vectors or returning a private pointer. It
+requires a non-NULL device and nonzero xref (`EINVAL`), rejects a missing exact
+MSI xref (`ESRCH`), a different device (`ENXIO`) or any duplicate exact MSI xref
+(`EEXIST`). Device-only wildcard registrations do not satisfy the xref lookup.
+Existing registration and allocation behavior remains unchanged.
+
+```sh
+python3 tools/daemonarchy/tests/msi-provider-query-controls.py --cc clang
+```
+
+The host control extracts the production registry structure, lookup, creation,
+registration and query functions. Injected mutex/allocation primitives check
+cold/missing, wrong-type/device, wildcard and duplicate states, idempotent
+registration, failed registration and publication immediately before lock
+acquisition. Each query must leave the registry and allocation count unchanged.
+Success is a registry snapshot with exact identity, not hardware readiness or a
+lifetime token. Selected MIP readiness additionally relies on its audited
+ready-before-register invariant and correct OFW device publication. Native
+interrupt delivery and physical PCIe/MSI acceptance remain separate gates.
+
 ## Debugnet receive-buffer class fixture
 
 Check that reserved receive buffers keep their ordinary allocation class
