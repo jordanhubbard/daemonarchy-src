@@ -3,6 +3,7 @@
 """Controller refusal/data-oracle controls; never native DMA acceptance."""
 import argparse
 import ast
+import hashlib
 import secrets
 import shlex
 import subprocess
@@ -150,6 +151,38 @@ class ControllerControls(unittest.TestCase):
                       [dict(row, index=9) if row['name'] else row for row in before],
                       before+[dict(before[1])]):
             with self.assertRaises(ValueError): control.xhci_interrupt_progress(before, after)
+
+    def test_measured_native_normal_and_bare_stray_pair(self):
+        path = SCRIPT.parent/'fixtures/bcm2711-native-irq.json'
+        self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(),
+                         '9c81676b958f2717e1105d2f33226d78a28f63a461712a1fd8116cae320d7515')
+        fixture = json.loads(path.read_text())
+        before = control.interrupts(bytes.fromhex(fixture['intrnames-before_hex']),
+                                    bytes.fromhex(fixture['intrcnt-before_hex']))
+        after = control.interrupts(bytes.fromhex(fixture['intrnames-after_hex']),
+                                   bytes.fromhex(fixture['intrcnt-after_hex']))
+        self.assertEqual(before[0]['count'], 232)
+        self.assertEqual(after[0]['count'], 660)
+        self.assertEqual(before[1]['name'], 'stray gic0,s143:')
+        result = control.xhci_interrupt_progress(before, after)
+        self.assertEqual(result['delta'], 428)
+        self.assertEqual(result['stray_delta'], 0)
+        wrong = [dict(row) for row in after]
+        wrong[1]['name'] = 'stray gic0,s144:'
+        with self.assertRaises(ValueError): control.xhci_interrupt_progress(before, wrong)
+
+    def test_loaded_and_unloaded_linker_filenames_match(self):
+        paths = {}
+        for node in ast.walk(ast.parse(SCRIPT.read_text())):
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and
+                    node.func.id == 'remote' and len(node.args) >= 3 and
+                    isinstance(node.args[1], ast.Constant) and
+                    node.args[1].value in ('kldload', 'kldunload')):
+                self.assertNotIn(node.args[1].value, paths)
+                paths[node.args[1].value] = ast.dump(node.args[2])
+        self.assertEqual(set(paths), {'kldload', 'kldunload'})
+        self.assertEqual(paths['kldload'], paths['kldunload'])
+        self.assertEqual(paths['kldload'], ast.dump(ast.Name(id='remote_module', ctx=ast.Load())))
 
     def test_kernel_pattern_unsigned_byte_contract(self):
         value = control.pattern(0x0123456789abcdef, 7)

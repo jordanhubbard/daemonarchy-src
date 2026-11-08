@@ -116,7 +116,10 @@ def xhci_interrupt_progress(before, after):
     if stray_index >= len(before):
         raise ValueError('Missing paired stray IRQ slot')
     old_stray, new_stray = before[stray_index], after[stray_index]
-    if (old_stray['name'] != 'stray '+old['name'] or
+    # intrcnt_updatename updates only the normal slot. The paired stray
+    # may retain its original IRQ-source label without the driver suffix.
+    legal_stray = {'stray '+old['name'], 'stray '+old['name'].split(':', 1)[0]+':'}
+    if (old_stray['name'] not in legal_stray or
             new_stray['name'] != old_stray['name'] or
             new_stray['count'] < old_stray['count']):
         raise ValueError('Paired stray IRQ identity/counter differs')
@@ -419,7 +422,7 @@ def run(args):
             raise ValueError('Native storage/owner error in kernel log')
         results['interrupts_after'] = interrupt_snapshot('after')
         results['interrupt_progress'] = xhci_interrupt_progress(results['interrupts_before']['records'], results['interrupts_after']['records'])
-        remote('/rescue/rescue', 'kldunload', 'bcm2711_dma_probe')
+        remote('/rescue/rescue', 'kldunload', remote_module)
         remote('/rescue/rescue', 'sync')
         results['passed'] = True
     except BaseException as error:
