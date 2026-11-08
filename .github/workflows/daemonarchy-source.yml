@@ -15,6 +15,8 @@ on:
       - 'sys/modules/daemonarchy_earlynet/**'
       - 'sys/conf/files.amd64'
       - 'sys/conf/files'
+      - 'sys/dev/regulator/regulator.c'
+      - 'sys/dev/regulator/regulator.h'
       - 'sys/dev/gpio/bcmstb_gpio.c'
       - 'sys/dev/gpio/gpioregulator.c'
       - 'sys/arm64/broadcom/bcm2712_pinctrl*'
@@ -48,6 +50,8 @@ on:
       - 'sys/modules/daemonarchy_earlynet/**'
       - 'sys/conf/files.amd64'
       - 'sys/conf/files'
+      - 'sys/dev/regulator/regulator.c'
+      - 'sys/dev/regulator/regulator.h'
       - 'sys/dev/gpio/bcmstb_gpio.c'
       - 'sys/dev/gpio/gpioregulator.c'
       - 'sys/arm64/broadcom/bcm2712_pinctrl*'
@@ -115,6 +119,8 @@ jobs:
             tools/daemonarchy/tests/bcmstb-gpio.c -o "${{ runner.temp }}/bcmstb-gpio"
           "${{ runner.temp }}/bcmstb-gpio"
           python3 tools/daemonarchy/tests/pi5-sd-provider-controls.py --cc clang
+      - name: GPIO regulator producer lifetime (not native concurrency acceptance)
+        run: python3 tools/daemonarchy/tests/run-regnode-lifetime.py --cc clang
       - name: Loader setup interactions (not EFI acceptance)
         run: >-
           python3 tools/daemonarchy/tests/run-loader-debug-setup.py

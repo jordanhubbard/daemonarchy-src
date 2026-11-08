@@ -8,6 +8,7 @@ static struct resource registers;
 static struct device gpio = { &softc, 10, false }, pinctrl = { NULL, 20, true };
 static struct device bus = { NULL, 30, true };
 static uint32_t widths[2];
+static uint32_t bus_reg[2];
 static int widthslen, gpio_cells, allocations, registered;
 static bool allocation_fail, provider_missing, add_bus_fail, child_attach_fail;
 static unsigned writes, mux_calls, events[100], nevents;
@@ -89,7 +90,11 @@ phandle_t OF_xref_from_node(phandle_t p) { return (p + 100); }
 device_t OF_device_from_xref(phandle_t p)
 { assert(p == 120); return (provider_missing ? NULL : &pinctrl); }
 int OF_getproplen(phandle_t p, const char *name)
-{ assert(p == 10 && !strcmp(name, "brcm,gpio-bank-widths")); return (widthslen); }
+{
+	assert(p == 10);
+	if (!strcmp(name, "reg")) return (sizeof(bus_reg));
+	assert(!strcmp(name, "brcm,gpio-bank-widths")); return (widthslen);
+}
 bool OF_hasprop(phandle_t p, const char *name)
 { assert(p == 10 && !strcmp(name, "gpio-controller")); return (true); }
 
@@ -97,6 +102,11 @@ int
 OF_getencprop(phandle_t p, const char *name, void *out, int len)
 {
 	assert(p == 10);
+	if (!strcmp(name, "reg")) {
+		assert(len == sizeof(bus_reg));
+		memcpy(out, bus_reg, sizeof(bus_reg));
+		return (sizeof(bus_reg));
+	}
 	if (!strcmp(name, "brcm,gpio-bank-widths")) {
 		assert(len == sizeof(widths));
 		memcpy(out, widths, sizeof(widths));
@@ -152,6 +162,7 @@ reset(void)
 	for (unsigned i = 0; i < 16; i++)
 		registers.words[i] = 0xa5a50000U | (i * 17);
 	widths[0] = 15; widths[1] = 6; widthslen = 8; gpio_cells = 2;
+	bus_reg[0] = 0x7d517c00; bus_reg[1] = 64;
 	allocation_fail = provider_missing = add_bus_fail = child_attach_fail = false;
 	mux_error = 0; mux_checks_preload = false; attach_hook = NULL;
 	writes = mux_calls = nevents = 0;
@@ -198,6 +209,9 @@ test_gpio_operations(void)
 	int maxpin;
 	reset();
 	assert(bcmstb_gpio_probe(&gpio) == 0);
+	bus_reg[0] = 0x7d508500;
+	assert(bcmstb_gpio_probe(&gpio) == ENXIO);
+	bus_reg[0] = 0x7d517c00;
 	assert(bcmstb_gpio_attach(&gpio) == 0);
 	assert(bcmstb_gpio_get_bus(&gpio) == &bus);
 	assert(bcmstb_gpio_pin_max(&gpio, &maxpin) == 0 && maxpin == 63);

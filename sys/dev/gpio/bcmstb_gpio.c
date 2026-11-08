@@ -221,11 +221,26 @@ bcmstb_gpio_map_gpios(device_t dev, phandle_t consumer, phandle_t parent,
 static int
 bcmstb_gpio_probe(device_t dev)
 {
+	phandle_t node = ofw_bus_get_node(dev), sibling;
+	uint32_t reg[2];
+
 	if (!ofw_bus_status_okay(dev) ||
 	    !ofw_bus_is_compatible(dev, "brcm,brcmstb-gpio"))
 		return (ENXIO);
-	device_set_desc(dev, "BCM2712 D0 AON GPIO SD bootstrap (polled)");
-	return (BUS_PROBE_DEFAULT);
+	/* Do not claim other STB GPIO banks or SoCs with this D0-only port. */
+	if (OF_getproplen(node, "reg") != sizeof(reg) ||
+	    OF_getencprop(node, "reg", reg, sizeof(reg)) != sizeof(reg) ||
+	    reg[0] != 0x7d517c00 || reg[1] != BCMSTB_BANKS * 32)
+		return (ENXIO);
+	for (sibling = OF_child(OF_parent(node)); sibling != 0;
+	    sibling = OF_peer(sibling)) {
+		if (ofw_bus_node_status_okay(sibling) &&
+		    ofw_bus_node_is_compatible(sibling, "brcm,bcm2712d0-aon-pinctrl")) {
+			device_set_desc(dev, "BCM2712 D0 AON GPIO SD bootstrap (polled)");
+			return (BUS_PROBE_DEFAULT);
+		}
+	}
+	return (ENXIO);
 }
 
 static void
