@@ -23,6 +23,7 @@ on:
       - 'sys/dev/gpio/bcmstb_gpio.c'
       - 'sys/dev/gpio/gpioregulator.c'
       - 'sys/arm64/broadcom/bcm2712_pinctrl*'
+      - 'sys/arm64/broadcom/bcmstb_reset.c'
       - 'sys/conf/files.arm64'
       - 'sys/dev/fdt/fdt_pinctrl.c'
       - 'sys/dev/fdt/fdt_pinctrl.h'
@@ -61,6 +62,7 @@ on:
       - 'sys/dev/gpio/bcmstb_gpio.c'
       - 'sys/dev/gpio/gpioregulator.c'
       - 'sys/arm64/broadcom/bcm2712_pinctrl*'
+      - 'sys/arm64/broadcom/bcmstb_reset.c'
       - 'sys/conf/files.arm64'
       - 'sys/dev/fdt/fdt_pinctrl.c'
       - 'sys/dev/fdt/fdt_pinctrl.h'
@@ -125,6 +127,8 @@ jobs:
             tools/daemonarchy/tests/bcmstb-gpio.c -o "${{ runner.temp }}/bcmstb-gpio"
           "${{ runner.temp }}/bcmstb-gpio"
           python3 tools/daemonarchy/tests/pi5-sd-provider-controls.py --cc clang
+      - name: BCM STB reset and calibration faults (not hardware acceptance)
+        run: python3 tools/daemonarchy/tests/bcmstb-reset-controls.py --cc clang --sanitize
       - name: GPIO regulator producer lifetime (not native concurrency acceptance)
         run: python3 tools/daemonarchy/tests/run-regnode-lifetime.py --cc clang
       - name: ACPI USB DMA aperture and lifetime (not controller acceptance)
