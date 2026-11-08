@@ -15,6 +15,9 @@ on:
       - 'sys/modules/daemonarchy_earlynet/**'
       - 'sys/conf/files.amd64'
       - 'sys/conf/files'
+      - 'sys/dev/usb/controller/generic_xhci*'
+      - 'sys/dev/usb/controller/xhci.c'
+      - 'sys/dev/usb/controller/xhci.h'
       - 'sys/dev/regulator/regulator.c'
       - 'sys/dev/regulator/regulator.h'
       - 'sys/dev/gpio/bcmstb_gpio.c'
@@ -50,6 +53,9 @@ on:
       - 'sys/modules/daemonarchy_earlynet/**'
       - 'sys/conf/files.amd64'
       - 'sys/conf/files'
+      - 'sys/dev/usb/controller/generic_xhci*'
+      - 'sys/dev/usb/controller/xhci.c'
+      - 'sys/dev/usb/controller/xhci.h'
       - 'sys/dev/regulator/regulator.c'
       - 'sys/dev/regulator/regulator.h'
       - 'sys/dev/gpio/bcmstb_gpio.c'
@@ -121,6 +127,8 @@ jobs:
           python3 tools/daemonarchy/tests/pi5-sd-provider-controls.py --cc clang
       - name: GPIO regulator producer lifetime (not native concurrency acceptance)
         run: python3 tools/daemonarchy/tests/run-regnode-lifetime.py --cc clang
+      - name: ACPI USB DMA aperture and lifetime (not controller acceptance)
+        run: python3 tools/daemonarchy/tests/xhci-acpi-dma.py --cc clang
       - name: Loader setup interactions (not EFI acceptance)
         run: >-
           python3 tools/daemonarchy/tests/run-loader-debug-setup.py
