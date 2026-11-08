@@ -59,6 +59,14 @@ bus_write_4(struct resource *r, unsigned offset, uint32_t value)
 	r->words[offset / 4] = value;
 }
 
+void
+bus_barrier(struct resource *r, unsigned offset, unsigned length, int flags)
+{
+	assert(r == &registers && offset + length <= 64);
+	assert(flags == BUS_SPACE_BARRIER_WRITE && nevents < 100);
+	events[nevents++] = 0x200;
+}
+
 void mtx_init(struct mtx *m, const char *s, const char *t, int f)
 { (void)s; (void)t; (void)f; assert(!m->initialized); m->initialized = true; }
 void mtx_destroy(struct mtx *m)
@@ -212,7 +220,8 @@ test_gpio_operations(void)
 	assert(!memcmp(before, registers.words, sizeof(before)));
 	nevents = 0; mux_checks_preload = true;
 	assert(bcmstb_gpio_pin_setflags(&gpio, 3, GPIO_PIN_OUTPUT | GPIO_PIN_PRESET_HIGH) == 0);
-	assert(nevents == 3 && events[0] == GIO_DATA(0) && events[1] == 0x100 && events[2] == GIO_IODIR(0));
+	assert(nevents == 5 && events[0] == GIO_DATA(0) && events[1] == 0x200 &&
+	    events[2] == 0x100 && events[3] == GIO_IODIR(0) && events[4] == 0x200);
 	assert(registers.words[1] == (before[1] | (1U << 3)));
 	assert(registers.words[2] == (before[2] & ~(1U << 3)));
 	mux_checks_preload = false;

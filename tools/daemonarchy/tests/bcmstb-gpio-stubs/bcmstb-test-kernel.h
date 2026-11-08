@@ -26,6 +26,7 @@ typedef struct { const char *name; device_method_t *methods; size_t size; } driv
 #define SYS_RES_MEMORY 1
 #define RF_ACTIVE 1
 #define MTX_DEF 0
+#define BUS_SPACE_BARRIER_WRITE 2
 #define GPIOMAXNAME 64
 #define GPIO_PIN_INPUT 1u
 #define GPIO_PIN_OUTPUT 2u
@@ -45,6 +46,7 @@ int bus_release_resource(device_t, int, int, struct resource *);
 void bus_attach_children(device_t);
 uint32_t bus_read_4(struct resource *, unsigned);
 void bus_write_4(struct resource *, unsigned, uint32_t);
+void bus_barrier(struct resource *, unsigned, unsigned, int);
 uint64_t rman_get_start(struct resource *);
 uint64_t rman_get_size(struct resource *);
 void mtx_init(struct mtx *, const char *, const char *, int);

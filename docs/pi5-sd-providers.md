@@ -106,3 +106,30 @@ and the opt-in checked pinctrl consumer. Then repeat the existing Pi4 FDT and
 ACPI/USB compatibility controls against the exact new kernel. Those controls
 cannot qualify BCM2712 SD providers. Physical Pi500 boot, SD command/data traffic,
 voltage/power sequencing, card detect and removal remain open acceptance gates.
+
+
+## AON GPIO bootstrap consumer
+
+The companion `bcmstb_gpio.c` adaptation retains Mark Kettenis's original ISC
+notice. It accepts the selected D0 AON CPU resource `0x107d517c00`, 64 bytes,
+and bank widths 15/6. GPIO numbers retain the 32-pin bank stride; unsupported
+and reserved pins advertise no capabilities. Pins 2/3/4 provide polled input
+and output; card-detect pin 5 is input-only. The common GPIO layer handles
+active-low flags, so the controller returns raw levels.
+
+The driver resolves the sibling D0 AON pinctrl provider before publication.
+Output presets are written and ordered with a bus barrier before pad muxing
+and direction changes. It also orders ordinary output writes before returning
+to regulator timing code. Unsupported pull/interrupt requests fail. This
+profile does not implement GPIO interrupts or the generic GPIO-hog mechanism;
+capability on pin 2 alone does not establish RP1 reset release.
+
+The provider is retained for the kernel lifetime (`detach` returns `EBUSY`),
+because external rail/CD pin handles are not child-device lifetime references.
+Failed attachment unregisters its bus, restores its saved DATA/direction/mask
+words, and releases the resource/mutex. The actual production driver is built
+against bounded OF/MMIO/kernel-service stubs for fault controls. They prove
+register masks, barriers, preset ordering, active-low ownership, malformed
+input refusal and cleanup behavior in the test model. They do not prove native
+Newbus failure recovery or electrical timing. A clean native integration build
+and physical GPIO/SD evidence remain required.

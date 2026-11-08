@@ -144,14 +144,17 @@ bcmstb_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 		data = bus_read_4(sc->mem, GIO_DATA(bank));
 		value = flags & GPIO_PIN_PRESET_HIGH ? data | mask : data & ~mask;
 		bus_write_4(sc->mem, GIO_DATA(bank), value);
+		bus_barrier(sc->mem, GIO_DATA(bank), 4, BUS_SPACE_BARRIER_WRITE);
 	}
 	error = FDT_PINCTRL_SET_FLAGS(sc->pinctrl, dev, pin, flags);
 	if (error == 0) {
 		value = bus_read_4(sc->mem, GIO_IODIR(bank));
 		value = direction == GPIO_PIN_INPUT ? value | mask : value & ~mask;
 		bus_write_4(sc->mem, GIO_IODIR(bank), value);
+		bus_barrier(sc->mem, GIO_IODIR(bank), 4, BUS_SPACE_BARRIER_WRITE);
 	} else if (flags & BCMSTB_PRESET) {
 		bus_write_4(sc->mem, GIO_DATA(bank), data);
+		bus_barrier(sc->mem, GIO_DATA(bank), 4, BUS_SPACE_BARRIER_WRITE);
 	}
 	mtx_unlock(&sc->lock);
 	return (error);
@@ -182,6 +185,7 @@ bcmstb_gpio_write(device_t dev, uint32_t pin, uint32_t value, bool toggle)
 	data = bus_read_4(sc->mem, GIO_DATA(pin / 32));
 	data = toggle ? data ^ mask : value ? data | mask : data & ~mask;
 	bus_write_4(sc->mem, GIO_DATA(pin / 32), data);
+	bus_barrier(sc->mem, GIO_DATA(pin / 32), 4, BUS_SPACE_BARRIER_WRITE);
 	mtx_unlock(&sc->lock);
 	return (0);
 }
@@ -241,6 +245,7 @@ bcmstb_gpio_release(device_t dev)
 			bus_write_4(sc->mem, GIO_IODIR(bank), sc->saved_dir[bank]);
 			bus_write_4(sc->mem, GIO_MASK(bank), sc->saved_mask[bank]);
 		}
+		bus_barrier(sc->mem, 0, BCMSTB_BANKS * 32, BUS_SPACE_BARRIER_WRITE);
 		sc->saved = false;
 	}
 	if (sc->mem != NULL) {
@@ -297,6 +302,7 @@ bcmstb_gpio_attach(device_t dev)
 		sc->saved_mask[bank] = bus_read_4(sc->mem, GIO_MASK(bank));
 		bus_write_4(sc->mem, GIO_MASK(bank), 0);
 	}
+	bus_barrier(sc->mem, 0, BCMSTB_BANKS * 32, BUS_SPACE_BARRIER_WRITE);
 	sc->saved = true;
 	sc->busdev = gpiobus_add_bus(dev);
 	if (sc->busdev == NULL) {

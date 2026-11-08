@@ -15,6 +15,10 @@ on:
       - 'sys/modules/daemonarchy_earlynet/**'
       - 'sys/conf/files.amd64'
       - 'sys/conf/files'
+      - 'sys/dev/gpio/bcmstb_gpio.c'
+      - 'sys/dev/gpio/gpioregulator.c'
+      - 'sys/arm64/broadcom/bcm2712_pinctrl*'
+      - 'sys/conf/files.arm64'
       - 'sys/dev/fdt/fdt_pinctrl.c'
       - 'sys/dev/fdt/fdt_pinctrl.h'
       - 'sys/dev/sdhci/sdhci_fdt_bcm2712.c'
@@ -44,6 +48,10 @@ on:
       - 'sys/modules/daemonarchy_earlynet/**'
       - 'sys/conf/files.amd64'
       - 'sys/conf/files'
+      - 'sys/dev/gpio/bcmstb_gpio.c'
+      - 'sys/dev/gpio/gpioregulator.c'
+      - 'sys/arm64/broadcom/bcm2712_pinctrl*'
+      - 'sys/conf/files.arm64'
       - 'sys/dev/fdt/fdt_pinctrl.c'
       - 'sys/dev/fdt/fdt_pinctrl.h'
       - 'sys/dev/sdhci/sdhci_fdt_bcm2712.c'
@@ -98,6 +106,15 @@ jobs:
             sys/dev/fdt/fdt_pinctrl.c tools/daemonarchy/tests/fdt-pinctrl-checked.c \
             -o "${{ runner.temp }}/fdt-pinctrl-checked"
           "${{ runner.temp }}/fdt-pinctrl-checked"
+      - name: BCM2712 GPIO MMIO and provider faults (not hardware acceptance)
+        run: |
+          clang -std=c11 -Wall -Wextra -Werror \
+            -Wno-unused-parameter -Wno-unused-function -Wno-unused-variable \
+            -fsanitize=address,undefined -fno-omit-frame-pointer \
+            -Itools/daemonarchy/tests/bcmstb-gpio-stubs \
+            tools/daemonarchy/tests/bcmstb-gpio.c -o "${{ runner.temp }}/bcmstb-gpio"
+          "${{ runner.temp }}/bcmstb-gpio"
+          python3 tools/daemonarchy/tests/pi5-sd-provider-controls.py --cc clang
       - name: Loader setup interactions (not EFI acceptance)
         run: >-
           python3 tools/daemonarchy/tests/run-loader-debug-setup.py
