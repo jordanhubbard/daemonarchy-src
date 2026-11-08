@@ -46,6 +46,14 @@ and verifies native SD-card mux4; output requests fail. OUTPUT preset flags are
 allowed so the GPIO provider can preload DATA before enabling output. Other
 unsupported flags fail. The pin controller does not change GPIO DATA or IODIR.
 
+The selected tree also enables SPI default groups on main GPIO1..4 and UART
+(default Bluetooth connection) groups on GPIO24..27/29. All their mux and pad
+fields are supported: GPIO2 uses vc_spi0 selector7, GPIO3/4 selector6, and
+GPIO24..27 uart0 selector4. Main GPIO1/29 use GPIO selector0. These D0 register
+facts come from the same pinned Linux tables. They are needed because attach
+validates every owned enabled default group, even when its consumer driver is
+outside the initial SD bootstrap. This does not qualify SPI or UART operation.
+
 The driver attaches at `BUS_PASS_BUS + BUS_PASS_ORDER_EARLY`. It validates all
 its enabled default groups before performing any MMIO or publishing provider
 xrefs. This local walk propagates failures that the existing generic
@@ -63,7 +71,9 @@ the greater of this delay and its existing startup-delay floor, after all GPIO
 writes succeed; the regulator core consumes that delay before the next consumer
 operation. Enable timing retains its existing startup-delay semantics. Missing
 settling time defaults to zero. Malformed cells and unsigned values exceeding
-INT_MAX fail parsing instead of becoming a negative delay. This change does
+INT_MAX fail parsing instead of becoming a negative delay. Both enable and
+voltage callbacks initialize the returned delay to zero before any failure;
+the checked voltage framework consumes the returned value even on an error. This change does
 not implement directional settling-time properties or analog regulator physics.
 
 ## Controls and remaining acceptance
@@ -79,7 +89,14 @@ shared pin plan/apply code, and production regulator callback/delay parser
 against bounded OF/GPIO/MMIO substitutes. It checks exact SD pad and mux fields,
 untouched register bits, all-or-nothing group validation before MMIO, unknown
 and malformed configurations, failed GPIO writes, unsupported voltages,
-5000us delay returns, startup-delay compatibility, and malformed/overflow cells.
+5000us delay returns, startup-delay compatibility, zero initialized delays on
+GPIO/no-state failures, and malformed/overflow cells. The fixture
+`tools/daemonarchy/tests/fixtures/pi500-pinctrl-defaults.json` retains exact raw
+properties fetched from the enrolled DTB: all enabled D0-owned default groups
+(including nested UART/SDIO groups), disabled AON I2C and a foreign RP1 group.
+The production default walk builds 37 main and two AON register operations;
+independent expected register masks check the complete main update. Substituting
+an unsupported SPI function rejects the plan before register access.
 It verifies software behavior in those controls. It does not exercise Newbus
 attachment, real clock/reset/pad hardware, GPIO electrical levels, actual elapsed
 voltage settling or a BCM2712 card transaction.
