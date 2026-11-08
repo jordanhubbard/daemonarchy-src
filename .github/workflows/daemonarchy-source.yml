@@ -227,11 +227,41 @@ jobs:
             sys/modules/daemonarchy_earlynet/Makefile \
             tools/daemonarchy/tests/firmware-inventory.lua \
             > _build/earlynet-native/feature-inputs.sha256
+      - name: Checkout exact upstream FreeBSD action
+        uses: actions/checkout@v4
+        with:
+          repository: vmactions/freebsd-vm
+          ref: c46abacb49f09938ca4e1702d15d836285d694cc
+          path: _actions/freebsd-vm
+          persist-credentials: false
+      - name: Prepare verified official AnyVM release asset via GitHub API
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p _build/earlynet-native
+          runtime=$(mktemp "$RUNNER_TEMP/anyvm-0.7.2.XXXXXX.py")
+          trap 'rm -f "$runtime"' EXIT
+          gh api -H 'Accept: application/octet-stream' \
+            repos/anyvm-org/anyvm/releases/assets/589232152 > "$runtime"
+          test "$(wc -c < "$runtime")" -eq 618865
+          printf '%s  %s\n' \
+            40a16e846bc07030759936d792343e770acdeb14d4c9991af7409648661a650d \
+            "$runtime" | sha256sum --check --status
+          python3 tools/daemonarchy/tests/test-freebsd-vm-bootstrap.py \
+            --action-checkout _actions/freebsd-vm --runtime "$runtime" \
+            2>&1 | tee _build/earlynet-native/bootstrap-controls.log
+          python3 tools/daemonarchy/prepare-freebsd-vm-action.py \
+            --action-directory _actions/freebsd-vm --runtime "$runtime" \
+            --receipt _build/earlynet-native/bootstrap-action.json
       - name: Native FreeBSD EFI build and admission controls
-        uses: vmactions/freebsd-vm@c46abacb49f09938ca4e1702d15d836285d694cc # v1
+        uses: ./_actions/freebsd-vm
         with:
           release: '15.0'
           arch: x86_64
+          # Preserve the upstream default pair, sync mode and work-volume cache.
+          sync: rsync
+          cache-dir: '$HOME/work/_actions/_vmcache/freebsd-15.0-2.2.8-amd64-v3'
           mem: '4096'
           cpu: '2'
           run: |
