@@ -133,3 +133,40 @@ register masks, barriers, preset ordering, active-low ownership, malformed
 input refusal and cleanup behavior in the test model. They do not prove native
 Newbus failure recovery or electrical timing. A clean native integration build
 and physical GPIO/SD evidence remain required.
+## Failed regulator initialization ownership
+
+The GPIO regulator now opts into `REGULATOR_FLAGS_DEFER_SYSCTL`. Existing
+regulator consumers retain their immediate diagnostic publication behavior;
+this provider publishes diagnostic callbacks only after `REGNODE_INIT` succeeds
+and the regulator list/FDT xref is published. Publication runs outside the
+regulator topology lock.
+
+The new `regnode_destroy_unpublished()` API is limited to an exclusively
+producer-owned, unregistered node. It rejects published nodes, enabled nodes,
+consumer references and consumer handles. Existing diagnostic contexts must
+drain before any backing allocation is freed; a busy context leaves the node
+and its producer ownership unchanged for retry. The drain holds neither the
+node nor topology lock, since an active voltage handler can acquire both.
+Successful destruction releases copied strings, producer softc, sx, kobj class
+reference and node using their original allocation owners. Static strings are
+preserved.
+
+Failed GPIO regulator attachment destroys its private node before releasing
+state/enable GPIO handles, state/pin arrays and OF-owned parsed names. It returns
+an error rather than reporting an attached but unpublished regulator. The
+private deferred node has no diagnostic callbacks to retain a failed Newbus
+producer. This is allocation/handle cleanup; it does not claim generic restoration
+of pin mux or physical power state after a partly applied hardware operation.
+
+```
+python3 tools/daemonarchy/tests/run-regnode-lifetime.py --cc clang
+```
+
+This control compiles the actual allocation-bearing production types and
+create/register/destroy, GPIO parse/init/attach/unwind functions against bounded
+allocation, SYSCTL, OF and GPIO services. It checks deferred publication,
+registration/initialization failures, partial pin acquisition, successful retry,
+correct malloc/OF owners, static strings, and busy diagnostic-context retry.
+Clang and GCC ASan/UBSan controls pass. This does not establish live SYSCTL
+concurrency, native kernel linking, hardware rollback or physical rail behavior;
+the newly integrated source still requires a clean native build.

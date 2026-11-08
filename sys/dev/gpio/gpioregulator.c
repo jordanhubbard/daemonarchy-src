@@ -219,6 +219,27 @@ gpioregulator_parse_delay(phandle_t node, const char *name, int *delay)
 	return (0);
 }
 
+/* These strings came from OF_getprop_alloc, not the regulator malloc pool. */
+static void
+gpioregulator_release_def(struct gpioregulator_init_def *def)
+{
+	int n;
+
+	if (def->enable_pin_valid)
+		gpio_pin_release(def->enable_pin);
+	if (def->pins != NULL) {
+		for (n = 0; n < def->npins; n++) {
+			if (def->pins[n] != NULL)
+				gpio_pin_release(def->pins[n]);
+		}
+	}
+	free(def->states, M_DEVBUF);
+	free(def->pins, M_DEVBUF);
+	OF_prop_free(def->reg_init_def.name);
+	OF_prop_free(def->reg_init_def.parent_name);
+	memset(def, 0, sizeof(*def));
+}
+
 static int
 gpioregulator_parse_fdt(struct gpioregulator_softc *sc)
 {
@@ -283,16 +304,6 @@ gpioregulator_parse_fdt(struct gpioregulator_softc *sc)
 	}
 
 done:
-	if (error != 0) {
-		for (n = 0; n < sc->init_def.npins; n++) {
-			if (sc->init_def.pins[n] != NULL)
-				gpio_pin_release(sc->init_def.pins[n]);
-		}
-
-		free(sc->init_def.states, M_DEVBUF);
-		free(sc->init_def.pins, M_DEVBUF);
-
-	}
 	OF_prop_free(pstates);
 
 	return (error);
@@ -324,8 +335,11 @@ gpioregulator_attach(device_t dev)
 	error = gpioregulator_parse_fdt(sc);
 	if (error != 0) {
 		device_printf(dev, "cannot parse parameters\n");
-		return (ENXIO);
+		gpioregulator_release_def(&sc->init_def);
+		return (error);
 	}
+	/* No SYSCTL may retain this device's softc if REGNODE_INIT fails. */
+	sc->init_def.reg_init_def.flags |= REGULATOR_FLAGS_DEFER_SYSCTL;
 	sc->init_def.reg_init_def.id = 1;
 	sc->init_def.reg_init_def.ofw_node = node;
 
@@ -333,6 +347,7 @@ gpioregulator_attach(device_t dev)
 	    &sc->init_def.reg_init_def);
 	if (regnode == NULL) {
 		device_printf(dev, "cannot create regulator\n");
+		gpioregulator_release_def(&sc->init_def);
 		return (ENXIO);
 	}
 
@@ -342,7 +357,17 @@ gpioregulator_attach(device_t dev)
 	sc->reg_sc->param = regnode_get_stdparam(regnode);
 	sc->reg_sc->def = &sc->init_def;
 
-	regnode_register(regnode);
+	if (regnode_register(regnode) == NULL) {
+		error = regnode_destroy_unpublished(regnode);
+		/* This opt-in node has no published SYSCTL or consumer handles. */
+		KASSERT(error == 0, ("private GPIO regulator discard failed: %d",
+		    error));
+		if (error != 0)
+			return (error);
+		sc->reg_sc = NULL;
+		gpioregulator_release_def(&sc->init_def);
+		return (ENXIO);
+	}
 
 	return (0);
 }

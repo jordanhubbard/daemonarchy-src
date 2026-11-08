@@ -40,6 +40,7 @@ SYSCTL_DECL(_hw_regulator);
 
 #define REGULATOR_FLAGS_STATIC		0x00000001  /* Static strings */
 #define REGULATOR_FLAGS_NOT_DISABLE	0x00000002  /* Cannot be disabled */
+#define REGULATOR_FLAGS_DEFER_SYSCTL	0x00000004  /* Publish after init */
 
 #define REGULATOR_STATUS_ENABLED	0x00000001
 #define REGULATOR_STATUS_OVERCURRENT	0x00000002
@@ -98,6 +99,14 @@ DECLARE_CLASS(regnode_class);
 struct regnode *regnode_create(device_t pdev, regnode_class_t regnode_class,
     struct regnode_init_def *def);
 struct regnode *regnode_register(struct regnode *regnode);
+/*
+ * Producer must exclusively own this unregistered node: no concurrent register,
+ * destroy, or direct access. Published/active nodes return EBUSY. On any error,
+ * the caller retains the node and all producer data; no allocations are freed.
+ * DEFER_SYSCTL keeps failed initialization private and makes normal producer
+ * unwind independent of externally referenced diagnostic nodes.
+ */
+int regnode_destroy_unpublished(struct regnode *regnode);
 const char *regnode_get_name(struct regnode *regnode);
 const char *regnode_get_parent_name(struct regnode *regnode);
 struct regnode *regnode_get_parent(struct regnode *regnode);
