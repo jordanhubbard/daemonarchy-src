@@ -158,6 +158,7 @@ jobs:
       - name: BCM2712 MIP and checked GIC ownership (not hardware acceptance)
         run: |
           python3 tools/daemonarchy/tests/bcm2712-mip-controls.py --cc clang --sanitize
+          python3 tools/daemonarchy/tests/msi-provider-query-controls.py --cc clang
           python3 tools/daemonarchy/tests/gic-checked-msi-controls.py --cc clang --sanitize
       - name: BCM2712 DMA policy and RAM backend (not native DMA acceptance)
         run: |
