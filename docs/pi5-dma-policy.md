@@ -6,7 +6,7 @@ range composition and direct-map admission in
 `sys/arm64/broadcom/bcm2712_dma_policy.c` and its typed header. It performs no
 MMIO, allocation, busdma callback, device attachment or consumer publication.
 It does not implement a busdma backend or establish native DMA acceptance.
-The qualified source/media and physical boards remain unchanged.
+Previously sealed exports, physical media and boards remain unchanged.
 
 ## Inputs and address domains
 
@@ -118,12 +118,38 @@ comparison establish native DMA execution.
 The source workflow watches the policy and runs sanitized controls.
 Those controls also compile the `_KERNEL`/`-nostdinc` path against the actual
 repository ARM64 headers; Clang uses a FreeBSD ARM64 compile-only target. This
-checks include closure and does not replace a fresh native GENERIC build.
-The original step1 entry was optional FDT. The
-[translated RAM busdma follow-on](pi5-translated-ram-busdma.md) makes the pure
-policy a standard ARM64 dependency without registering a device. That backend
-is a separately reviewed software candidate: physical bounce/sync state, all load forms, WAITOK deferred
+checks include closure; the native checkpoint below provides the separate
+GENERIC and CPU-only unit results for sealed step1. The original step1 entry
+was optional FDT. The [translated RAM busdma follow-on](pi5-translated-ram-busdma.md)
+makes the pure policy a standard ARM64 dependency without registering a device.
+That backend is a separately reviewed software candidate: physical bounce/sync
+state, all load forms, WAITOK deferred
 callbacks, device-domain constraints, child-tag inheritance and retained owner
-lifetime must all be implemented and tested. Rewriting only successful callback
+lifetime must all qualify through their separate host and native gates. Rewriting only successful callback
 addresses would bypass or duplicate translation on deferred paths. PCIe/RP1
 consumer publication must wait for that coherent backend and its native gates.
+
+## Native compile and CPU-only unit checkpoint
+
+Sealed implementation `2ce659ffd0aed315f369e9aceab2168f63f2104e` passes a fresh
+allocated-worker FreeBSD ARM64 GENERIC build from empty objects. The actual
+policy object is compiled and all four exported policy functions are present in
+the linked kernel. Kernel SHA256 is
+`a48e8de934d187253694be9a0553f80708cbcc6efccaa563f9e4a50c1c5fb7ed`.
+Source and downloaded object/kernel hashes match all 36 native records.
+Installed tool, library and compiler-resource identities remained unchanged
+across compilation and unit execution; canonical SDK admission remains open.
+
+The original C controls also compile and execute on that FreeBSD ARM64 worker,
+using its native headers. Five source/fixture/executable hash records are checked
+independently. The separate production-API oracle compiles and loads an ARM64
+FreeBSD shared object and passes all 56 controls in `actual-dtb-verified` mode
+against the enrolled blob. Its portable `sys/stdint.h` bridge includes the
+target's standard `stdint.h`; it supplies no fake kernel types or DMA behavior.
+
+These are native compilation and CPU-only userland executions of sealed step1.
+That kernel has not been claimed as a boot-tested image; at that checkpoint no
+DMA backend or consumer called the policy. These results do not qualify the
+later translated RAM backend. The earlier five Pi4 compatibility boots remain
+bound to their separate MIP/GIC kernel checkpoint. Native DMA, deferred/bounce/cache behavior
+and BCM2712/RP1 hardware acceptance remain open.
