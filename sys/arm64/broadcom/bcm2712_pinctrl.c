@@ -232,8 +232,16 @@ bcm2712_pinctrl_set_flags(device_t dev, device_t gpio, uint32_t pin,
 		return (EINVAL);
 	}
 	bcm2712_pin_apply(ops, count, bcm2712_pin_read, bcm2712_pin_write, sc);
+	/* A successful callback promises the requested mux/pad reached hardware. */
+	for (unsigned i = 0; i < count; i++) {
+		if ((bcm2712_pin_read(sc, ops[i].offset) & ops[i].mask) !=
+		    ops[i].value) {
+			error = EIO;
+			break;
+		}
+	}
 	mtx_unlock_spin(&sc->lock);
-	return (0);
+	return (error);
 }
 
 /* Validate all enabled default groups owned by this provider before publishing

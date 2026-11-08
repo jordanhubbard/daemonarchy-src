@@ -138,6 +138,69 @@ int main(void) {
  puts("PASS: production D0 pin planner/parser, exact pad fields, AON mux, preservation, malformed/unknown rejection before MMIO");
 }
 '''
+PIN_FLAGS = r'''
+#include <assert.h>
+#include <errno.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#include "bcm2712_pinctrl_policy.h"
+typedef unsigned device_t;
+typedef uint32_t pcell_t;
+#define nitems(a) (sizeof(a)/sizeof((a)[0]))
+#define GPIO_PIN_INPUT 1U
+#define GPIO_PIN_OUTPUT 2U
+#define GPIO_PIN_PULLUP 32U
+#define GPIO_PIN_PULLDOWN 64U
+#define GPIO_PIN_PRESET_LOW 0x400U
+#define GPIO_PIN_PRESET_HIGH 0x800U
+struct bcm2712_pinctrl_softc { int aon, lock;uint32_t *mem; };
+static uint32_t regs[8];
+static struct bcm2712_pinctrl_softc sc={1,0,regs};
+static unsigned writes;
+static int drop_write;
+static void *device_get_softc(device_t d) { assert(d==1);return &sc; }
+static unsigned ofw_bus_get_node(device_t d) { return d; }
+static unsigned OF_parent(unsigned node) { assert(node==1 || node==2);return 9; }
+static int ofw_bus_is_compatible(device_t d,const char *s) { return d==2 && !strcmp(s,"brcm,brcmstb-gpio"); }
+static int OF_getencprop(unsigned node,const char *name,void *out,unsigned len) {
+ assert(node==2 && len==8);
+ if(!strcmp(name,"reg")){((pcell_t *)out)[0]=0x7d517c00;((pcell_t *)out)[1]=64;}
+ else {assert(!strcmp(name,"brcm,gpio-bank-widths"));((pcell_t *)out)[0]=15;((pcell_t *)out)[1]=6;}
+ return 8;
+}
+static void mtx_lock_spin(int *m) { assert(!*m);*m=1; }
+static void mtx_unlock_spin(int *m) { assert(*m);*m=0; }
+static uint32_t bus_read_4(uint32_t *mem,unsigned off) { assert(sc.lock && off<32 && off%4==0);return mem[off/4]; }
+static uint32_t bcm2712_pin_read(void *arg,uint32_t off) {
+ assert(arg==&sc);return bus_read_4(sc.mem,off);
+}
+static void bcm2712_pin_write(void *arg,uint32_t off,uint32_t value) {
+ assert(arg==&sc && sc.lock && off<32 && off%4==0);writes++;
+ if(!drop_write)regs[off/4]=value;
+}
+'''
+PIN_FLAGS_TEST = r'''
+int main(void) {
+ for(unsigned pin=2;pin<=4;pin++) {
+  regs[3]=0xdeadbeef;writes=0;drop_write=0;
+  assert(bcm2712_pinctrl_set_flags(1,2,pin,GPIO_PIN_OUTPUT|GPIO_PIN_PRESET_HIGH)==0);
+  assert(writes==1 && (regs[3] & (15U<<(pin*4)))==0 && !sc.lock);
+  regs[3]=0xdeadbeef;drop_write=1;
+  assert(bcm2712_pinctrl_set_flags(1,2,pin,GPIO_PIN_OUTPUT)==EIO && !sc.lock);
+ }
+ drop_write=0;regs[3]=0x00400000;regs[5]=0;
+ assert(bcm2712_pinctrl_set_flags(1,2,5,GPIO_PIN_INPUT|GPIO_PIN_PULLUP)==0);
+ assert(regs[3]==0x00400000 && (regs[5]&0x30000000)==0x20000000);
+ drop_write=1;regs[5]=0;
+ assert(bcm2712_pinctrl_set_flags(1,2,5,GPIO_PIN_INPUT|GPIO_PIN_PULLUP)==EIO);
+ regs[3]=0;writes=0;
+ assert(bcm2712_pinctrl_set_flags(1,2,5,GPIO_PIN_INPUT)==EINVAL && !writes && !sc.lock);
+ assert(bcm2712_pinctrl_set_flags(1,2,5,GPIO_PIN_OUTPUT)==EOPNOTSUPP);
+ puts("PASS: production AON pinctrl callback verifies mux/pad write readback, preserves SD CD mux4, rejects dropped MMIO writes");
+}
+'''
+
 REG = r'''
 #include <assert.h>
 #include <errno.h>
@@ -371,6 +434,7 @@ def main():
     regpath='sys/dev/gpio/gpioregulator.c'
     programs={
         'selected-dtb-defaults':selected_dtb_program(),
+        'pinctrl-readback':PIN_FLAGS+function(pinpath,'bcm2712_pinctrl_set_flags')+PIN_FLAGS_TEST,
         'pinctrl':PIN+function(pinpath,'bcm2712_pin_parse')+
                    function(pinpath,'bcm2712_pin_default_plan')+PIN_TEST,
         'regulator':REG+function(regpath,'gpioregulator_regnode_enable')+

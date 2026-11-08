@@ -194,3 +194,10 @@ PCIe/USB control passes all 19 checks. Both activate four CPUs, save all seven
 probes and ten durable files, synchronize and reset, and preserve input images.
 The USB dmesg reports the actual `_DMA` limit `0xbfffffff`. These are BCM2711
 compatibility controls; they do not execute the BCM2712 providers.
+
+The [selected AON hog follow-on](pi5-aon-gpio-hogs.md) adds GPIO2 RUN ownership
+and verifies subsequent pinctrl callback writes by readback. It includes staged
+common-bus lifetime repairs and production plain/OFW/ACPI failure controls.
+These later implementation changes require a new native kernel build; the
+preceding `8ec367…` build and Pi4 controls remain evidence for their original
+sealed source, not the hog implementation.

@@ -21,6 +21,9 @@ on:
       - 'sys/dev/regulator/regulator.c'
       - 'sys/dev/regulator/regulator.h'
       - 'sys/dev/gpio/bcmstb_gpio.c'
+      - 'sys/dev/gpio/gpiobus*'
+      - 'sys/dev/gpio/ofw_gpiobus.c'
+      - 'sys/dev/gpio/acpi_gpiobus.c'
       - 'sys/dev/gpio/gpioregulator.c'
       - 'sys/arm64/broadcom/bcm2712_pinctrl*'
       - 'sys/arm64/broadcom/bcmstb_reset.c'
@@ -60,6 +63,9 @@ on:
       - 'sys/dev/regulator/regulator.c'
       - 'sys/dev/regulator/regulator.h'
       - 'sys/dev/gpio/bcmstb_gpio.c'
+      - 'sys/dev/gpio/gpiobus*'
+      - 'sys/dev/gpio/ofw_gpiobus.c'
+      - 'sys/dev/gpio/acpi_gpiobus.c'
       - 'sys/dev/gpio/gpioregulator.c'
       - 'sys/arm64/broadcom/bcm2712_pinctrl*'
       - 'sys/arm64/broadcom/bcmstb_reset.c'
@@ -120,12 +126,8 @@ jobs:
           "${{ runner.temp }}/fdt-pinctrl-checked"
       - name: BCM2712 GPIO MMIO and provider faults (not hardware acceptance)
         run: |
-          clang -std=c11 -Wall -Wextra -Werror \
-            -Wno-unused-parameter -Wno-unused-function -Wno-unused-variable \
-            -fsanitize=address,undefined -fno-omit-frame-pointer \
-            -Itools/daemonarchy/tests/bcmstb-gpio-stubs \
-            tools/daemonarchy/tests/bcmstb-gpio.c -o "${{ runner.temp }}/bcmstb-gpio"
-          "${{ runner.temp }}/bcmstb-gpio"
+          python3 tools/daemonarchy/tests/bcmstb-gpio-controls.py --cc clang --sanitize
+          python3 tools/daemonarchy/tests/gpiobus-lifetime-controls.py --cc clang --sanitize
           python3 tools/daemonarchy/tests/pi5-sd-provider-controls.py --cc clang
       - name: BCM STB reset and calibration faults (not hardware acceptance)
         run: python3 tools/daemonarchy/tests/bcmstb-reset-controls.py --cc clang --sanitize

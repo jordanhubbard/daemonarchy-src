@@ -96,11 +96,11 @@ No aggregate kernel build runs on the operator desktop.
 ## Remaining RP1 dependency order
 
 The selected DTB has an AON GPIO2 `gpio-hog` requesting output-high for RP1 RUN.
-The current AON provider exposes pin 2, but `ofw_gpiobus` skips gpio-hog nodes.
-Capabilities alone do not reserve or drive that line. Its implementation needs
-all-hog preflight, duplicate/capability checks, owned pin reservations, logical
-active-low handling, ordered preset/mux/direction, and cleanup that retains
-owners if rollback cannot complete. No direct GPIO2 write is included here.
+The [separate selected-hog follow-on](pi5-aon-gpio-hogs.md) now supplies full
+preflight, held reservations, private ordered application/readback and retained
+unpublished owners on partial failure. Host controls do not establish BCM2712
+pad state, reset timing or RP1 operation. This reset-provider delta alone does
+not implement the hog.
 
 Reset/rescal and GIC availability precede the missing BCM2712 MSI controller
 and PCIe host support. MIP maps 64 MSI vectors to GIC SPI 128..191; its target

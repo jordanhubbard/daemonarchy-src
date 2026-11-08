@@ -44,6 +44,7 @@
 struct acpi_gpiobus_softc {
 	struct gpiobus_softc	super_sc;
 	ACPI_CONNECTION_INFO	handler_info;
+	bool			handler_installed;
 };
 
 struct acpi_gpiobus_ctx {
@@ -201,9 +202,12 @@ acpi_gpiobus_space_handler(UINT32 function, ACPI_PHYSICAL_ADDRESS address,
 	ACPI_CONNECTION_INFO *info = context;
 	ACPI_RESOURCE_GPIO *gpio_res;
 	device_t controller;
-	ACPI_RESOURCE *res;
+	ACPI_RESOURCE *res = NULL;
 	ACPI_STATUS status;
 
+	if (!gpiobus_ready(__containerof(info, struct acpi_gpiobus_softc,
+	    handler_info)->super_sc.sc_busdev))
+		return (AE_NOT_EXIST);
 	status = AcpiBufferToResource(info->Connection, info->Length, &res);
 	if (ACPI_FAILURE(status) || res->Type != ACPI_RESOURCE_TYPE_GPIO)
 		goto err;
@@ -343,13 +347,13 @@ acpi_gpiobus_attach(device_t dev)
 
 	if ((err = gpiobus_attach(dev)) != 0)
 		return (err);
+	if (!gpiobus_ready(dev))
+		return (0); /* Common attach retained unavailable private owners. */
 
 	sc = device_get_softc(dev);
 	handle = acpi_get_handle(sc->super_sc.sc_dev);
-	if (handle == NULL) {
-		gpiobus_detach(dev);
-		return (ENXIO);
-	}
+	if (handle == NULL)
+		return (gpiobus_attach_failed(dev, ENXIO));
 
 	status = AcpiInstallAddressSpaceHandler(handle, ACPI_ADR_SPACE_GPIO,
 	    acpi_gpiobus_space_handler, NULL, &sc->handler_info);
@@ -357,10 +361,10 @@ acpi_gpiobus_attach(device_t dev)
 	if (ACPI_FAILURE(status)) {
 		device_printf(dev,
 		    "Failed to install GPIO address space handler\n");
-		gpiobus_detach(dev);
-		return (ENXIO);
+		return (gpiobus_attach_failed(dev, ENXIO));
 	}
 
+	sc->handler_installed = true;
 	ctx.dev_handle = handle;
 	ctx.sc = &sc->super_sc;
 
@@ -378,20 +382,25 @@ acpi_gpiobus_attach(device_t dev)
 static int
 acpi_gpiobus_detach(device_t dev)
 {
-	struct gpiobus_softc *super_sc;
+	struct acpi_gpiobus_softc *sc = device_get_softc(dev);
 	ACPI_STATUS status;
+	int error;
 
-	super_sc = device_get_softc(dev);
-	status = AcpiRemoveAddressSpaceHandler(
-	    acpi_get_handle(super_sc->sc_dev), ACPI_ADR_SPACE_GPIO,
-	    acpi_gpiobus_space_handler
-	);
-
-	if (ACPI_FAILURE(status))
-		device_printf(dev,
-		    "Failed to remove GPIO address space handler\n");
-
-	return (gpiobus_detach(dev));
+	if (sc->handler_installed) {
+		status = AcpiRemoveAddressSpaceHandler(
+		    acpi_get_handle(sc->super_sc.sc_dev), ACPI_ADR_SPACE_GPIO,
+		    acpi_gpiobus_space_handler);
+		if (ACPI_FAILURE(status)) {
+			gpiobus_quarantine(dev, EBUSY);
+			device_printf(dev, "retaining GPIO address space handler owner\n");
+			return (EBUSY);
+		}
+		sc->handler_installed = false;
+	}
+	error = gpiobus_detach(dev);
+	if (error != 0)
+		gpiobus_quarantine(dev, error);
+	return (error);
 }
 
 static int

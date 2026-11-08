@@ -48,6 +48,11 @@
 #define BCMSTB_CAPS (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)
 #define BCMSTB_PRESET (GPIO_PIN_PRESET_LOW | GPIO_PIN_PRESET_HIGH)
 
+struct bcmstb_gpio_hog {
+	uint32_t pin, flags;
+	gpio_pin_t handle;
+};
+
 struct bcmstb_gpio_softc {
 	device_t busdev;
 	device_t pinctrl;
@@ -59,6 +64,10 @@ struct bcmstb_gpio_softc {
 	uint32_t saved_dir[BCMSTB_BANKS];
 	uint32_t saved_mask[BCMSTB_BANKS];
 	bool saved;
+	bool ready, published, hog_write;
+	struct bcmstb_gpio_hog hogs[BCMSTB_BANKS * 32];
+	unsigned nhogs;
+	uint32_t hogmask[BCMSTB_BANKS];
 };
 
 static bool
@@ -75,6 +84,82 @@ bcmstb_gpio_caps(struct bcmstb_gpio_softc *sc, uint32_t pin)
 	if (pin >= 2 && pin <= 4)
 		return (BCMSTB_CAPS);
 	return (pin == 5 ? GPIO_PIN_INPUT : 0);
+}
+
+/* Selected D0 AON profile only: validate the entire child plan before MMIO.
+ * The local gpio-hog binding uses two cells per pin, not a provider phandle.
+ */
+static int
+bcmstb_gpio_hog_plan(device_t dev)
+{
+	struct bcmstb_gpio_softc *sc = device_get_softc(dev);
+	phandle_t child;
+	pcell_t cells[BCMSTB_BANKS * 32 * 2];
+	char property[64], next[64], text[128];
+	const char *previous;
+	uint32_t pin, flags;
+	int length, i, modes, result;
+	bool input, high, low;
+
+	for (child = OF_child(ofw_bus_get_node(dev)); child != 0;
+	    child = OF_peer(child)) {
+		if (!ofw_bus_node_status_okay(child))
+			continue;
+		if (!OF_hasprop(child, "gpio-hog") ||
+		    OF_getproplen(child, "gpio-hog") != 0 || OF_child(child) != 0)
+			return (EOPNOTSUPP);
+		/* Reject unsupported properties, rather than silently ignoring policy. */
+		previous = NULL;
+		while ((result = OF_nextprop(child, previous, next, sizeof(next))) > 0) {
+			if (strnlen(next, sizeof(next)) == sizeof(next))
+				return (EINVAL);
+			if (strcmp(next, "gpio-hog") && strcmp(next, "gpios") &&
+			    strcmp(next, "input") && strcmp(next, "output-high") &&
+			    strcmp(next, "output-low") && strcmp(next, "line-name") &&
+			    strcmp(next, "name") && strcmp(next, "status") &&
+			    strcmp(next, "phandle") && strcmp(next, "linux,phandle"))
+				return (EOPNOTSUPP);
+			strlcpy(property, next, sizeof(property));
+			previous = property;
+		}
+		if (result < 0)
+			return (EINVAL);
+		input = OF_hasprop(child, "input");
+		high = OF_hasprop(child, "output-high");
+		low = OF_hasprop(child, "output-low");
+		modes = input + high + low;
+		if (modes != 1 || (input && OF_getproplen(child, "input") != 0) ||
+		    (high && OF_getproplen(child, "output-high") != 0) ||
+		    (low && OF_getproplen(child, "output-low") != 0))
+			return (EINVAL);
+		length = OF_getproplen(child, "line-name");
+		if (length != -1 && (length <= 0 || length > (int)sizeof(text) ||
+		    OF_getprop(child, "line-name", text, sizeof(text)) != length ||
+		    text[length - 1] != '\0' || strnlen(text, length) != (size_t)length - 1))
+			return (EINVAL);
+		length = OF_getproplen(child, "gpios");
+		if (length <= 0 || length > (int)sizeof(cells) ||
+		    length % (2 * sizeof(pcell_t)) != 0 ||
+		    OF_getencprop(child, "gpios", cells, sizeof(cells)) != length)
+			return (EINVAL);
+		for (i = 0; i < length / (int)sizeof(pcell_t); i += 2) {
+			pin = cells[i];
+			if (cells[i + 1] & ~1U)
+				return (EOPNOTSUPP);
+			flags = input ? GPIO_PIN_INPUT : GPIO_PIN_OUTPUT;
+			if (!(bcmstb_gpio_caps(sc, pin) & flags))
+				return (EOPNOTSUPP);
+			if (sc->hogmask[pin / 32] & (1U << (pin % 32)))
+				return (EINVAL);
+			if (!input)
+				flags |= (high != !!(cells[i + 1] & 1)) ?
+				    GPIO_PIN_PRESET_HIGH : GPIO_PIN_PRESET_LOW;
+			sc->hogmask[pin / 32] |= 1U << (pin % 32);
+			sc->hogs[sc->nhogs++] = (struct bcmstb_gpio_hog) {
+			    .pin = pin, .flags = flags };
+		}
+	}
+	return (0);
 }
 
 static device_t
@@ -114,6 +199,8 @@ static int
 bcmstb_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 {
 	struct bcmstb_gpio_softc *sc = device_get_softc(dev);
+	if (!sc->lock_initialized || sc->mem == NULL)
+		return (ENXIO);
 	if (bcmstb_gpio_caps(sc, pin) == 0)
 		return (EOPNOTSUPP);
 	mtx_lock(&sc->lock);
@@ -124,7 +211,7 @@ bcmstb_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 }
 
 static int
-bcmstb_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
+bcmstb_gpio_setflags_locked(device_t dev, uint32_t pin, uint32_t flags)
 {
 	struct bcmstb_gpio_softc *sc = device_get_softc(dev);
 	uint32_t direction = flags & BCMSTB_CAPS;
@@ -138,7 +225,6 @@ bcmstb_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 		return (EINVAL);
 	if (!(bcmstb_gpio_caps(sc, pin) & direction))
 		return (EOPNOTSUPP);
-	mtx_lock(&sc->lock);
 	/* Preload the desired output before selecting GPIO and enabling it. */
 	if (flags & BCMSTB_PRESET) {
 		data = bus_read_4(sc->mem, GIO_DATA(bank));
@@ -156,6 +242,31 @@ bcmstb_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 		bus_write_4(sc->mem, GIO_DATA(bank), data);
 		bus_barrier(sc->mem, GIO_DATA(bank), 4, BUS_SPACE_BARRIER_WRITE);
 	}
+	if (error == 0 &&
+	    (!!(bus_read_4(sc->mem, GIO_IODIR(bank)) & mask) !=
+		(direction == GPIO_PIN_INPUT) ||
+		((flags & BCMSTB_PRESET) &&
+		 !!(bus_read_4(sc->mem, GIO_DATA(bank)) & mask) !=
+		 !!(flags & GPIO_PIN_PRESET_HIGH))))
+		error = EIO;
+	return (error);
+}
+
+static int
+bcmstb_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
+{
+	struct bcmstb_gpio_softc *sc = device_get_softc(dev);
+	int error;
+
+	if (!sc->ready)
+		return (ENXIO);
+	if (!bcmstb_gpio_caps(sc, pin))
+		return (EOPNOTSUPP);
+	mtx_lock(&sc->lock);
+	if (sc->hogmask[pin / 32] & (1U << (pin % 32)))
+		error = EBUSY;
+	else
+		error = bcmstb_gpio_setflags_locked(dev, pin, flags);
 	mtx_unlock(&sc->lock);
 	return (error);
 }
@@ -164,6 +275,8 @@ static int
 bcmstb_gpio_pin_get(device_t dev, uint32_t pin, uint32_t *value)
 {
 	struct bcmstb_gpio_softc *sc = device_get_softc(dev);
+	if (!sc->lock_initialized || sc->mem == NULL)
+		return (ENXIO);
 	if (!bcmstb_gpio_caps(sc, pin))
 		return (EOPNOTSUPP);
 	mtx_lock(&sc->lock);
@@ -177,11 +290,17 @@ bcmstb_gpio_write(device_t dev, uint32_t pin, uint32_t value, bool toggle)
 {
 	struct bcmstb_gpio_softc *sc = device_get_softc(dev);
 	uint32_t data, mask = 1U << (pin % 32);
+	if (!sc->ready)
+		return (ENXIO);
 	if (value > 1)
 		return (EINVAL);
 	if (!(bcmstb_gpio_caps(sc, pin) & GPIO_PIN_OUTPUT))
 		return (EOPNOTSUPP);
 	mtx_lock(&sc->lock);
+	if (sc->hogmask[pin / 32] & mask) {
+		mtx_unlock(&sc->lock);
+		return (EBUSY);
+	}
 	data = bus_read_4(sc->mem, GIO_DATA(pin / 32));
 	data = toggle ? data ^ mask : value ? data | mask : data & ~mask;
 	bus_write_4(sc->mem, GIO_DATA(pin / 32), data);
@@ -207,12 +326,16 @@ bcmstb_gpio_map_gpios(device_t dev, phandle_t consumer, phandle_t parent,
     int ncells, pcell_t *cells, uint32_t *pin, uint32_t *flags)
 {
 	struct bcmstb_gpio_softc *sc = device_get_softc(dev);
+	if (!sc->ready)
+		return (ENXIO);
 	if (parent != ofw_bus_get_node(dev) || ncells != 2)
 		return (EINVAL);
 	if (cells[1] & ~1U) /* Only standard active-low needs no extra pad support. */
 		return (EOPNOTSUPP);
 	if (!bcmstb_gpio_caps(sc, cells[0]))
 		return (EOPNOTSUPP);
+	if (sc->hogmask[cells[0] / 32] & (1U << (cells[0] % 32)))
+		return (EBUSY);
 	*pin = cells[0];
 	*flags = cells[1];
 	return (0);
@@ -243,34 +366,50 @@ bcmstb_gpio_probe(device_t dev)
 	return (ENXIO);
 }
 
-static void
+/* No complete pad rollback exists. Once a hog may have changed a pad, retain
+ * every owner unpublished; pretending an attach error freed it would be unsafe.
+ */
+static int
 bcmstb_gpio_release(device_t dev)
 {
 	struct bcmstb_gpio_softc *sc = device_get_softc(dev);
-	int bank;
+	int bank, error;
+	unsigned i;
 
+	if (sc->published || sc->hog_write)
+		return (EBUSY);
+	for (i = 0; i < sc->nhogs; i++) {
+		if (sc->hogs[i].handle != NULL) {
+			gpio_pin_release(sc->hogs[i].handle);
+			sc->hogs[i].handle = NULL;
+		}
+	}
 	if (sc->busdev != NULL) {
-		gpiobus_detach_bus(dev);
-		device_delete_children(dev);
+		error = device_delete_child(dev, sc->busdev);
+		if (error != 0)
+			return (error);
 		sc->busdev = NULL;
 	}
 	if (sc->saved) {
 		for (bank = 0; bank < BCMSTB_BANKS; bank++) {
-			bus_write_4(sc->mem, GIO_DATA(bank), sc->saved_data[bank]);
-			bus_write_4(sc->mem, GIO_IODIR(bank), sc->saved_dir[bank]);
 			bus_write_4(sc->mem, GIO_MASK(bank), sc->saved_mask[bank]);
+			bus_barrier(sc->mem, GIO_MASK(bank), 4, BUS_SPACE_BARRIER_WRITE);
+			if (bus_read_4(sc->mem, GIO_MASK(bank)) != sc->saved_mask[bank])
+				return (EIO);
 		}
-		bus_barrier(sc->mem, 0, BCMSTB_BANKS * 32, BUS_SPACE_BARRIER_WRITE);
 		sc->saved = false;
 	}
 	if (sc->mem != NULL) {
-		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->mem);
+		error = bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->mem);
+		if (error != 0)
+			return (error);
 		sc->mem = NULL;
 	}
 	if (sc->lock_initialized) {
 		mtx_destroy(&sc->lock);
 		sc->lock_initialized = false;
 	}
+	return (0);
 }
 
 static int
@@ -279,7 +418,8 @@ bcmstb_gpio_attach(device_t dev)
 	struct bcmstb_gpio_softc *sc = device_get_softc(dev);
 	phandle_t node = ofw_bus_get_node(dev), sibling;
 	uint32_t cells;
-	int bank, error = ENXIO, rid = 0;
+	int bank, error = ENXIO, cleanup, rid = 0;
+	unsigned i;
 
 	sc->pinctrl = NULL;
 	if (OF_getproplen(node, "brcm,gpio-bank-widths") != sizeof(sc->widths) ||
@@ -289,6 +429,10 @@ bcmstb_gpio_attach(device_t dev)
 	    OF_getencprop(node, "#gpio-cells", &cells, sizeof(cells)) != sizeof(cells) ||
 	    cells != 2 || !OF_hasprop(node, "gpio-controller"))
 		return (EINVAL);
+	error = bcmstb_gpio_hog_plan(dev);
+	if (error != 0)
+		return (error);
+	error = ENXIO;
 	sc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->mem == NULL)
 		return (ENXIO);
@@ -319,31 +463,108 @@ bcmstb_gpio_attach(device_t dev)
 	}
 	bus_barrier(sc->mem, 0, BCMSTB_BANKS * 32, BUS_SPACE_BARRIER_WRITE);
 	sc->saved = true;
-	sc->busdev = gpiobus_add_bus(dev);
+	sc->busdev = gpiobus_add_bus_deferred(dev);
 	if (sc->busdev == NULL) {
 		error = ENOMEM;
 		goto fail;
 	}
 	bus_attach_children(dev);
-	if (!device_is_attached(sc->busdev))
+	if (!device_is_attached(sc->busdev) || !gpiobus_ready(sc->busdev))
 		goto fail;
+	/* Reserve the complete plan before the first DATA, mux or direction write. */
+	for (i = 0; i < sc->nhogs; i++) {
+		error = gpio_pin_get_by_bus_pinnum(sc->busdev, sc->hogs[i].pin,
+		    &sc->hogs[i].handle);
+		if (error != 0)
+			goto fail;
+	}
+	for (i = 0; i < sc->nhogs; i++) {
+		sc->hog_write = true;
+		mtx_lock(&sc->lock);
+		error = bcmstb_gpio_setflags_locked(dev, sc->hogs[i].pin,
+		    sc->hogs[i].flags);
+		mtx_unlock(&sc->lock);
+		if (error != 0)
+			goto fail;
+	}
+	sc->ready = true;
+	ofw_gpiobus_register_provider(dev);
+	sc->published = true;
 	return (0);
 fail:
-	bcmstb_gpio_release(dev);
-	return (error);
+	cleanup = bcmstb_gpio_release(dev);
+	if (cleanup == 0)
+		return (error);
+	if (sc->busdev != NULL)
+		gpiobus_quarantine(sc->busdev, error);
+	device_printf(dev, "GPIO unavailable: retaining unpublished hog owners (%d/%d)\n",
+	    error, cleanup);
+	return (0); /* Retain the softc and all unreleased owners. */
 }
 
 static int
 bcmstb_gpio_detach(device_t dev)
 {
-	/* External regulator/GPIO pin references are not child-device refs. */
-	return (EBUSY);
+	return (bcmstb_gpio_release(dev));
+}
+
+static void
+bcmstb_gpio_new_pass(device_t dev)
+{
+	struct bcmstb_gpio_softc *sc = device_get_softc(dev);
+	if (sc->ready)
+		bus_generic_new_pass(dev);
+}
+
+static void
+bcmstb_gpio_driver_added(device_t dev, driver_t *driver)
+{
+	struct bcmstb_gpio_softc *sc = device_get_softc(dev);
+	if (sc->ready)
+		bus_generic_driver_added(dev, driver);
+}
+
+static int
+bcmstb_gpio_rescan(device_t dev)
+{
+	struct bcmstb_gpio_softc *sc = device_get_softc(dev);
+	if (!sc->ready)
+		return (ENXIO);
+	bus_attach_children(dev);
+	return (0);
+}
+
+static int
+bcmstb_gpio_suspend(device_t dev)
+{
+	struct bcmstb_gpio_softc *sc = device_get_softc(dev);
+	return (sc->ready ? bus_generic_suspend(dev) : ENXIO);
+}
+
+static int
+bcmstb_gpio_resume(device_t dev)
+{
+	struct bcmstb_gpio_softc *sc = device_get_softc(dev);
+	return (sc->ready ? bus_generic_resume(dev) : ENXIO);
+}
+
+static int
+bcmstb_gpio_shutdown(device_t dev)
+{
+	struct bcmstb_gpio_softc *sc = device_get_softc(dev);
+	return (sc->ready ? bus_generic_shutdown(dev) : ENXIO);
 }
 
 static device_method_t bcmstb_gpio_methods[] = {
 	DEVMETHOD(device_probe, bcmstb_gpio_probe),
 	DEVMETHOD(device_attach, bcmstb_gpio_attach),
 	DEVMETHOD(device_detach, bcmstb_gpio_detach),
+	DEVMETHOD(device_suspend, bcmstb_gpio_suspend),
+	DEVMETHOD(device_resume, bcmstb_gpio_resume),
+	DEVMETHOD(device_shutdown, bcmstb_gpio_shutdown),
+	DEVMETHOD(bus_new_pass, bcmstb_gpio_new_pass),
+	DEVMETHOD(bus_driver_added, bcmstb_gpio_driver_added),
+	DEVMETHOD(bus_rescan, bcmstb_gpio_rescan),
 	DEVMETHOD(gpio_get_bus, bcmstb_gpio_get_bus),
 	DEVMETHOD(gpio_pin_max, bcmstb_gpio_pin_max),
 	DEVMETHOD(gpio_pin_getname, bcmstb_gpio_pin_getname),
