@@ -661,12 +661,10 @@ bcm_pcib_attach(device_t dev)
 
 #ifdef BCM2711_DMA_TEST
 	if (bcm2711_dma_test_requested()) {
-		/* Refuse actual BCM hardware: this test targets the unchanged QEMU
-		 * root port's genuine ID, not a physical-device compatibility.
+		/* Only prepare unpublished metadata here. Root config is not yet
+		 * readable on a cold controller; the QEMU guard follows link-up.
 		 */
-		if (!ofw_bus_is_compatible(dev, "brcm,bcm2711-pcie") ||
-		    bcm_pcib_read_config(dev, 0, 0, 0, PCIR_DEVVENDOR, 4) !=
-		    0x000c1b36) {
+		if (!ofw_bus_is_compatible(dev, "brcm,bcm2711-pcie")) {
 			error = ENXIO;
 			goto failed;
 		}
@@ -688,12 +686,7 @@ bcm_pcib_attach(device_t dev)
 	 * the system memory to the controller.
 	 */
 	bcm_pcib_set_reg(sc, REG_DMA_WINDOW_LOW, REG_VALUE_DMA_WINDOW_LOW);
-#ifdef BCM2711_DMA_TEST
-	bcm_pcib_set_reg(sc, REG_DMA_WINDOW_HIGH, test_tag != NULL ?
-	    BCM2711_DMA_TEST_WINDOW_HIGH : REG_VALUE_DMA_WINDOW_HIGH);
-#else
 	bcm_pcib_set_reg(sc, REG_DMA_WINDOW_HIGH, REG_VALUE_DMA_WINDOW_HIGH);
-#endif
 	bcm_pcib_set_reg(sc, REG_DMA_CONFIG, REG_VALUE_DMA_WINDOW_CONFIG);
 
 	bcm_pcib_set_reg(sc, REG_BRIDGE_GISB_WINDOW, 0);
@@ -729,6 +722,23 @@ bcm_pcib_attach(device_t dev)
 	if (bootverbose)
 		device_printf(dev, "note: reported link speed is %s.\n",
 		    bcm_pcib_link_state_string(link_state));
+
+#ifdef BCM2711_DMA_TEST
+	if (test_tag != NULL) {
+		/* Preserve normal identity initialization until config is live.
+		 * No special alias is written on physical BCM hardware: require
+		 * the unchanged QEMU root port's genuine ID first.
+		 */
+		tmp = bcm_pcib_read_config(dev, 0, 0, 0, PCIR_DEVVENDOR, 4);
+		if (tmp != 0x000c1b36) {
+			device_printf(dev, "diagnostic QEMU root ID refused: %#x\n", tmp);
+			error = ENXIO;
+			goto failed;
+		}
+		bcm_pcib_set_reg(sc, REG_DMA_WINDOW_HIGH,
+		    BCM2711_DMA_TEST_WINDOW_HIGH);
+	}
+#endif
 
 	/*
 	 * Set the CPU->PCI memory window. The map in this direction is not 1:1.
