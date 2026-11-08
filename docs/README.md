@@ -34,3 +34,4 @@ Use an explicit `--repo jordanhubbard/daemonarchy-src` for GitHub commands:
 the GitHub CLI may otherwise select the fork's FreeBSD upstream automatically.
 
 - [RTX Spark bring-up and loader topology capture](rtx-spark-bringup.md)
+- [BCM2712 SDHCI bootstrap attachment and qualification limits](pi5-sdhci-bootstrap.md)

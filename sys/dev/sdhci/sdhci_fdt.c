@@ -70,10 +70,8 @@
 #define	SDHCI_FDT_ARMADA38X	1
 #define	SDHCI_FDT_XLNX_ZY7	2
 #define	SDHCI_FDT_QUALCOMM	3
-#define	SDHCI_FDT_BCM2712	4
 
 static struct ofw_compat_data compat_data[] = {
-	{ "brcm,bcm2712-sdhci",		SDHCI_FDT_BCM2712 },
 	{ "marvell,armada-380-sdhci",	SDHCI_FDT_ARMADA38X },
 	{ "qcom,sdhci-msm-v4",		SDHCI_FDT_QUALCOMM },
 	{ "xlnx,zy7_sdhci",		SDHCI_FDT_XLNX_ZY7 },
@@ -355,9 +353,6 @@ sdhci_fdt_probe(device_t dev)
 
 	sc->quirks = 0;
 	switch (ofw_bus_search_compatible(dev, compat_data)->ocd_data) {
-	case SDHCI_FDT_BCM2712:
-		device_set_desc(dev, "Broadcom BCM2712 FDT SDHCI controller");
-		break;
 	case SDHCI_FDT_ARMADA38X:
 		sc->quirks = SDHCI_QUIRK_BROKEN_AUTO_STOP;
 		device_set_desc(dev, "ARMADA38X SDHCI controller");
