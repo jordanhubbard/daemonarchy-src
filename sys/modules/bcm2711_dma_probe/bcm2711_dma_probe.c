@@ -575,7 +575,9 @@ error_run(void)
 		bzero(&result, sizeof(result));
 		code = bus_dmamap_load(owner->tag, owner->pending, owner->buffer,
 		    length, sync_callback, &result, BUS_DMA_NOWAIT);
-		if (code != EFBIG || result.calls != 1 || result.error != EFBIG ||
+		/* Completed EFBIG is delivered through the MI callback; the
+		 * MI entry point returns0 (ENOMEM/EINPROGRESS are exceptions). */
+		if (code != 0 || result.calls != 1 || result.error != EFBIG ||
 		    result.segments != 0) { error = EIO; break; }
 		bus_dmamap_unload(owner->tag, owner->pending);
 		for (i = 0; i < owner->allocation_length; i++)
