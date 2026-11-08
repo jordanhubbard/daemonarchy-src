@@ -34,6 +34,21 @@ HEADER {
 	struct intr_irqsrc;
 };
 
+# Optional checked reservation; implementations without it remain unsupported.
+CODE {
+	static int
+	gic_reserve_msi_range_unsupported(device_t dev, u_int start, u_int count)
+	{
+		return (EOPNOTSUPP);
+	}
+};
+
+METHOD int reserve_msi_range_checked {
+	device_t dev;
+	u_int start;
+	u_int count;
+} DEFAULT gic_reserve_msi_range_unsupported;
+
 METHOD void reserve_msi_range {
 	device_t	dev;
 	u_int		mbi_start;

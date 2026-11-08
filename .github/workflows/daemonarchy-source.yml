@@ -27,6 +27,9 @@ on:
       - 'sys/dev/gpio/gpioregulator.c'
       - 'sys/arm64/broadcom/bcm2712_pinctrl*'
       - 'sys/arm64/broadcom/bcmstb_reset.c'
+      - 'sys/arm64/broadcom/bcm2712_mip.c'
+      - 'sys/arm/arm/gic.c'
+      - 'sys/arm/arm/gic_if.m'
       - 'sys/conf/files.arm64'
       - 'sys/dev/fdt/fdt_pinctrl.c'
       - 'sys/dev/fdt/fdt_pinctrl.h'
@@ -69,6 +72,9 @@ on:
       - 'sys/dev/gpio/gpioregulator.c'
       - 'sys/arm64/broadcom/bcm2712_pinctrl*'
       - 'sys/arm64/broadcom/bcmstb_reset.c'
+      - 'sys/arm64/broadcom/bcm2712_mip.c'
+      - 'sys/arm/arm/gic.c'
+      - 'sys/arm/arm/gic_if.m'
       - 'sys/conf/files.arm64'
       - 'sys/dev/fdt/fdt_pinctrl.c'
       - 'sys/dev/fdt/fdt_pinctrl.h'
@@ -131,6 +137,10 @@ jobs:
           python3 tools/daemonarchy/tests/pi5-sd-provider-controls.py --cc clang
       - name: BCM STB reset and calibration faults (not hardware acceptance)
         run: python3 tools/daemonarchy/tests/bcmstb-reset-controls.py --cc clang --sanitize
+      - name: BCM2712 MIP and checked GIC ownership (not hardware acceptance)
+        run: |
+          python3 tools/daemonarchy/tests/bcm2712-mip-controls.py --cc clang --sanitize
+          python3 tools/daemonarchy/tests/gic-checked-msi-controls.py --cc clang --sanitize
       - name: GPIO regulator producer lifetime (not native concurrency acceptance)
         run: python3 tools/daemonarchy/tests/run-regnode-lifetime.py --cc clang
       - name: ACPI USB DMA aperture and lifetime (not controller acceptance)

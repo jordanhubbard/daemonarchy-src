@@ -102,8 +102,8 @@ unpublished owners on partial failure. Host controls do not establish BCM2712
 pad state, reset timing or RP1 operation. This reset-provider delta alone does
 not implement the hog.
 
-Reset/rescal and GIC availability precede the missing BCM2712 MSI controller
-and PCIe host support. MIP maps 64 MSI vectors to GIC SPI 128..191; its target
+Reset/rescal and GIC availability precede the separate
+[MIP0 MSI-provider preparation](pi5-mip-msi.md) and missing PCIe host support. MIP maps 64 MSI vectors to GIC SPI 128..191; its target
 bus address `0xfffffff000` is not a CPU MMIO allocation. The PCIe host must
 honor the selected reset providers, external MSI parent and DMA translations
 before enumerating RP1. RP1 then needs a checked BAR/MSI-X nexus, clock provider
