@@ -123,6 +123,9 @@ _bus_dmamap_reserve_pages(bus_dma_tag_t dmat, bus_dmamap_t map, int flags)
 			bz = dmat->bounce_zone;
 			STAILQ_INSERT_TAIL(&bz->bounce_map_waitinglist, map,
 			    links);
+#ifdef BUSDMA_DEFERRED
+			BUSDMA_DEFERRED(map);
+#endif
 			map->queued_time = sbinuptime();
 			mtx_unlock(&bounce_lock);
 			return (EINPROGRESS);
@@ -471,6 +474,10 @@ _bus_dmamap_addseg(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t curaddr,
 	 */
 	seg = *segp;
 	if (seg == -1) {
+#ifdef BUSDMA_SEGMENT_START_OK
+		if (!BUSDMA_SEGMENT_START_OK(dmat, curaddr))
+			return (0);
+#endif
 		seg = 0;
 		segs[seg].ds_addr = curaddr;
 		segs[seg].ds_len = sgsize;
@@ -481,6 +488,10 @@ _bus_dmamap_addseg(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t curaddr,
 		    segs[seg].ds_len + sgsize, dmat_boundary(dmat)))
 			segs[seg].ds_len += sgsize;
 		else {
+#ifdef BUSDMA_SEGMENT_START_OK
+			if (!BUSDMA_SEGMENT_START_OK(dmat, curaddr))
+				return (0);
+#endif
 			if (++seg >= dmat_nsegments(dmat))
 				return (0);
 			segs[seg].ds_addr = curaddr;
@@ -520,6 +531,10 @@ busdma_thread(void *dummy __unused)
 	bus_dma_tag_t dmat;
 	struct bus_dmamap *map, *nmap;
 	struct bounce_zone *bz;
+#ifdef BUSDMA_REPLAY_SAVED_LOCK
+	bus_dma_lock_t *saved_lockfunc;
+	void *saved_lockarg;
+#endif
 
 	thread_lock(curthread);
 	sched_class(curthread, PRI_ITHD);
@@ -537,13 +552,25 @@ busdma_thread(void *dummy __unused)
 		STAILQ_FOREACH_SAFE(map, &callbacklist, links, nmap) {
 			dmat = map->dmat;
 			bz = dmat->bounce_zone;
+#ifdef BUSDMA_REPLAY_SAVED_LOCK
+			/* A completion callback may destroy its map/tag. */
+			saved_lockfunc = dmat_lockfunc(dmat);
+			saved_lockarg = dmat_lockfuncarg(dmat);
+#endif
 			dmat_lockfunc(dmat)(dmat_lockfuncarg(dmat),
 			    BUS_DMA_LOCK);
 			bz->total_deferred_time += (sbinuptime() - map->queued_time);
+#ifdef BUSDMA_REPLAY_BEGIN
+			BUSDMA_REPLAY_BEGIN(map);
+#endif
 			bus_dmamap_load_mem(map->dmat, map, &map->mem,
 			    map->callback, map->callback_arg, BUS_DMA_WAITOK);
+#ifdef BUSDMA_REPLAY_SAVED_LOCK
+			saved_lockfunc(saved_lockarg, BUS_DMA_UNLOCK);
+#else
 			dmat_lockfunc(dmat)(dmat_lockfuncarg(dmat),
 			    BUS_DMA_UNLOCK);
+#endif
 		}
 	}
 }

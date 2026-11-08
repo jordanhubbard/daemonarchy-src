@@ -345,6 +345,18 @@ These tests use small synthetic fixtures to exercise refusals, byte verification
 and actual subprocess timeout/failure behavior. They do not stand in for native
 FreeBSD compilation or package acceptance.
 
+The [translated RAM backend](../../docs/pi5-translated-ram-busdma.md) has
+separate production-function host controls:
+
+```sh
+python3 tools/daemonarchy/tests/bcm2712-busdma-controls.py --cc gcc --out /path/to/new/gcc-proof
+python3 tools/daemonarchy/tests/bcm2712-busdma-controls.py --cc clang --out /path/to/new/clang-proof
+```
+
+They inject VM/scheduler primitives and do not establish native busdma or device
+DMA. A fresh native kernel, actual nonzero-offset DMA, and existing Pi4 controls
+remain separate gates; run aggregate builds only on allocated aligned workers.
+
 ### Qualified framework renewal
 
 The controller review now binds framework `d6070ba5`, whose complete local

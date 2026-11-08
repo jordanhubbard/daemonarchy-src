@@ -29,6 +29,14 @@ on:
       - 'sys/arm64/broadcom/bcmstb_reset.c'
       - 'sys/arm64/broadcom/bcm2712_mip.c'
       - 'sys/arm64/broadcom/bcm2712_dma_policy.*'
+      - 'sys/arm64/arm64/busdma_bounce.c'
+      - 'sys/arm64/arm64/busdma_machdep.c'
+      - 'sys/arm64/include/bus_dma.h'
+      - 'sys/arm64/include/bus_dma_impl.h'
+      - 'sys/arm64/broadcom/bcm2712_dma_ram.*'
+      - 'sys/kern/subr_busdma_bounce.c'
+      - 'sys/kern/subr_bus_dma.c'
+      - 'sys/sys/bus_dma.h'
       - 'sys/arm/arm/gic.c'
       - 'sys/arm/arm/gic_if.m'
       - 'sys/conf/files.arm64'
@@ -75,6 +83,14 @@ on:
       - 'sys/arm64/broadcom/bcmstb_reset.c'
       - 'sys/arm64/broadcom/bcm2712_mip.c'
       - 'sys/arm64/broadcom/bcm2712_dma_policy.*'
+      - 'sys/arm64/arm64/busdma_bounce.c'
+      - 'sys/arm64/arm64/busdma_machdep.c'
+      - 'sys/arm64/include/bus_dma.h'
+      - 'sys/arm64/include/bus_dma_impl.h'
+      - 'sys/arm64/broadcom/bcm2712_dma_ram.*'
+      - 'sys/kern/subr_busdma_bounce.c'
+      - 'sys/kern/subr_bus_dma.c'
+      - 'sys/sys/bus_dma.h'
       - 'sys/arm/arm/gic.c'
       - 'sys/arm/arm/gic_if.m'
       - 'sys/conf/files.arm64'
@@ -143,10 +159,11 @@ jobs:
         run: |
           python3 tools/daemonarchy/tests/bcm2712-mip-controls.py --cc clang --sanitize
           python3 tools/daemonarchy/tests/gic-checked-msi-controls.py --cc clang --sanitize
-      - name: BCM2712 DMA domain policy (not a DMA backend)
+      - name: BCM2712 DMA policy and RAM backend (not native DMA acceptance)
         run: |
           python3 tools/daemonarchy/tests/bcm2712-dma-policy-controls.py --cc clang --sanitize
           python3 tools/daemonarchy/tests/bcm2712-dma-policy-independent.py --cc clang
+          python3 tools/daemonarchy/tests/bcm2712-busdma-controls.py --cc clang
       - name: GPIO regulator producer lifetime (not native concurrency acceptance)
         run: python3 tools/daemonarchy/tests/run-regnode-lifetime.py --cc clang
       - name: ACPI USB DMA aperture and lifetime (not controller acceptance)
