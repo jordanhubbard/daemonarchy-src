@@ -157,7 +157,7 @@ reconstructs the fresh kernel nonce independently, checks every USB payload
 byte, and checks that scratch bytes outside the test range remain zero. A
 runtime-only pass does not satisfy the parent lifecycle gate.
 
-Run the sixteen controller/refusal/offline-data controls with:
+Run the eighteen controller/refusal/offline-data controls with:
 
 ```sh
 python3 tools/daemonarchy/tests/test-bcm2711-dma-native-control.py
@@ -178,6 +178,29 @@ The model, backend and probe module were not changed to hide that failure.
 The next experiment completed real high-buffer I/O, pool pressure, callback
 ownership, EFBIG checks and recovery. Its phase controller then failed because
 `vmstat` was absent. Partial offline nonce and pool evidence was retained, but
-the parent stopped without claiming complete acceptance. The corrected raw
-interrupt parser was reviewed before a fresh complete run. Final native runtime
-and parent/offline receipts remain required; physical gates remain pending.
+the parent stopped without claiming complete acceptance. A subsequent raw-counter run measured normal IRQ progress
+from 232 to 660 and
+zero strays, but rejected the kernel's retained bare stray label. The measured
+pair is now a sealed regression fixture. The final parser accepts the same IRQ
+source's base stray label or its complete driver suffix, while preserving slot,
+name and counter checks. Source review also corrected unload to use the exact
+hashed linker filename that was loaded, rather than the moduledata name.
+
+The fresh complete experiment passed with these unchanged C products. All 27
+parent guards passed, all seven native probes returned status 0, and all 15
+durable diagnostic files were verified. The full 8 GiB profile reported
+8,429,989,888 physical bytes, native SD root, GENET transfers and natural guest
+reset. Two runs of eight 128 KiB READ/WRITE pairs completed with both source
+buffers above 4 GiB and complete high-KVA callback coverage. Genuine pool
+pressure, callback-time teardown, both EFBIG cases, sync recovery and exact
+module unload passed. The normal xHCI counter increased by 428; the paired stray
+counter stayed at zero. Independent offline verification checked every final
+USB nonce byte, unchanged bytes outside the test range and unchanged SD input.
+
+The scoped acceptance receipt is
+`/home/jkh/daemonarchy-debug/bcm2711-translated-dma-native-20261108-r2/accepted-runtime.json`,
+SHA256 `fa5c7526c4e83de3f734781f9354ed160ed4aeb0d7c820f7b4a8daaff3e1de97`.
+Earlier failed and partial runs remain preserved. This qualifies native
+translated RAM DMA and ownership for this simulator profile. Physical BCM2712/
+RP1 controller, MSI delivery, reset and electrical cache-coherency gates remain
+open.
