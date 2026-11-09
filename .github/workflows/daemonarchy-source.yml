@@ -12,6 +12,7 @@ on:
       - 'stand/libsa/stand.h'
       - 'stand/efi/loader/main.c'
       - 'sys/dev/daemonarchy/**'
+      - 'sys/arm64/apple/apple_aic*'
       - 'sys/modules/daemonarchy_earlynet/**'
       - 'sys/conf/files.amd64'
       - 'sys/conf/options'
@@ -36,6 +37,7 @@ on:
       - 'stand/libsa/stand.h'
       - 'stand/efi/loader/main.c'
       - 'sys/dev/daemonarchy/**'
+      - 'sys/arm64/apple/apple_aic*'
       - 'sys/modules/daemonarchy_earlynet/**'
       - 'sys/conf/files.amd64'
       - 'sys/conf/options'
@@ -59,6 +61,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Apple interrupt layout and board bounds (not hardware execution)
+        run: |
+          clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -fno-omit-frame-pointer tools/daemonarchy/tests/apple-aic-layout.c \
+            -o "${{ runner.temp }}/apple-aic-layout"
+          "${{ runner.temp }}/apple-aic-layout"
       - name: UNDI descriptor admission (not firmware execution)
         run: |
           clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
