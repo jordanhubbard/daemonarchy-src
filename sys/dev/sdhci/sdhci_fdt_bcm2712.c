@@ -332,7 +332,8 @@ bcm2712_sdhci_pin(device_t dev, char *property, gpio_pin_t *pin)
 
 	if (!OF_hasprop(ofw_bus_get_node(dev), property))
 		return (0);
-	error = gpio_pin_get_by_ofw_property(dev, 0, property, pin);
+	error = gpio_pin_get_by_ofw_property(dev, ofw_bus_get_node(dev), property,
+	    pin);
 	if (error == 0)
 		error = gpio_pin_setflags(*pin, GPIO_PIN_INPUT);
 	return (error);
