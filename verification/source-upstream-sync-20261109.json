@@ -1,0 +1,70 @@
+{
+  "schema": "daemonarchy/source-upstream-sync-candidate@1",
+  "scope": "SYNC-001 source import candidate for 1.6; no native build, runtime or release qualification",
+  "source_parents": [
+    "187380664178c302069af24bddfbe0c22462d030",
+    "d0fd70983b6b93d4a6a4671457619eb34786b38d"
+  ],
+  "prior_source_reviews": [
+    "https://github.com/jordanhubbard/daemonarchy-src/pull/80",
+    "https://github.com/jordanhubbard/daemonarchy-src/pull/81"
+  ],
+  "upstream_repository": "https://github.com/freebsd/freebsd-src",
+  "upstream_revision": "d0fd70983b6b93d4a6a4671457619eb34786b38d",
+  "selected_common_base": "8721f68642c392afa0413eafa3cefde66d65b6eb",
+  "other_common_base": "a8dfdb79eb008614ad3674feabcb0a25ca93abba",
+  "merge_strategy": "Use the complete FreeBSD common ancestor rather than the synthesized complete-tree/vendor-root virtual base; actual merge retains both parents",
+  "rationale": "The second common ancestor is a libarchive vendor-root tree. Automatic recursive virtual-base synthesis produced unrelated root README/gitignore and cross-directory rename/delete conflicts. Both failed and explicit full-tree-base merge plans are retained privately.",
+  "conflict_decisions": {
+    "quirk_values": {
+      "QUIRK_DELAY_B4_CHK_RDY": 1,
+      "QUIRK_DISABLE_TIMEOUT": 2,
+      "QUIRK_INTEL_ALIGNMENT": 4,
+      "QUIRK_AHCI": 8,
+      "QUIRK_APPLE_IDENTIFY_CNS_BROKEN": 16,
+      "QUIRK_APPLE_SHARED_CID_SPACE": 32,
+      "QUIRK_APPLE_NO_ASYNC_EVENT": 64,
+      "QUIRK_APPLE_SINGLE_VECTOR": 128,
+      "QUIRK_EMPTY_NAMESPACE_CHANGED_LOG": 256,
+      "QUIRK_APPLE_S3X_NS1_ONLY": 512,
+      "QUIRK_APPLE_128_BYTE_SQES": 1024,
+      "QUIRK_PCIE_FLR_ON_FATAL": 2048,
+      "QUIRK_APPLE_S3X_SERIALIZE": 4096,
+      "QUIRK_APPLE_ACK_EACH_CPL": 8192,
+      "QUIRK_IGNORE_RAB": 16384
+    },
+    "decisions": [
+      "Retain owned Apple ACK-each-completion at 0x2000",
+      "Assign new upstream IGNORE_RAB a unique internal 0x4000 bit",
+      "Keep both behaviors on the Apple T2 PCI entry; keep new upstream IGNORE_RAB on S3X",
+      "Retain upstream controller/API changes, including dropping the serialized S3X implementation; the legacy macro remains unused",
+      "Native compile and runtime qualification pending"
+    ]
+  },
+  "changed_upstream_paths": 1067,
+  "retained_source_files_sha256": {
+    "sys/arm64/arm64/locore.S": "3a7ab3486118d4e572674dda1fe0498c9e20da06d36e28da238bc7a8da879abe",
+    "stand/efi/loader/Makefile": "ac31dc14ef9874b94a873cc4deabafcaa6e722c4ffdaf927efff3cb1aef5ecf7",
+    "stand/efi/loader/boottrace.c": "1f279ad6fe2309db3a31ce56b6ea772bf8950dd3e16cbc8976742f288df86f7d",
+    "stand/efi/loader/boottrace_normal.c": "2bb4a39ec8561fa3b472bb7a0bf1fd324d9d96b06fe585f18cd86f585c0c6678",
+    "stand/efi/loader/boottrace_normal.h": "e9f2bbc27da458c3fec43b78986f4b3a3dc1d5c04c390e0b3c80593dca57492f",
+    "stand/lua/boottrace.lua": "ee377300bbdf6fa4e9c378ed2fb45ea6513823ebf65434593c70a7218baaa767",
+    "tools/daemonarchy/tests/boottrace-normal.c": "7ab548e3c858d3c668816ad416fcad7ee29be8740abe1ee50e93370239bd116e",
+    "tools/daemonarchy/tests/run-boottrace-normal.sh": "2e007e7dd53d0560226b08f31dac76a26960f7311aed741c920f409a2aca3adc",
+    "tools/daemonarchy/tests/loader-normal-trace.lua": "8c54e1aa29f9e46f88081c8e42c47aa221e343e3dc78eec9d7374e0729459a8a",
+    "stand/efi/loader/boottrace_fat.c": "7e130616e2434fbbbe9aac888a81d44e0f72a98dcbb30f3fd25be464edc6edc2",
+    "stand/efi/loader/boottrace_fat.h": "20c443d0cba34a9505cdc2911e5cace673b9f63d82062773209dfc4b584f27f9",
+    "tools/daemonarchy/tests/boottrace-fat.c": "86acb09ab0b744ab7dec6ef3ea318c6442b638ce547a0ba331089aea7f532928"
+  },
+  "retained_files_equal_preimport_candidate": true,
+  "whitespace": "Manual NVMe resolution passes diff --check; unchanged imported upstream vendor fixtures/SQLite/OpenSSH contain pre-existing whitespace, retained verbatim",
+  "remaining": [
+    "Exact native world/kernel/modules/sets builds and ABI/toolchain evidence",
+    "Both architecture native CI and kernel/runtime acceptance",
+    "Ports and Omarchy synchronization including conflict/adaptation review",
+    "Final signed package closure and exact default/install/live desktop media",
+    "All required VM and physical acceptance",
+    "Framework authority, lifecycle locks and admitted receipts"
+  ],
+  "release_qualified": false
+}
