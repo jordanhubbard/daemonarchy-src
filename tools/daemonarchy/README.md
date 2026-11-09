@@ -490,3 +490,19 @@ Cases cover a matching 2048-byte reserve, a 9216-byte reserve beside a
 2048-byte ring, mixed 2048/9216-byte sessions and repeated sessions after a
 refused start. UMA, DMA and ring refill are fixture objects; this is not a
 linked kernel, live driver or jumbo-NIC qualification.
+
+
+## Diagnostic console listener readiness
+
+`debugnet-console.py` reports `Listening for kernel on ADDRESS:PORT` to stderr
+only after its UDP socket binds successfully. Controller tests wait for that
+notification before sending the first datagram. A fixed process-start delay
+cannot establish listener readiness on a loaded worker. Capture stdout and the
+wire protocol retain their previous semantics; failed startup still exits
+without reporting a listener. This explicit diagnostic tool is not started by
+normal installation tracing.
+
+The [readiness checkpoint](../../verification/console-readiness-20261109.json)
+records eleven real UDP/subprocess cases on Linux and native FreeBSD ARM64,
+plus the 128-case Linux controller suite with five explicit native-only skips.
+It retains the earlier CI timeout and the corrected negative-startup fixture.

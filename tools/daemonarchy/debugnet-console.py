@@ -53,7 +53,8 @@ def save_state(path, state):
 
 
 def serve(bind, expected, timeout, capture, *, listener=None, on_admit=None,
-          events=None, state_path=None, resume=False, stage=None, finish_stage=True):
+          events=None, state_path=None, resume=False, stage=None, finish_stage=True,
+          on_listen=None):
     stats = dict.fromkeys(COUNTERS, 0)
     peer = None
     rx_last = 0
@@ -91,6 +92,8 @@ def serve(bind, expected, timeout, capture, *, listener=None, on_admit=None,
             if listener is None:
                 sock.bind((bind, PORT))
             sock.setblocking(False)
+            if on_listen is not None:
+                on_listen(sock.getsockname())
             deadline = time.monotonic() + timeout
             # Pending input is bounded by its own retransmission limit.
             while pending or time.monotonic() < deadline:
@@ -235,7 +238,10 @@ def main():
                 stage = (StageRecorder(a.last_stage, a.boot_id, resume=a.resume)
                          if a.last_stage else None)
                 return serve(a.bind, a.boot_id, a.timeout, capture, events=events,
-                             state_path=a.state, resume=a.resume, stage=stage)
+                             state_path=a.state, resume=a.resume, stage=stage,
+                             on_listen=lambda address: print(
+                                 f'Listening for kernel on {address[0]}:{address[1]}',
+                                 file=sys.stderr, flush=True))
             finally:
                 if events is not None:
                     events.close()

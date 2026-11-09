@@ -2,18 +2,28 @@
 """Exercise the production diagnostic console with real UDP and subprocess IO."""
 import json
 import pathlib
+import select
 import signal
 import socket
 import struct
 import subprocess
 import sys
 import tempfile
-import time
 import unittest
 
 SCRIPT = pathlib.Path(__file__).with_name('debugnet-console.py')
 HDR = struct.Struct('!IIQII')
 ACK = struct.Struct('!I')
+
+
+def wait_for_listener(proc):
+    """The first UDP datagram must follow an actual successful bind."""
+    ready, _, _ = select.select([proc.stderr], [], [], 5)
+    if not ready:
+        raise AssertionError('controller did not report a bound listener')
+    line = proc.stderr.readline()
+    if not line.startswith(b'Listening for kernel on '):
+        raise AssertionError(f'controller failed before listening: {line!r}')
 
 
 class ConsoleTest(unittest.TestCase):
@@ -27,7 +37,7 @@ class ConsoleTest(unittest.TestCase):
                 sock.bind(('127.0.0.1', 0))
                 sock.settimeout(2)
                 dest = ('127.0.0.1', 26003)
-                time.sleep(.1)
+                wait_for_listener(proc)
                 sock.sendto(HDR.pack(1, 1, 0, 16, 0) + b'wrong-boot-id!!', dest)
                 with self.assertRaises(socket.timeout):
                     sock.settimeout(.15)
@@ -92,7 +102,7 @@ class FaultTest(unittest.TestCase):
         self.kernel.close()
         self.tmp.cleanup()
 
-    def start(self, events, timeout=5, resume=False):
+    def start(self, events, timeout=5, resume=False, expect_ready=True):
         args = [sys.executable, str(SCRIPT), '--bind', '127.0.0.1', '--boot-id',
                 BOOT.decode(), '--timeout', str(timeout), '--capture', str(self.capture),
                 '--events', str(self.dir / events), '--state', str(self.state)]
@@ -101,7 +111,8 @@ class FaultTest(unittest.TestCase):
         proc = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)
         self.procs.append(proc)
-        time.sleep(.15)
+        if expect_ready:
+            wait_for_listener(proc)
         return proc
 
     def send(self, kind, seq, payload=b''):
@@ -151,7 +162,7 @@ class FaultTest(unittest.TestCase):
                 '--events', str(self.dir / 'events.jsonl')], stdin=stdin,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.procs.append(proc)
-        time.sleep(.15)
+        wait_for_listener(proc)
         self.admit()
         # Input is sent once admitted; the kernel ring holds it for mountroot.
         self.assertEqual(self.input_packet(), (1, b'?\n'))
@@ -322,7 +333,7 @@ class FaultTest(unittest.TestCase):
             '--last-stage', str(stage_path)], stdin=subprocess.PIPE,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.procs.append(proc)
-        time.sleep(.15)
+        wait_for_listener(proc)
         self.admit()
         self.send(3, 2, b'netdebug-stage: kernel-rootconf boot_id=0123456789abcdef if=vtnet0\n')
         self.expect_ack(2)
@@ -340,12 +351,12 @@ class FaultTest(unittest.TestCase):
         self.state.write_text(json.dumps({'schema': 'daemonarchy-debugnet-console-state@1',
                                           'boot_id': 'another-boot', 'peer': ['127.0.0.1', 1],
                                           'rx_last': 1, 'tx_next': 1}))
-        proc = self.start('events-1.jsonl', resume=True)
+        proc = self.start('events-1.jsonl', resume=True, expect_ready=False)
         proc.wait(timeout=3)
         self.assertEqual(proc.returncode, 1)
         self.assertIn(b'does not match', proc.stderr.read())
         self.state.unlink()
-        proc = self.start('events-2.jsonl', resume=True)
+        proc = self.start('events-2.jsonl', resume=True, expect_ready=False)
         proc.wait(timeout=3)
         self.assertEqual(proc.returncode, 1)
 
