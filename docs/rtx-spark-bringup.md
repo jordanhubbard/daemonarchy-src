@@ -7,7 +7,7 @@ turns the hang and the later panic into a boot on the CPUs that did start and
 records why the others did not. Read with
 `docs/application-note-rtx-spark.md` and `docs/aarch64.md` in the
 `daemonarchy` repository. The hwtrace queues are in
-`docs/rtx-spark-queue6a.txt` and `docs/rtx-spark-queue6b.txt` here.
+[queue 6a](rtx-spark-queue6a.txt) and [queue 6b](rtx-spark-queue6b.txt) here.
 
 ## 1. The reference repository
 
