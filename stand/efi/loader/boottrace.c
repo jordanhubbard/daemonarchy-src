@@ -14,11 +14,13 @@
 #include <sys/daemonarchy_boottrace.h>
 #include <efi.h>
 #include <efilib.h>
+#include <Guid/Acpi.h>
 #include <Protocol/BlockIo.h>
 #include <Protocol/SimpleFileSystem.h>
 
 #include "bootstrap.h"
 #include "boottrace_blk.h"
+#include "boottrace_acpi.h"
 #include "netconsole_report.h"
 
 #define	BT_BUFSIZE	8192
@@ -835,7 +837,7 @@ static struct bt_map bt_mapv;
 static struct bt_blk bt_blkv;
 static bool bt_raw;			/* SLOTS.MAP accepted: raw writes */
 static char bt_mapwhy[96];
-static char bt_checked[64];		/* mapped file compared with FAT */
+static bool bt_slot_checked[BT_MAP_MAX];		/* mapped file compared with FAT */
 static char bt_cmp[4096];
 static bool bt_drop_fat;		/* test: FAT writes are lost */
 
@@ -943,7 +945,7 @@ bt_raw_setup(EFI_HANDLE h, EFI_FILE_PROTOCOL *root, size_t slen,
 	size_t len, n;
 
 	bt_raw = false;
-	bt_checked[0] = '\0';
+	memset(bt_slot_checked, 0, sizeof(bt_slot_checked));
 	memset(&bt_blkv, 0, sizeof(bt_blkv));
 	if (bt_read(root, "\\SLOTS.MAP", &len) != EFI_SUCCESS) {
 		strlcpy(bt_mapwhy, "no SLOTS.MAP (older stick)",
@@ -1008,8 +1010,10 @@ bt_stick_write(EFI_FILE_PROTOCOL *root, const char *path, const char *data,
 
 	e = bt_raw ? bt_map_find(&bt_mapv, path) : NULL;
 	/* First write of a slot this cycle: it must be where the map says. */
-	if (e != NULL && strcmp(bt_checked, path) != 0) {
-		strlcpy(bt_checked, path, sizeof(bt_checked));
+	if (e != NULL && !bt_slot_checked[e - bt_mapv.ent]) {
+		/* A raw-written slot must never be re-compared with the stale
+		 * firmware FAT cache when another slot has been written since. */
+		bt_slot_checked[e - bt_mapv.ent] = true;
 		if (bt_read(root, path, &n) == EFI_SUCCESS) {
 			n = MIN(MIN(n, e->size), sizeof(bt_cmp));
 			if (n == 0 || bt_blk_read(&bt_blkv, e, bt_cmp, n) !=
@@ -1060,6 +1064,116 @@ bt_stop(const char *why)
 	setenv("autoboot_delay", "NO", 1);
 }
 
+/* Only used by the opt-in discovery stick, while Boot Services are valid. */
+struct bt_acpi_context {
+	EFI_FILE_PROTOCOL *root;
+	uint8_t map[131072] __aligned(8);
+	UINTN mapsize, stride;
+	char report[4096];
+	size_t used;
+	bool failed;
+};
+
+static int
+bt_acpi_read(void *arg, uint64_t address, void *out, size_t length)
+{
+	struct bt_acpi_context *ctx = arg;
+	EFI_MEMORY_DESCRIPTOR *md;
+	uint64_t size, delta;
+	UINTN off;
+
+	if (length == 0 || address > UINTPTR_MAX ||
+	    length - 1 > UINTPTR_MAX - address)
+		return (-1);
+	for (off = 0; off < ctx->mapsize; off += ctx->stride) {
+		md = (void *)(ctx->map + off);
+		/* Never dereference MMIO, holes, reserved or read-protected RAM. */
+		if ((md->Type != EfiACPIReclaimMemory &&
+		    md->Type != EfiACPIMemoryNVS &&
+		    md->Type != EfiBootServicesData &&
+		    md->Type != EfiRuntimeServicesData) ||
+		    (md->Attribute & EFI_MEMORY_RP) != 0 ||
+		    md->NumberOfPages > UINT64_MAX / EFI_PAGE_SIZE ||
+		    address < md->PhysicalStart)
+			continue;
+		size = md->NumberOfPages * EFI_PAGE_SIZE;
+		delta = address - md->PhysicalStart;
+		if (delta < size && length <= size - delta) {
+			memcpy(out, (void *)(uintptr_t)address, length);
+			return (0);
+		}
+	}
+	return (-1);
+}
+
+static void
+bt_acpi_emit(void *arg, const char *name, const void *data, size_t length,
+    const char *why)
+{
+	struct bt_acpi_context *ctx = arg;
+	EFI_STATUS status;
+	char path[32];
+	int n;
+
+	snprintf(path, sizeof(path), "\\ACPI\\%s.BIN", name);
+	/* Overwrite old bytes even for missing/rejected tables. Length and hash
+	 * in INDEX.TXT identify the valid prefix of each preallocated file. */
+	status = bt_stick_write(ctx->root, path, data != NULL ? data :
+	    "NOT CAPTURED\n", data != NULL ? length : 13);
+	if (!bt_raw || bt_ldr.verify != DBT_LV_OK ||
+	    status != EFI_SUCCESS || (data == NULL &&
+	    (strcmp(name, "RSDP") == 0 || strcmp(name, "ROOT") == 0 ||
+	    strcmp(name, "APIC") == 0)))
+		ctx->failed = true;
+	n = snprintf(ctx->report + ctx->used, sizeof(ctx->report) - ctx->used,
+	    "%s length=%zu fnv1a=%08x write=%lu %s\n", name, length,
+	    data != NULL ? bt_fnv1a(data, length) : 0,
+	    DECODE_ERROR(status), why != NULL ? why : "captured");
+	if (n > 0)
+		ctx->used += MIN((size_t)n, sizeof(ctx->report) - ctx->used - 1);
+}
+
+static bool
+bt_acpi_collect(EFI_FILE_PROTOCOL *root, unsigned epoch)
+{
+	static struct bt_acpi_context ctx;
+	EFI_GUID guid = EFI_ACPI_20_TABLE_GUID;
+	EFI_STATUS status;
+	UINTN key;
+	UINT32 version;
+	void *address;
+
+	memset(&ctx, 0, sizeof(ctx));
+	ctx.root = root;
+	ctx.used = snprintf(ctx.report, sizeof(ctx.report),
+	    "Daemonarchy loader ACPI capture v1 epoch=%u\n", epoch);
+	/* Invalidate the prior index before touching this snapshot. */
+	if (!bt_raw || bt_stick_write(root, "\\ACPI\\INDEX.TXT",
+	    "INCOMPLETE CAPTURE\n", 19) != EFI_SUCCESS ||
+	    !bt_raw || bt_ldr.verify != DBT_LV_OK)
+		return (false);
+	ctx.mapsize = sizeof(ctx.map);
+	status = BS->GetMemoryMap(&ctx.mapsize, (void *)ctx.map, &key,
+	    &ctx.stride, &version);
+	if (status != EFI_SUCCESS || ctx.stride < sizeof(EFI_MEMORY_DESCRIPTOR) ||
+	    ctx.mapsize > sizeof(ctx.map) || ctx.mapsize % ctx.stride != 0)
+		return (false);
+	address = efi_get_table(&guid);
+	if (address == NULL) {
+		EFI_GUID oldguid = ACPI_TABLE_GUID;
+		address = efi_get_table(&oldguid);
+	}
+	if (bt_acpi_snapshot((uintptr_t)address, bt_acpi_read, bt_acpi_emit,
+	    &ctx) != 0)
+		ctx.failed = true;
+	status = bt_stick_write(root, "\\ACPI\\INDEX.TXT", ctx.report, ctx.used);
+	if (!bt_raw || bt_ldr.verify != DBT_LV_OK || status != EFI_SUCCESS)
+		ctx.failed = true;
+	printf("Hardware trace: loader ACPI capture %s\n",
+	    ctx.failed ? "FAILED; inspect ACPI/INDEX.TXT" : "saved and read back");
+	return (!ctx.failed);
+}
+
 static int
 bt_cycle(void)
 {
@@ -1103,6 +1217,14 @@ bt_cycle(void)
 	epoch = bt_state_get(state, "epoch", val, sizeof(val));
 	pending_n = bt_state_get(state, "pending", pending, sizeof(pending));
 	bt_raw_setup(vol, root, MIN(slen, sizeof(state) - 1), state);
+	if (getenv("boottrace_capture_acpi") != NULL &&
+	    strcmp(getenv("boottrace_capture_acpi"), "YES") == 0 &&
+	    !bt_acpi_collect(root, epoch)) {
+		(void)root->Close(root);
+		bt_stop("Required loader ACPI capture failed; no experiment booted.");
+		return (CMD_OK);
+	}
+
 
 	same = bt_ldr_prev_ok && bt_ldr_prev.epoch == epoch;
 	bt_ldr.epoch = epoch;
@@ -1222,7 +1344,14 @@ bt_cycle(void)
 			    "%u steps\n\n", h->seq, h->status, h->steps);
 			bt_format(false);
 			bt_out_append(&len, "%s", bt_report);
-			complete = h->status == DBT_STATUS_COMPLETE;
+			/*
+			 * Only a queued experiment that reached init ends the
+			 * loop.  A complete trace from a boot outside the queue
+			 * (left in NVRAM by an earlier campaign or a normal
+			 * boot) is filed, and the queue proceeds.
+			 */
+			complete = h->status == DBT_STATUS_COMPLETE &&
+			    pending[0] != '\0';
 		} else
 			bt_out_append(&len, "nvram: %s\n", error == ENOENT ?
 			    "no trace (the kernel never reached EFI runtime "

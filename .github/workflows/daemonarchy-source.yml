@@ -5,6 +5,7 @@ on:
     paths:
       - 'stand/lua/**'
       - 'stand/efi/loader/netconsole*'
+      - 'stand/efi/loader/boottrace*'
       - 'stand/efi/loader/Makefile'
       - 'stand/common/dev_net.c'
       - 'stand/libsa/tftp.c'
@@ -28,6 +29,7 @@ on:
     paths:
       - 'stand/lua/**'
       - 'stand/efi/loader/netconsole*'
+      - 'stand/efi/loader/boottrace*'
       - 'stand/efi/loader/Makefile'
       - 'stand/common/dev_net.c'
       - 'stand/libsa/tftp.c'
@@ -64,6 +66,13 @@ jobs:
             stand/efi/loader/netconsole_undi.c tools/daemonarchy/tests/netconsole-undi.c \
             -o "${{ runner.temp }}/undi-admission"
           "${{ runner.temp }}/undi-admission"
+      - name: Bounded ACPI discovery parser (not firmware execution)
+        run: |
+          clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -fno-omit-frame-pointer -Istand/efi/loader \
+            stand/efi/loader/boottrace_acpi.c tools/daemonarchy/tests/boottrace-acpi.c \
+            -o "${{ runner.temp }}/boottrace-acpi"
+          "${{ runner.temp }}/boottrace-acpi"
       - name: Loader setup interactions (not EFI acceptance)
         run: >-
           python3 tools/daemonarchy/tests/run-loader-debug-setup.py
