@@ -152,6 +152,9 @@ jobs:
           git rev-parse HEAD > _build/earlynet-native/source-commit.txt
           git rev-parse 'HEAD^{tree}' > _build/earlynet-native/source-tree.txt
           sha256sum stand/efi/loader/netconsole*.c stand/efi/loader/netconsole*.h \
+            stand/efi/loader/boottrace*.c stand/efi/loader/boottrace*.h \
+            tools/daemonarchy/tests/boottrace-media.c \
+            tools/daemonarchy/tests/run-boottrace-media.sh \
             stand/lua/netdebug.lua stand/lua/loader.lua stand/lua/menu.lua \
             stand/common/dev_net.c stand/libsa/tftp.c stand/libsa/stand.h \
             stand/efi/loader/main.c \

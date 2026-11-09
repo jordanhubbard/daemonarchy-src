@@ -15,6 +15,8 @@ done < "$out/feature-inputs.sha256"
 df -k . /var/tmp
 sysctl hw.physmem
 test "$(df -k /var/tmp | awk 'NR==2 {print $4}')" -ge 4194304
+sh tools/daemonarchy/tests/run-boottrace-media.sh "$PWD" \
+    "$(mktemp -d /var/tmp/trace-media-parser.XXXXXXXX)" > "$out/trace-media.stdout"
 cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
     -fno-omit-frame-pointer -Istand/efi/loader \
     stand/efi/loader/netconsole_undi.c tools/daemonarchy/tests/netconsole-undi.c \
