@@ -22,6 +22,8 @@ alone does not establish that qualification.
 - [Authority and acceptance map](architecture/design-traceability.md)
 - [Active development queue](roadmap/active-work.md)
 - [Wired UEFI loader console and packet contract](user/loader-network-debug.md)
+- [RTX Spark bring-up and loader topology capture](rtx-spark-bringup.md)
+- [Apple AICv2 preparation and qualification limits](apple-aic2.md)
 
 `PROJECT.md` owns the complete-tree, per-unit pkg, incremental execution and
 installation/recovery requirements. `tools/daemonarchy/README.md` owns the

@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause
+ * SPDX-License-Identifier: BSD-2-Clause AND ISC
  *
  * Copyright (c) 2021 Andrew Turner
  * Copyright (c) 2022 Michael J. Karels <karels@freebsd.org>
@@ -25,6 +25,23 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ */
+
+/*
+ * AICv2 register layout and CPU IRQ routing derived from OpenBSD aplintc.c.
+ * Copyright (c) 2021 Mark Kettenis
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include "opt_platform.h"
@@ -54,6 +71,7 @@
 #include <dt-bindings/interrupt-controller/apple-aic.h>
 
 #include "pic_if.h"
+#include "apple_aic_layout.h"
 
 #define	AIC_INFO		0x0004
 #define  AIC_INFO_NDIE(val)	(((val) >> 24) & 0xf)
@@ -76,10 +94,6 @@
 #define	 AIC_IPI_OTHER		0x00000001
 #define	 AIC_IPI_SELF		0x80000000
 #define	AIC_TARGET_CPU(irq)	(0x3000 + (irq) * 4)
-#define	AIC_SW_SET(irq)		(0x4000 + (((irq) >> 5) * 4))
-#define	AIC_SW_CLEAR(irq)	(0x4080 + (((irq) >> 5) * 4))
-#define	AIC_MASK_SET(irq)	(0x4100 + (((irq) >> 5) * 4))
-#define	AIC_MASK_CLEAR(irq)	(0x4180 + (((irq) >> 5) * 4))
 #define	 AIC_IRQ_MASK(irq)	(1u << ((irq) & 0x1f))
 
 #define AIC_IPI_LOCAL_RR_EL1	s3_5_c15_c0_0
@@ -97,10 +111,19 @@
     (CNTV_CTL_ENABLE | CNTV_CTL_IMASK | CNTV_CTL_ISTATUS)
 
 #define	AIC_MAXCPUS		32
-#define	AIC_MAXDIES		4
+#define	AIC_MAXDIES		APPLE_AIC_MAXDIES
+#define AIC_NFIQS		APPLE_AIC_NFIQS
+
+#define AIC2_INFO3		0x000c
+#define AIC2_CONFIG		0x0014
+#define  AIC2_CONFIG_ENABLE	(1u << 0)
+#define AIC2_EVENT		0xc000
+#define AIC_IRQ_CR_EL1		s3_4_c15_c10_4
+#define  AIC_IRQ_CR_EL1_DISABLE	(3u << 0)
 
 static struct ofw_compat_data compat_data[] = {
 	{ "apple,aic",				1 },
+	{ "apple,aic2",				2 },
 	{ NULL,					0 }
 };
 
@@ -119,6 +142,7 @@ struct apple_aic_irqsrc {
 		enum intr_polarity	ai_pol;
 		enum intr_trigger	ai_trig;
 		u_int			ai_irq;
+		u_int			ai_die;
 	};
 };
 
@@ -129,7 +153,17 @@ struct apple_aic_irqsrc {
 struct apple_aic_softc {
 	device_t		 sc_dev;
 	struct resource		*sc_mem;
+	struct resource		*sc_event_mem;
+	bus_size_t		sc_event_offset;
+	bus_size_t		sc_sw_clear;
+	bus_size_t		sc_mask_set;
+	bus_size_t		sc_mask_clear;
+	bus_size_t		sc_die_stride;
+	u_int			sc_version;
+	u_int			sc_ncells;
+	u_int			sc_boot_cpu;
 	struct apple_aic_irqsrc	*sc_isrcs[AIC_MAXDIES];
+	struct apple_aic_irqsrc	sc_fiqsrcs[AIC_NFIQS];
 	u_int			sc_nirqs;
 	u_int			sc_ndie;
 #ifdef SMP
@@ -140,6 +174,14 @@ struct apple_aic_softc {
 };
 
 static u_int aic_next_cpu;
+
+static bus_size_t
+apple_aic_bank(struct apple_aic_softc *sc, bus_size_t base,
+    struct apple_aic_irqsrc *ai)
+{
+
+	return (base + ai->ai_die * sc->sc_die_stride + (ai->ai_irq >> 5) * 4);
+}
 
 static device_probe_t apple_aic_probe;
 static device_attach_t apple_aic_attach;
@@ -184,10 +226,20 @@ apple_aic_attach(device_t dev)
 	const char *name;
 	intptr_t xref;
 	int error, rid;
-	u_int i, cpu, j, info;
+	struct apple_aic_layout layout;
+	uint32_t cells;
+	u_int i, cpu, j, info, info3;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
+	sc->sc_version = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	if (OF_getencprop(ofw_bus_get_node(dev), "#interrupt-cells", &cells,
+	    sizeof(cells)) != sizeof(cells) ||
+	    (cells != 3 && (cells != 4 || sc->sc_version != 2))) {
+		device_printf(dev, "Invalid interrupt cell count\n");
+		return (EINVAL);
+	}
+	sc->sc_ncells = cells;
 
 	rid = 0;
 	sc->sc_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
@@ -196,10 +248,44 @@ apple_aic_attach(device_t dev)
 		device_printf(dev, "Unable to allocate memory\n");
 		return (ENXIO);
 	}
+	if (rman_get_size(sc->sc_mem) < AIC2_CONFIG + 4)
+		goto invalid_layout;
+	sc->sc_event_mem = sc->sc_mem;
+	sc->sc_event_offset = AIC_EVENT;
+	if (sc->sc_version == 2) {
+		rid = 1;
+		sc->sc_event_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+		    &rid, RF_ACTIVE);
+		sc->sc_event_offset = 0;
+		if (sc->sc_event_mem == NULL) {
+			/* Earlier AICv2 bindings included the event window. */
+			sc->sc_event_mem = sc->sc_mem;
+			sc->sc_event_offset = AIC2_EVENT;
+		}
+	}
+	if (rman_get_size(sc->sc_event_mem) < sc->sc_event_offset + 4)
+		goto invalid_layout;
 
 	info = bus_read_4(sc->sc_mem, AIC_INFO);
-	sc->sc_nirqs = AIC_INFO_NIRQS(info);
-	sc->sc_ndie = AIC_INFO_NDIE(info) + 1;
+	info3 = sc->sc_version == 2 ? bus_read_4(sc->sc_mem, AIC2_INFO3) : 0;
+	if (apple_aic_layout(sc->sc_version, info, info3,
+	    rman_get_size(sc->sc_mem), &layout) != 0)
+		goto invalid_layout;
+	sc->sc_nirqs = layout.nirqs;
+	sc->sc_ndie = layout.ndie;
+	sc->sc_sw_clear = layout.sw_clear;
+	sc->sc_mask_set = layout.mask_set;
+	sc->sc_mask_clear = layout.mask_clear;
+	sc->sc_die_stride = layout.die_stride;
+
+	for (i = 0; i < sc->sc_ndie; i++) {
+		for (j = 0; j < howmany(sc->sc_nirqs, 32); j++) {
+			bus_write_4(sc->sc_mem, sc->sc_mask_set +
+			    i * sc->sc_die_stride + j * 4, UINT32_MAX);
+			bus_write_4(sc->sc_mem, sc->sc_sw_clear +
+			    i * sc->sc_die_stride + j * 4, UINT32_MAX);
+		}
+	}
 	if (bootverbose)
 		device_printf(dev, "Found %d interrupts, %d die\n",
 		    sc->sc_nirqs, sc->sc_ndie);
@@ -217,10 +303,18 @@ apple_aic_attach(device_t dev)
 	    M_DEVBUF, M_WAITOK | M_ZERO);
 
 	cpu = PCPU_GET(cpuid);
-	sc->sc_cpuids[cpu] = bus_read_4(sc->sc_mem, AIC_WHOAMI);
-	if (bootverbose)
-		device_printf(dev, "BSP CPU %d: whoami %x\n", cpu,
-		    sc->sc_cpuids[cpu]);
+	sc->sc_boot_cpu = cpu;
+	if (sc->sc_version == 1) {
+		sc->sc_cpuids[cpu] = bus_read_4(sc->sc_mem, AIC_WHOAMI);
+		if (sc->sc_cpuids[cpu] >= AIC_MAXCPUS)
+			panic("%s: invalid AIC CPU ID", __func__);
+	} else {
+		/* AICv2 has no per-IRQ CPU target registers. */
+		WRITE_SPECIALREG(AIC_IRQ_CR_EL1,
+		    READ_SPECIALREG(AIC_IRQ_CR_EL1) &
+		    ~(uint64_t)AIC_IRQ_CR_EL1_DISABLE);
+		isb();
+	}
 
 	name = device_get_nameunit(dev);
 	for (i = 0; i < sc->sc_ndie; i++) {
@@ -231,8 +325,9 @@ apple_aic_attach(device_t dev)
 			isrc = &die_isrcs[j].ai_isrc;
 			die_isrcs[j].ai_pol = INTR_POLARITY_CONFORM;
 			die_isrcs[j].ai_trig = INTR_TRIGGER_CONFORM;
-			die_isrcs[j].ai_type = AIC_TYPE_INVAL;
+			die_isrcs[j].ai_type = AIC_TYPE_IRQ;
 			die_isrcs[j].ai_irq = j;
+			die_isrcs[j].ai_die = i;
 
 			error = intr_isrc_register(isrc, dev, 0, "%s,d%us%u", name,
 			    i, j);
@@ -242,6 +337,15 @@ apple_aic_attach(device_t dev)
 				return (error);
 			}
 		}
+	}
+	/* FIQ numbers are a separate namespace from hardware IRQs. */
+	for (i = 0; i < AIC_NFIQS; i++) {
+		sc->sc_fiqsrcs[i].ai_type = AIC_TYPE_FIQ;
+		sc->sc_fiqsrcs[i].ai_irq = i;
+		error = intr_isrc_register(&sc->sc_fiqsrcs[i].ai_isrc, dev,
+		    INTR_ISRCF_PPI, "%s,fiq%u", name, i);
+		if (error != 0)
+			return (error);
 	}
 
 	xref = OF_xref_from_node(ofw_bus_get_node(dev));
@@ -274,8 +378,20 @@ apple_aic_attach(device_t dev)
 #endif
 
 	OF_device_register_xref(xref, dev);
+	if (sc->sc_version == 2) {
+		bus_write_4(sc->sc_mem, AIC2_CONFIG,
+		    bus_read_4(sc->sc_mem, AIC2_CONFIG) | AIC2_CONFIG_ENABLE);
+		bus_barrier(sc->sc_mem, AIC2_CONFIG, 4, BUS_SPACE_BARRIER_WRITE);
+	}
 
 	return (0);
+
+invalid_layout:
+	device_printf(dev, "Invalid AIC register layout or interrupt limits\n");
+	if (sc->sc_event_mem != NULL && sc->sc_event_mem != sc->sc_mem)
+		bus_release_resource(dev, SYS_RES_MEMORY, 1, sc->sc_event_mem);
+	bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem);
+	return (EINVAL);
 }
 
 static int
@@ -283,18 +399,24 @@ apple_aic_map_intr_fdt(struct apple_aic_softc *sc,
     struct intr_map_data_fdt *data, u_int *irq, enum apple_aic_irq_type *typep,
     enum intr_polarity *polp, enum intr_trigger *trigp, u_int *die)
 {
-	if (data->ncells != 3)
+	struct apple_aic_layout layout;
+	u_int flags;
+
+	if (data->ncells != sc->sc_ncells)
 		return (EINVAL);
 
-	/* XXX AIC2 */
-	*die = 0;
+	layout.nirqs = sc->sc_nirqs;
+	layout.ndie = sc->sc_ndie;
+	if (apple_aic_decode(&layout, data->ncells, data->cells, die, irq) != 0)
+		return (EINVAL);
+	flags = data->cells[data->ncells - 1];
 
 	/*
 	 * The first cell is the interrupt type:
 	 *   0 = IRQ
 	 *   1 = FIQ
-	 * The second cell is the interrupt number
-	 * The third cell is the flags
+	 * Four-cell bindings insert a die number after the type.
+	 * The final two cells are the interrupt number and flags.
 	 */
 	switch(data->cells[0]) {
 	case 0:
@@ -309,18 +431,14 @@ apple_aic_map_intr_fdt(struct apple_aic_softc *sc,
 		return (EINVAL);
 	}
 
-	*irq = data->cells[1];
-	if (*irq > sc->sc_nirqs)
-		return (EINVAL);
-
 	if (trigp != NULL) {
-		if ((data->cells[2] & FDT_INTR_EDGE_MASK) != 0)
+		if ((flags & FDT_INTR_EDGE_MASK) != 0)
 			*trigp = INTR_TRIGGER_EDGE;
 		else
 			*trigp = INTR_TRIGGER_LEVEL;
 	}
 	if (polp != NULL) {
-		if ((data->cells[2] & FDT_INTR_LEVEL_HIGH) != 0)
+		if ((flags & FDT_INTR_LEVEL_HIGH) != 0)
 			*polp = INTR_POLARITY_HIGH;
 		else
 			*polp = INTR_POLARITY_LOW;
@@ -334,6 +452,7 @@ apple_aic_map_intr(device_t dev, struct intr_map_data *data,
     struct intr_irqsrc **isrcp)
 {
 	struct apple_aic_softc *sc;
+	enum apple_aic_irq_type type;
 	int error;
 	u_int irq;
 	u_int die;
@@ -344,10 +463,14 @@ apple_aic_map_intr(device_t dev, struct intr_map_data *data,
 	switch(data->type) {
 	case INTR_MAP_DATA_FDT:
 		error = apple_aic_map_intr_fdt(sc,
-		    (struct intr_map_data_fdt *)data, &irq, NULL, NULL, NULL,
+		    (struct intr_map_data_fdt *)data, &irq, &type, NULL, NULL,
 		    &die);
-		if (error == 0)
-			*isrcp = &sc->sc_isrcs[0 /* XXX */][irq].ai_isrc;
+		if (error == 0) {
+			if (type == AIC_TYPE_FIQ)
+				*isrcp = &sc->sc_fiqsrcs[irq].ai_isrc;
+			else
+				*isrcp = &sc->sc_isrcs[die][irq].ai_isrc;
+		}
 		break;
 	default:
 		return (ENOTSUP);
@@ -381,9 +504,14 @@ apple_aic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 		if (error != 0)
 			return (error);
 	} else {
+		irq = ai->ai_irq;
+		die = ai->ai_die;
+		type = ai->ai_type;
 		pol = INTR_POLARITY_CONFORM;
 		trig = INTR_TRIGGER_CONFORM;
 	}
+	if (irq != ai->ai_irq || die != ai->ai_die || type != ai->ai_type)
+		return (EINVAL);
 
 	if (isrc->isrc_handlers != 0) {
 		/* TODO */
@@ -404,10 +532,13 @@ apple_aic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 	 */
 	switch (type) {
 	case AIC_TYPE_IRQ:
-		/* XXX die sensitive? */
-		aic_next_cpu = intr_irq_next_cpu(aic_next_cpu, &all_cpus);
-		bus_write_4(sc->sc_mem, AIC_TARGET_CPU(irq),
-		    1 << sc->sc_cpuids[aic_next_cpu]);
+		if (sc->sc_version == 1) {
+			aic_next_cpu = intr_irq_next_cpu(aic_next_cpu, &all_cpus);
+			bus_write_4(sc->sc_mem, AIC_TARGET_CPU(irq),
+			    1u << sc->sc_cpuids[aic_next_cpu]);
+		} else {
+			CPU_SETOF(sc->sc_boot_cpu, &isrc->isrc_cpu);
+		}
 		break;
 	case AIC_TYPE_FIQ:
 		isrc->isrc_flags |= INTR_ISRCF_PPI;
@@ -438,7 +569,8 @@ apple_aic_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 	switch(ai->ai_type) {
 	case AIC_TYPE_IRQ:
 		sc = device_get_softc(dev);
-		bus_write_4(sc->sc_mem, AIC_MASK_CLEAR(irq), AIC_IRQ_MASK(irq));
+		bus_write_4(sc->sc_mem,
+		    apple_aic_bank(sc, sc->sc_mask_clear, ai), AIC_IRQ_MASK(irq));
 		break;
 	case AIC_TYPE_IPI:
 		/* Nothing needed here. */
@@ -463,7 +595,8 @@ apple_aic_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 	switch(ai->ai_type) {
 	case AIC_TYPE_IRQ:
 		sc = device_get_softc(dev);
-		bus_write_4(sc->sc_mem, AIC_MASK_SET(irq), AIC_IRQ_MASK(irq));
+		bus_write_4(sc->sc_mem,
+		    apple_aic_bank(sc, sc->sc_mask_set, ai), AIC_IRQ_MASK(irq));
 		break;
 	case AIC_TYPE_IPI:
 		/* Nothing needed here. */
@@ -488,8 +621,10 @@ apple_aic_post_filter(device_t dev, struct intr_irqsrc *isrc)
 	switch(ai->ai_type) {
 	case AIC_TYPE_IRQ:
 		sc = device_get_softc(dev);
-		bus_write_4(sc->sc_mem, AIC_SW_CLEAR(irq), AIC_IRQ_MASK(irq));
-		bus_write_4(sc->sc_mem, AIC_MASK_CLEAR(irq), AIC_IRQ_MASK(irq));
+		bus_write_4(sc->sc_mem,
+		    apple_aic_bank(sc, sc->sc_sw_clear, ai), AIC_IRQ_MASK(irq));
+		bus_write_4(sc->sc_mem,
+		    apple_aic_bank(sc, sc->sc_mask_clear, ai), AIC_IRQ_MASK(irq));
 		break;
 	case AIC_TYPE_FIQ:
 		/* TODO */
@@ -509,7 +644,9 @@ apple_aic_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
 	ai = (struct apple_aic_irqsrc *)isrc;
 	sc = device_get_softc(dev);
 	irq = ai->ai_irq;
-	bus_write_4(sc->sc_mem, AIC_SW_CLEAR(irq), AIC_IRQ_MASK(irq));
+	if (ai->ai_type == AIC_TYPE_IRQ)
+		bus_write_4(sc->sc_mem,
+		    apple_aic_bank(sc, sc->sc_sw_clear, ai), AIC_IRQ_MASK(irq));
 	apple_aic_disable_intr(dev, isrc);
 	/* ACK IT */
 }
@@ -517,15 +654,7 @@ apple_aic_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
 static void
 apple_aic_post_ithread(device_t dev, struct intr_irqsrc *isrc)
 {
-	struct apple_aic_softc *sc;
-	struct apple_aic_irqsrc *ai;
-	int irq;
 
-	ai = (struct apple_aic_irqsrc *)isrc;
-	sc = device_get_softc(dev);
-	irq = ai->ai_irq;
-
-	bus_write_4(sc->sc_mem, AIC_MASK_CLEAR(irq), AIC_IRQ_MASK(irq));
 	apple_aic_enable_intr(dev, isrc);
 }
 
@@ -561,7 +690,7 @@ apple_aic_irq(void *arg)
 	sc = arg;
 	tf = curthread->td_intr_frame;
 
-	event = bus_read_4(sc->sc_mem, AIC_EVENT);
+	event = bus_read_4(sc->sc_event_mem, sc->sc_event_offset);
 	type = AIC_EVENT_TYPE(event);
 
 	/* If we get an IPI here, we really goofed. */
@@ -615,7 +744,7 @@ apple_aic_fiq(void *arg)
 	 * of IPI handling, so we have to probe around outside of AIC to
 	 * determine if we might have been fired off due to a timer.
 	 */
-	isrcs = sc->sc_isrcs[0];
+	isrcs = sc->sc_fiqsrcs;
 	if ((READ_SPECIALREG(cntv_ctl_el0) & CNTV_CTL_BITS) ==
 	    (CNTV_CTL_ENABLE | CNTV_CTL_ISTATUS)) {
 		intr_isrc_dispatch(&isrcs[AIC_TMR_GUEST_VIRT].ai_isrc, tf);
@@ -652,15 +781,22 @@ apple_aic_bind_intr(device_t dev, struct intr_irqsrc *isrc)
 	u_int irq, cpu;
 
 	MPASS(((struct apple_aic_irqsrc *)isrc)->ai_type == AIC_TYPE_IRQ);
+	if (sc->sc_version == 2) {
+		if (!CPU_EMPTY(&isrc->isrc_cpu) &&
+		    !CPU_ISSET(sc->sc_boot_cpu, &isrc->isrc_cpu))
+			return (EOPNOTSUPP);
+		CPU_SETOF(sc->sc_boot_cpu, &isrc->isrc_cpu);
+		return (0);
+	}
 	irq = ((struct apple_aic_irqsrc *)isrc)->ai_irq;
 	if (CPU_EMPTY(&isrc->isrc_cpu)) {
 		aic_next_cpu = intr_irq_next_cpu(aic_next_cpu, &all_cpus);
 		CPU_SETOF(aic_next_cpu, &isrc->isrc_cpu);
 		bus_write_4(sc->sc_mem, AIC_TARGET_CPU(irq),
-		    sc->sc_cpuids[aic_next_cpu] << 1);
+		    1u << sc->sc_cpuids[aic_next_cpu]);
 	} else {
 		CPU_FOREACH_ISSET(cpu, &isrc->isrc_cpu) {
-			targets |= sc->sc_cpuids[cpu] << 1;
+			targets |= 1u << sc->sc_cpuids[cpu];
 		}
 		bus_write_4(sc->sc_mem, AIC_TARGET_CPU(irq), targets);
 	}
@@ -735,8 +871,17 @@ apple_aic_init_secondary(device_t dev, uint32_t rootnum)
 	/* We don't need to re-initialize for the FIQ root. */
 	if (rootnum != INTR_ROOT_IRQ)
 		return;
+	if (sc->sc_version == 2) {
+		/* Leave external IRQs on the boot CPU; FIQs/IPIs remain per-CPU. */
+		WRITE_SPECIALREG(AIC_IRQ_CR_EL1,
+		    READ_SPECIALREG(AIC_IRQ_CR_EL1) | AIC_IRQ_CR_EL1_DISABLE);
+		isb();
+		return;
+	}
 
 	sc->sc_cpuids[cpu] = bus_read_4(sc->sc_mem, AIC_WHOAMI);
+	if (sc->sc_cpuids[cpu] >= AIC_MAXCPUS)
+		panic("%s: invalid AIC CPU ID", __func__);
 	if (bootverbose)
 		device_printf(dev, "CPU %d: whoami %x\n", cpu,
 		    sc->sc_cpuids[cpu]);
