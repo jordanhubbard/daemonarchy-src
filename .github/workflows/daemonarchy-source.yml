@@ -73,6 +73,10 @@ jobs:
             stand/efi/loader/boottrace_acpi.c tools/daemonarchy/tests/boottrace-acpi.c \
             -o "${{ runner.temp }}/boottrace-acpi"
           "${{ runner.temp }}/boottrace-acpi"
+      - name: Installation trace boot-medium paths (not EFI acceptance)
+        run: >-
+          sh tools/daemonarchy/tests/run-boottrace-media.sh
+          "$PWD" "${{ runner.temp }}"
       - name: Loader setup interactions (not EFI acceptance)
         run: >-
           python3 tools/daemonarchy/tests/run-loader-debug-setup.py

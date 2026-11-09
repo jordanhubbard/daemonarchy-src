@@ -21,6 +21,7 @@
 #include "bootstrap.h"
 #include "boottrace_blk.h"
 #include "boottrace_acpi.h"
+#include "boottrace_media.h"
 #include "netconsole_report.h"
 
 #define	BT_BUFSIZE	8192
@@ -39,6 +40,7 @@ static size_t bt_report_len;
 
 static int bt_startup(unsigned);
 static int bt_cycle(void);
+static int bt_media_discover(void);
 
 static void
 bt_ring_name(char *name, size_t len, unsigned slot)
@@ -377,6 +379,8 @@ command_boottrace(int argc, char *argv[])
 		return (bt_startup(argc == 3 ? strtoul(argv[2], NULL, 10) : 60));
 	if (strcmp(verb, "cycle") == 0)
 		return (bt_cycle());
+	if (strcmp(verb, "media") == 0)
+		return (bt_media_discover());
 	if (strcmp(verb, "clear") == 0) {
 		EFI_STATUS status = bt_delvars();
 
@@ -426,7 +430,7 @@ command_boottrace(int argc, char *argv[])
 	bt_print();
 	return (CMD_OK);
 usage:
-	command_errmsg = "usage: boottrace [show|summary|report|save|clear|cycle|startup [SECONDS]]";
+	command_errmsg = "usage: boottrace [show|summary|report|save|clear|cycle|media|startup [SECONDS]]";
 	return (CMD_ERROR);
 }
 COMMAND_SET(boottrace, "boottrace",
@@ -690,6 +694,119 @@ bt_volume(EFI_HANDLE *handlep)
 		free(handles);
 	}
 	return (NULL);
+}
+
+/* Firmware owns the protocol buffer. Bound walking independently of its
+ * advertised node lengths; never follow instances or probe other devices. */
+static int
+bt_media_handle(EFI_HANDLE handle, struct bt_media_path *result)
+{
+	EFI_DEVICE_PATH *path;
+	const unsigned char *p;
+	size_t off = 0, len;
+	unsigned nodes;
+
+	path = efi_lookup_devpath(handle);
+	if (path == NULL)
+		return (-1);
+	p = (const unsigned char *)path;
+	for (nodes = 0; nodes < BT_MEDIA_NODES_MAX; nodes++) {
+		if (off > BT_MEDIA_PATH_MAX - 4)
+			return (-1);
+		len = p[off + 2] | (size_t)p[off + 3] << 8;
+		if (len < 4 || len > BT_MEDIA_PATH_MAX - off)
+			return (-1);
+		if (p[off] == 0x7f)
+			return (bt_media_parse(p, off + len, result));
+		off += len;
+	}
+	return (-1);
+}
+
+/* This read-only discovery command is the normal-capture prerequisite, not
+ * the experiment workflow. No STATE/QUEUE/NVRAM writes or ConnectController. */
+static int
+bt_media_discover(void)
+{
+	EFI_GUID image_guid = LOADED_IMAGE_PROTOCOL;
+	EFI_GUID fs_guid = EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID;
+	EFI_GUID blk_guid = BLOCK_IO_PROTOCOL;
+	EFI_LOADED_IMAGE *image;
+	EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *fs;
+	EFI_BLOCK_IO_PROTOCOL *block;
+	EFI_FILE_PROTOCOL *root;
+	EFI_HANDLE *handles;
+	struct bt_media_path boot, candidate, selected;
+	UINTN size = 0, i;
+	unsigned count = 0;
+	size_t taglen;
+	bool readonly = false;
+	char uuid[40];
+	const char *status = "unbound";
+
+	unsetenv("daemonarchy.trace.partition");
+	unsetenv("daemonarchy.trace.status");
+	if (BS->HandleProtocol(IH, &image_guid, (void **)&image) !=
+	    EFI_SUCCESS || image == NULL ||
+	    bt_media_handle(image->DeviceHandle, &boot) != 0)
+		goto done;
+	status = "unavailable";
+	if (BS->LocateHandle(ByProtocol, &fs_guid, NULL, &size, NULL) !=
+	    EFI_BUFFER_TOO_SMALL || size == 0 || size > 65536)
+		goto done;
+	handles = malloc(size);
+	if (handles == NULL)
+		goto done;
+	if (BS->LocateHandle(ByProtocol, &fs_guid, NULL, &size, handles) !=
+	    EFI_SUCCESS) {
+		free(handles);
+		goto done;
+	}
+	status = "notfound";
+	for (i = 0; i < size / sizeof(*handles); i++) {
+		if (bt_media_handle(handles[i], &candidate) != 0 ||
+		    !bt_media_sibling(&boot, &candidate) ||
+		    BS->HandleProtocol(handles[i], &blk_guid,
+		    (void **)&block) != EFI_SUCCESS || block == NULL ||
+		    block->Media == NULL || !block->Media->MediaPresent ||
+		    !block->Media->LogicalPartition ||
+		    BS->HandleProtocol(handles[i], &fs_guid,
+		    (void **)&fs) != EFI_SUCCESS || fs == NULL ||
+		    fs->OpenVolume(fs, &root) != EFI_SUCCESS || root == NULL)
+			continue;
+		if (bt_read(root, "\\DATRACE.TAG", &taglen) == EFI_SUCCESS &&
+		    taglen == sizeof(BT_TAG) &&
+		    memcmp(bt_file, BT_TAG "\n", taglen) == 0) {
+			selected = candidate;
+			readonly = block->Media->ReadOnly;
+			count++;
+		}
+		(void)root->Close(root);
+	}
+	free(handles);
+	if (count > 1)
+		status = "ambiguous";
+	else if (count == 1 && readonly)
+		status = "readonly";
+	else if (count == 1) {
+		const unsigned char *g = selected.guid;
+
+		snprintf(uuid, sizeof(uuid),
+		    "%02x%02x%02x%02x-%02x%02x-%02x%02x-"
+		    "%02x%02x-%02x%02x%02x%02x%02x%02x",
+		    g[3], g[2], g[1], g[0], g[5], g[4], g[7], g[6],
+		    g[8], g[9], g[10], g[11], g[12], g[13], g[14], g[15]);
+		if (setenv("daemonarchy.trace.partition", uuid, 1) == 0)
+			status = "ready";
+		else
+			status = "unavailable";
+	}
+done:
+	setenv("daemonarchy.trace.status", status, 1);
+	printf("Installation trace media: %s%s%s\n", status,
+	    strcmp(status, "ready") == 0 ? " gptid/" : "",
+	    strcmp(status, "ready") == 0 ? uuid : "");
+	return (CMD_OK);
 }
 
 static unsigned
