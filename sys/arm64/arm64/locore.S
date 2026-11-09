@@ -70,6 +70,13 @@
 #define	L3_PAGE_COUNT	1
 #endif
 
+/* Initial 4K-page mappings cover the kernel and up to 16GiB of preloads. */
+#if PAGE_SIZE == PAGE_SIZE_4K
+#define	BOOT_L2_TABLES	16
+#else
+#define	BOOT_L2_TABLES	1
+#endif
+
 /*
  * The size of our bootstrap stack.
  */
@@ -571,13 +578,12 @@ LEND(get_load_phys_addr)
  *
  * It relys on:
  *  We were loaded to an address that is on a 2MiB boundary
- *  All the memory must not cross a 1GiB boundaty
+ *  The early identity-mapped entry code must not cross a 1GiB boundary
  *  x28 contains the physical address we were loaded from
  *
- *  There are 7 or 8 pages before that address for the page tables
- *   The pages used are:
+ *  The .init_pagetable area provides:
  *    - The Kernel L3 tables (only for 16k kernel)
- *    - The Kernel L2 table
+ *    - The Kernel L2 tables
  *    - The Kernel L1 table
  *    - The Kernel L0 table             (TTBR1)
  *    - The identity (PA = VA) L2 table
@@ -711,6 +717,14 @@ common:
 
 	/* Get the number of blocks/pages to allocate, rounded down */
 	lsr	x14, x8, #(PTE_SHIFT)
+	/* Never let a preload span overwrite the following page tables. */
+#if PAGE_SIZE == PAGE_SIZE_4K
+	mov	x7, #(BOOT_L2_TABLES * Ln_ENTRIES)
+#else
+	mov	x7, #(L3_PAGE_COUNT * Ln_ENTRIES)
+#endif
+	cmp	x14, x7
+	b.hi	bootstrap_map_too_large
 
 	ldr	x26, =etext
 #if PAGE_SIZE != PAGE_SIZE_4K
@@ -791,11 +805,26 @@ common:
 	bl	link_l2_pagetable
 #endif
 
-	/* Link the l1 -> l2 table */
+	/* Link every L2 page used by the kernel and preloaded files. */
 	mov	x9, x6
 	adrp	x6, pagetable_l1_ttbr1
 	add	x6, x6, :lo12:pagetable_l1_ttbr1
+#if PAGE_SIZE == PAGE_SIZE_4K
+	add	x17, x14, #(Ln_ENTRIES - 1)
+	lsr	x17, x17, #Ln_ENTRIES_SHIFT
+	mov	x16, x9
+	mov	x8, #(KERNBASE)
+1:
+	mov	x9, x16
 	bl	link_l1_pagetable
+	add	x16, x16, #PAGE_SIZE
+	mov	x9, #L1_SIZE
+	add	x8, x8, x9
+	subs	x17, x17, #1
+	b.ne	1b
+#else
+	bl	link_l1_pagetable
+#endif
 
 	/* Link the l0 -> l1 table */
 	mov	x9, x6
@@ -1197,6 +1226,12 @@ ENTRY(abort)
 	b abort
 END(abort)
 
+/* No console exists yet; retain a distinct PC for oversized boot metadata. */
+LENTRY(bootstrap_map_too_large)
+	wfe
+	b	bootstrap_map_too_large
+LEND(bootstrap_map_too_large)
+
 .bss
 	.align	PAGE_SHIFT
 	.globl	initstack_end
@@ -1207,8 +1242,9 @@ initstack_end:
 	.section .init_pagetable, "aw", %nobits
 	.align PAGE_SHIFT
 	/*
-	 * 6 initial tables (in the following order):
-	 *           L2 for kernel (High addresses)
+	 * Initial tables (in the following order):
+	 *           L3 for kernel permissions (or the 16k-page kernel map)
+	 *           BOOT_L2_TABLES L2 pages for kernel/preloads (High addresses)
 	 *           L1 for kernel
 	 *           L0 for kernel
 	 *           L1 bootstrap for user   (Low addresses)
@@ -1221,7 +1257,7 @@ pagetable:
 pagetable_l3_ttbr1:
 	.space	(PAGE_SIZE * L3_PAGE_COUNT)
 pagetable_l2_ttbr1:
-	.space	PAGE_SIZE
+	.space	(PAGE_SIZE * BOOT_L2_TABLES)
 pagetable_l1_ttbr1:
 	.space	PAGE_SIZE
 pagetable_l0_ttbr1:
