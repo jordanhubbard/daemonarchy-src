@@ -77,6 +77,10 @@ jobs:
         run: >-
           sh tools/daemonarchy/tests/run-boottrace-media.sh
           "$PWD" "${{ runner.temp }}"
+      - name: Normal boot trace record policy (not EFI acceptance)
+        run: >-
+          sh tools/daemonarchy/tests/run-boottrace-normal.sh
+          "$PWD" "${{ runner.temp }}"
       - name: Loader setup interactions (not EFI acceptance)
         run: >-
           python3 tools/daemonarchy/tests/run-loader-debug-setup.py
@@ -155,6 +159,10 @@ jobs:
             stand/efi/loader/boottrace*.c stand/efi/loader/boottrace*.h \
             tools/daemonarchy/tests/boottrace-media.c \
             tools/daemonarchy/tests/run-boottrace-media.sh \
+            tools/daemonarchy/tests/boottrace-normal.c \
+            tools/daemonarchy/tests/boottrace-fat.c \
+            tools/daemonarchy/tests/run-boottrace-normal.sh \
+            tools/daemonarchy/tests/loader-normal-trace.lua stand/lua/boottrace.lua \
             stand/lua/netdebug.lua stand/lua/loader.lua stand/lua/menu.lua \
             stand/common/dev_net.c stand/libsa/tftp.c stand/libsa/stand.h \
             stand/efi/loader/main.c \

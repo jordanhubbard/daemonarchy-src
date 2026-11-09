@@ -17,6 +17,8 @@ sysctl hw.physmem
 test "$(df -k /var/tmp | awk 'NR==2 {print $4}')" -ge 4194304
 sh tools/daemonarchy/tests/run-boottrace-media.sh "$PWD" \
     "$(mktemp -d /var/tmp/trace-media-parser.XXXXXXXX)" > "$out/trace-media.stdout"
+sh tools/daemonarchy/tests/run-boottrace-normal.sh "$PWD" \
+    "$(mktemp -d /var/tmp/normal-trace-policy.XXXXXXXX)" > "$out/normal-trace.stdout"
 cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
     -fno-omit-frame-pointer -Istand/efi/loader \
     stand/efi/loader/netconsole_undi.c tools/daemonarchy/tests/netconsole-undi.c \
@@ -36,6 +38,8 @@ ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 \
     > "$out/setup.stdout"
 /usr/libexec/flua tools/daemonarchy/tests/loader-staged-lua.lua "$PWD" \
     > "$out/staged-lua.stdout"
+/usr/libexec/flua tools/daemonarchy/tests/loader-normal-trace.lua "$PWD" \
+    > "$out/normal-trace-lua.stdout"
 # The early kernel transport builds as a module with the same sources the
 # DAEMONARCHY_DIAGNOSTIC kernel compiles; this is a compile check, not a boot.
 module_objects=$(mktemp -d /var/tmp/earlynet-module-objects.XXXXXXXX)

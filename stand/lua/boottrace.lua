@@ -123,6 +123,11 @@ end
 
 -- Called by loader.lua after loader.conf is read.
 function boottrace.startup()
+	-- Normal media observes startup and never consumes an experiment queue.
+	if loader.getenv("daemonarchy.trace.enable") == "YES" then
+		loader.perform("boottrace observe")
+		return nil
+	end
 	-- The unattended cycle belongs to the hardware trace image only.
 	if loader.getenv("boottrace_autocycle") == "YES" and
 	    loader.getenv("boottrace_stick") == "YES" then
