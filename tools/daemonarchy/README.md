@@ -5,7 +5,8 @@ identical to the selected upstream tip. Work on review branches; record each
 upstream base and submit generally applicable changes to FreeBSD separately.
 The build controller lives here to remain versioned with the source it builds.
 
-The initial target is native FreeBSD amd64. Linux/macOS can run controller tests
+The controller selects native FreeBSD amd64 (the default) or arm64 explicitly.
+Each target requires its matching native worker for execution. Linux/macOS can run controller tests
 and inspect plans; upstream cross-build support does not qualify native pkgbase,
 installer sets, VM boot or hardware acceptance. These commands do not invoke a
 Literate AI lifecycle or issue its acceptance receipt. Daemonarchy's retained
@@ -121,6 +122,27 @@ python3.12 tools/daemonarchy/build.py run \
   --revision <full-reviewed-source-commit> \
   --output "$HOME/daemonarchy-builds/baseline-<commit>" --jobs 8
 ```
+
+For an allocated ARM64 worker, select the FreeBSD target explicitly on both
+plan and run (and every resume):
+
+```sh
+python3.12 tools/daemonarchy/build.py plan --target arm64 \
+  --revision <full-reviewed-source-commit> \
+  --output "$HOME/daemonarchy-builds/arm64-<commit>" --jobs 4
+python3.12 tools/daemonarchy/build.py run --target arm64 \
+  --revision <full-reviewed-source-commit> \
+  --output "$HOME/daemonarchy-builds/arm64-<commit>" --jobs 4
+```
+
+This binds `TARGET=arm64`, `TARGET_ARCH=aarch64` and the ARM64 kernel configuration
+into the plan and every phase. An amd64 host cannot execute an ARM plan, or vice
+versa. Existing amd64 plan identities retain their default target. The baseline
+ARM64 profile is GENERIC; a missing architecture-specific diagnostic configuration
+is refused before execution, without substituting another profile. Keep the
+complete world and installer sets, including upstream's clang ARM32 compatibility
+libraries; architecture selection does not authorize trimming them. Controller
+support alone does not establish a completed native build or release acceptance.
 
 The phases are `buildworld`, `buildkernel`, `packages`, `release-obj`, `sets`.
 The native upstream `make packages` builds pkgbase packages for world, kernel and

@@ -25,6 +25,10 @@ SOURCE = Path(__file__).resolve().parents[2]
 PHASES = ("buildworld", "buildkernel", "packages", "release-obj", "sets")
 PATH = "/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin"
 SCHEMA = "daemonarchy/source-build-plan@1"
+TARGETS = {
+    "amd64": ("amd64", ("amd64", "x86_64")),
+    "arm64": ("aarch64", ("arm64", "aarch64")),
+}
 TRACE_FILE_LIMIT = 64 * 1024**2
 TRACE_CHUNK_SIZE = 1024**2
 TRACE_TOTAL_LIMIT = 16 * 1024**3
@@ -71,7 +75,10 @@ def safe_path(value):
     return path
 
 
-def make_plan(revision, output, profile, jobs, trace_mode="off"):
+def make_plan(revision, output, profile, jobs, trace_mode="off", target="amd64"):
+    if target not in TARGETS:
+        raise ValueError("unsupported native target")
+    target_arch = TARGETS[target][0]
     clean_revision(revision)
     root = safe_path(output)
     safe_path(str(SOURCE))
@@ -83,7 +90,9 @@ def make_plan(revision, output, profile, jobs, trace_mode="off"):
         raise ValueError("unsupported native trace mode")
     kernel = {"baseline": "GENERIC", "diagnostic": "DAEMONARCHY_DIAGNOSTIC"}[profile]
     config = SOURCE / "tools/daemonarchy/src.conf"
-    kernel_config = SOURCE / "sys/amd64/conf" / kernel
+    kernel_config = SOURCE / "sys" / target / "conf" / kernel
+    if not kernel_config.is_file():
+        raise ValueError(f"{target} kernel profile {kernel} is not available")
     version_text = (SOURCE / "sys/conf/newvers.sh").read_text()
     match = re.search(r'^REVISION="([0-9.]+)"', version_text, re.M)
     if not match:
@@ -95,7 +104,7 @@ def make_plan(revision, output, profile, jobs, trace_mode="off"):
     if trace_mode == "filemon":
         version += ".filemon"
     common = [
-        "TARGET=amd64", "TARGET_ARCH=amd64", f"KERNCONF={kernel}",
+        f"TARGET={target}", f"TARGET_ARCH={target_arch}", f"KERNCONF={kernel}",
         "__MAKE_CONF=/dev/null", "SRC_ENV_CONF=/dev/null", f"SRCCONF={config}",
         "NO_ROOT=yes", "DB_FROM_SRC=yes", "WITHOUT_LOCAL_MODULES=yes",
         f"REPODIR={root / 'repo'}", f"PKG_VERSION={version}",
@@ -125,7 +134,7 @@ def make_plan(revision, output, profile, jobs, trace_mode="off"):
         "upstream_repository": "https://github.com/freebsd/freebsd-src",
         "upstream_base": git("merge-base", revision, "refs/remotes/upstream/main"),
         "profile": profile, "kernel": kernel, "package_version": version,
-        "target": "amd64", "target_arch": "amd64", "jobs": jobs, "output": str(root),
+        "target": target, "target_arch": target_arch, "jobs": jobs, "output": str(root),
         "configurations": {str(p.relative_to(SOURCE)): digest(p) for p in (config, kernel_config)},
         "environment": {"PATH": PATH, "MAKEOBJDIRPREFIX": str(root / "obj"),
                         "HOME": str(root / "home"), "TMPDIR": str(root / "tmp"),
@@ -149,9 +158,11 @@ def write_json(path, value):
     temporary.replace(path)
 
 
-def native_preflight(root, jobs, minimum_free_gib, trace_mode="off"):
-    if platform.system() != "FreeBSD" or platform.machine() not in ("amd64", "x86_64"):
-        raise ValueError("execution requires a native amd64 FreeBSD worker; plan works on other hosts")
+def native_preflight(root, jobs, minimum_free_gib, trace_mode="off", target="amd64"):
+    if target not in TARGETS:
+        raise ValueError("unsupported native target")
+    if platform.system() != "FreeBSD" or platform.machine() not in TARGETS[target][1]:
+        raise ValueError(f"execution requires a native {target} FreeBSD worker; plan works on other hosts")
     if os.geteuid() == 0:
         raise ValueError("use an unprivileged build account")
     if trace_mode == "filemon":
@@ -429,12 +440,12 @@ def run(plan, args):
     else:
         if not root.parent.is_dir():
             raise ValueError("output parent must already exist")
-        native_preflight(root.parent, args.jobs, args.minimum_free_gib, plan.get("trace_mode", "off"))
+        native_preflight(root.parent, args.jobs, args.minimum_free_gib, plan.get("trace_mode", "off"), plan["target"])
         root.mkdir()  # Exclusive; never overwrite or clean an existing build.
         write_json(root / "plan.json", plan)
     with (root / "build.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        native_preflight(root, args.jobs, args.minimum_free_gib, plan.get("trace_mode", "off"))
+        native_preflight(root, args.jobs, args.minimum_free_gib, plan.get("trace_mode", "off"), plan["target"])
         for name in ("obj", "repo", "home", "tmp", "logs"):
             (root / name).mkdir(exist_ok=True)
         state_path = root / "result.json"
@@ -465,7 +476,7 @@ def run(plan, args):
         for phase in PHASES:
             clean_revision(plan["source_revision"])
             if phase not in successful:
-                native_preflight(root, args.jobs, args.minimum_free_gib, plan.get("trace_mode", "off"))
+                native_preflight(root, args.jobs, args.minimum_free_gib, plan.get("trace_mode", "off"), plan["target"])
                 attempt = 1 + sum(p["name"] == phase for p in state["phases"])
                 log = root / "logs" / f"{phase}-{attempt}.log"
                 state["status"] = "running"
@@ -507,6 +518,7 @@ def main():
     parser.add_argument("--output", required=True)
     parser.add_argument("--revision")
     parser.add_argument("--profile", choices=("baseline", "diagnostic"), default="baseline")
+    parser.add_argument("--target", choices=tuple(TARGETS), default="amd64")
     parser.add_argument("--jobs", type=int, default=8)
     parser.add_argument("--trace-mode", choices=("off", "filemon"), default="off")
     parser.add_argument("--through", choices=PHASES, default="sets")
@@ -524,7 +536,7 @@ def main():
         elif args.operation == "status":
             result = json.loads((safe_path(args.output) / "result.json").read_text())
         else:
-            plan = make_plan(args.revision, args.output, args.profile, args.jobs, args.trace_mode)
+            plan = make_plan(args.revision, args.output, args.profile, args.jobs, args.trace_mode, args.target)
             result = plan if args.operation == "plan" else run(plan, args)
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0

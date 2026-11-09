@@ -29,6 +29,7 @@ class BuildTests(unittest.TestCase):
             "tools/daemonarchy/src.conf": "WITHOUT_LOCAL_MODULES=yes\n",
             "sys/amd64/conf/GENERIC": "ident GENERIC\n",
             "sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC": "include GENERIC\n",
+            "sys/arm64/conf/GENERIC": "ident GENERIC\n",
             "sys/conf/newvers.sh": 'REVISION="16.0"\n',
         }.items():
             path = self.source / name
@@ -52,7 +53,7 @@ class BuildTests(unittest.TestCase):
     def plan(self, **kwargs):
         return build.make_plan(kwargs.get("revision", self.revision), kwargs.get("output", str(self.output)),
                                kwargs.get("profile", "baseline"), kwargs.get("jobs", 2),
-                               kwargs.get("trace_mode", "off"))
+                               kwargs.get("trace_mode", "off"), kwargs.get("target", "amd64"))
 
     def built_fixture(self):
         plan = self.plan()
@@ -93,6 +94,50 @@ class BuildTests(unittest.TestCase):
         for revision in (self.revision[:12], "0" * 40, "main"):
             with self.subTest(revision=revision), self.assertRaises(ValueError):
                 self.plan(revision=revision)
+
+    def test_arm_plan_binds_native_target_config_and_every_phase(self):
+        arm = self.plan(target="arm64")
+        amd = self.plan()
+        self.assertEqual(amd, self.plan(target="amd64"))
+        self.assertNotEqual(arm["identity"], amd["identity"])
+        self.assertEqual((arm["target"], arm["target_arch"]), ("arm64", "aarch64"))
+        self.assertIn("sys/arm64/conf/GENERIC", arm["configurations"])
+        self.assertNotIn("sys/amd64/conf/GENERIC", arm["configurations"])
+        for argv in [*arm["commands"].values(), arm["release_directory_query"]]:
+            self.assertIn("TARGET=arm64", argv)
+            self.assertIn("TARGET_ARCH=aarch64", argv)
+            self.assertNotIn("TARGET=amd64", argv)
+            self.assertIn("NO_ROOT=yes", argv)
+        self.assertFalse(self.output.exists())
+
+    def test_unsupported_target_or_missing_arm_profile_cannot_fall_back(self):
+        with self.assertRaisesRegex(ValueError, "unsupported native target"):
+            self.plan(target="riscv64")
+        with self.assertRaisesRegex(ValueError, "arm64 kernel profile DAEMONARCHY_DIAGNOSTIC"):
+            self.plan(target="arm64", profile="diagnostic")
+
+    def test_native_target_matching_cannot_admit_cross_builds(self):
+        for target, machine, matches in (("amd64", "amd64", True),
+                ("amd64", "x86_64", True), ("amd64", "arm64", False),
+                ("arm64", "arm64", True), ("arm64", "aarch64", True),
+                ("arm64", "amd64", False), ("arm64", "riscv64", False)):
+            with self.subTest(target=target, machine=machine), \
+                    patch.object(build.platform, "system", return_value="FreeBSD"), \
+                    patch.object(build.platform, "machine", return_value=machine), \
+                    patch.object(build.os, "geteuid", return_value=1001), \
+                    patch.object(build.os, "access", return_value=False) as access:
+                message = "required installed tool" if matches else f"native {target} FreeBSD"
+                with self.assertRaisesRegex(ValueError, message):
+                    build.native_preflight(self.parent, 1, 1, target=target)
+                if not matches:
+                    access.assert_not_called()
+
+    def test_arm_native_gate_keeps_unprivileged_requirement(self):
+        with patch.object(build.platform, "system", return_value="FreeBSD"), \
+                patch.object(build.platform, "machine", return_value="arm64"), \
+                patch.object(build.os, "geteuid", return_value=0):
+            with self.assertRaisesRegex(ValueError, "unprivileged"):
+                build.native_preflight(self.parent, 1, 1, target="arm64")
 
     def test_source_mutation_and_untracked_inputs_refused(self):
         path = self.source / "sys/conf/newvers.sh"
