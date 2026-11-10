@@ -248,3 +248,13 @@ The native amd64 stand CI cell also builds and exports loader, cdboot, isoboot
 and pmbr for BIOS from the same sealed source checkout as EFI. All tracked
 stand inputs are hash-checked after native synchronization. These independent
 compile products do not qualify a BIOS firmware boot or normal BIOS capture.
+
+
+The amd64 BIOS trampoline now maps both GiB of the kernel's initial 2 GiB
+window with 2 MiB pages. A single repeated first-GiB mapping aliased metadata
+placed after a large RAM filesystem; the kernel adds KERNBASE to that physical
+metadata address before replacing the tables. Preload metadata outside the
+2 GiB window is refused at handoff instead of entering with a wrapped address.
+The controller walks the production tables across the 1 GiB and 2 GiB
+boundaries and detects the legacy alias. Full-image BIOS boot remains a
+separate required runtime test; these checks do not qualify firmware execution.
