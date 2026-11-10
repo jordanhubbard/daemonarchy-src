@@ -221,3 +221,24 @@ and allocates a new slot with a new nonce. Without the RNG device, both targets
 persist an explicit unavailable identity, change only 701 slot bytes and still
 enter the kernel. These are boot-only controls held at an unavailable root.
 Kernel/userspace handoff querying and stable hardware identity remain open.
+
+
+## Native kernel and userspace handoff control
+
+The [subsequent RAM-root controls](../../verification/normal-boot-userspace-handoff-20261110.json)
+boot the exact v3 EFI on ARM64 and amd64, run native init/rc, and query the
+partition, session, capture status and boot nonce with kenv. All four controls
+(with and without RNG on each architecture) match the actual persisted ready
+record and its decoder-bound pre-exit bank. Each guest syncs and powers down;
+independent whole-disk comparison finds only 809 current-slot bytes changed
+with RNG or 701 without. No keyboard input or network device is used.
+
+ARM64 uses the matched CURRENT base/kernel at OSVERSION 1600031. AMD64 uses
+the retained 1600029 runtime/kernel and the new EFI. Versions are established by
+input/worker provenance; an ancillary uname call was absent from the minimal
+runtime and supplies no version result. These UFS2 memory-disk fixtures prove
+the environment handoff through the kernel into userspace. They do not capture
+kernel/init/installer diagnostics or qualify refreshed whole media, a desktop,
+BIOS tracing, hardware identity, physical targets or final release. Initial
+fixture assembly and readback-harness failures remain recorded. Pi 4, Pi 5 and
+Apple M2 remain untested physically.
