@@ -3,6 +3,8 @@
 Normal media with `daemonarchy.trace.enable="YES"` now runs `boottrace observe`
 automatically after loader configuration is read, before displaying the menu.
 It saves a bounded `loader-ready` checkpoint to its own writable DATRACE volume.
+The new v2 implementation also attempts an independent pre-exit checkpoint
+before memory-map acquisition, after renewing the owned-medium admission.
 It takes precedence over conflicting historical experiment/autocycle flags;
 capture failure reports a status and lets normal startup continue. It does not
 consume QUEUE, rewrite STATE, save NVRAM, alter tunables, start listeners or reboot.
@@ -10,8 +12,8 @@ The historical explicitly selected `boottrace cycle` workflow remains available.
 
 This is the first stage of TRACE-001, not complete boot or installation tracing.
 The record explicitly says `early_kernel_backend=not-enabled`. It does not
-capture selected kernel/modules, pre-ExitBootServices outcome, kernel console,
-panic, init or installer progress yet. A successful checkpoint cannot establish
+measure the selected kernel/modules, establish successful ExitBootServices,
+retain kernel console/panic data, or capture init/installer progress yet. A successful checkpoint cannot establish
 that any of those later stages ran.
 
 `boottrace media` remains a separate read-only discovery command. Its selector
@@ -108,3 +110,42 @@ a controlled warm reset after a flushed record. Synthetic partial data tests
 retention, not actual interrupted writes or physical power loss. Final default
 media, amd64 firmware/BIOS, kernel/init/installer and physical acceptance remain
 open. The earlier full RAM-root image does not inherit this new loader's result.
+
+
+## Independent pre-exit checkpoint banks
+
+The v2 writer keeps the existing 32 files, each exactly 16 KiB, and the existing
+256-entry map limit. Loader-ready occupies the first 4 KiB bank; pre-exit uses
+the next 4 KiB, leaving the remaining 8 KiB reserved. A later write must preserve
+the complete earlier bank and reserved bytes. Legacy v1 records remain readable
+and occupied legacy files are not reused.
+
+The pre-exit hook runs before the first GetMemoryMap call, outside its retry
+loop. It does no stand-filesystem open after device cleanup. It uses the identity
+retained by a verified loader-ready capture, then renews the physical boot-medium
+binding, declared archive identity, raw map, clean FAT metadata and all normal
+file extents. A changed partition, read-only slot, invalid earlier bank or partial
+later bank refuses a write. An identical completed later record is idempotent.
+Only a derived 4 KiB subextent may change; whole-disk flush/readback and a fresh
+read of the complete slot must pass before reporting success.
+
+A pre-exit record means that the callback was reached. It does not prove that
+firmware exit or kernel entry succeeded. Diagnostics and environment allocation
+finish before acquiring the memory-map key; no capture, output or allocation is
+added between the final map and ExitBootServices, including the retry path.
+The volatile pre-exit status is loader-side information and is not claimed as a
+post-copy kernel environment handoff.
+
+The product controller decodes v1 and v2. An intact v2 loader-ready bank remains
+available if the later bank is corrupt, partial or foreign; extraction reports
+the later checkpoint unreadable and keeps the exact complete slot bytes. Unknown
+writes into reserved space are refused. This is checksummed corruption detection,
+not authentication or physical power-loss qualification.
+
+Portable policy and block-writer controls cover the new format, immutable parent
+and reserved banks, differing identities, truncated/partial data, and 512/4096-byte
+logical media with aligned and half-block-offset files. The original native
+amd64 EFI bootinfo fixture now asserts the callback's position and one-time use
+across memory-map/exit failures and retries. Native EFI build/boot, actual
+interrupted writes, amd64/BIOS integration and full kernel/init/installer/physical
+acceptance remain required; controller and fake-block controls do not supply them.

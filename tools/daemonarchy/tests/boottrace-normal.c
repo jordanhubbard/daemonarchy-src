@@ -85,6 +85,71 @@ main(void)
 	assert(bt_normal_record(record, 1, &id, id.image_id, 1) == 0);
 	assert(record[1] == 'Q');
 	checks++;
+
+	/* The bounded v2 layout retains legacy decoding and a separate bank. */
+	memset(slot, '\n', sizeof(slot));
+	n = bt_normal_stage_record(record, sizeof(record), &id, id.image_id,
+	    1, BT_NORMAL_STAGE_READY);
+	assert(n > 0 && n < 512);
+	assert(strstr(record, "normal boot trace v2\n") != NULL);
+	memcpy(slot, record, n);
+	assert(bt_normal_preexit_state(slot, sizeof(slot), &id, id.image_id, 1) == 0);
+	checks++;
+	for (i = 0; i < sizeof(slot); i++)
+		assert(bt_normal_preexit_state(slot, i, &id, id.image_id, 1) == -1);
+	assert(bt_normal_preexit_state(NULL, sizeof(slot), &id, id.image_id, 1) == -1);
+	checks++;
+	assert(bt_normal_preexit_state(slot, sizeof(slot), &id, id.image_id, 2) == -1);
+	assert(bt_normal_preexit_state(slot, sizeof(slot), &id,
+	    "fedcba98-7654-3210-fedc-ba9876543210", 1) == -1);
+	checks++;
+	slot[0] ^= 1;
+	assert(bt_normal_preexit_state(slot, sizeof(slot), &id, id.image_id, 1) == -1);
+	slot[0] ^= 1;
+	slot[BT_NORMAL_STAGE_SIZE - 1] = 'x';
+	assert(bt_normal_preexit_state(slot, sizeof(slot), &id, id.image_id, 1) == -1);
+	slot[BT_NORMAL_STAGE_SIZE - 1] = '\n';
+	checks++;
+	slot[BT_NORMAL_PREEXIT_OFF] = 'p';
+	assert(bt_normal_preexit_state(slot, sizeof(slot), &id, id.image_id, 1) == -1);
+	slot[BT_NORMAL_PREEXIT_OFF] = '\n';
+	slot[sizeof(slot) - 1] = 'x';
+	assert(bt_normal_preexit_state(slot, sizeof(slot), &id, id.image_id, 1) == -1);
+	slot[sizeof(slot) - 1] = '\n';
+	checks++;
+	n = bt_normal_stage_record(record, sizeof(record), &id, id.image_id,
+	    1, BT_NORMAL_STAGE_PREEXIT);
+	assert(n > 0 && n < 512);
+	assert(strstr(record, "phase=pre-exit\n") != NULL);
+	memcpy(slot + BT_NORMAL_PREEXIT_OFF, record, n);
+	assert(bt_normal_preexit_state(slot, sizeof(slot), &id, id.image_id, 1) == 1);
+	checks++;
+	slot[BT_NORMAL_PREEXIT_OFF + n - 2] ^= 1;
+	assert(bt_normal_preexit_state(slot, sizeof(slot), &id, id.image_id, 1) == -1);
+	slot[BT_NORMAL_PREEXIT_OFF + n - 2] ^= 1;
+	slot[BT_NORMAL_PREEXIT_OFF + BT_NORMAL_STAGE_SIZE - 1] = 'x';
+	assert(bt_normal_preexit_state(slot, sizeof(slot), &id, id.image_id, 1) == -1);
+	slot[BT_NORMAL_PREEXIT_OFF + BT_NORMAL_STAGE_SIZE - 1] = '\n';
+	checks++;
+	/* A complete but differently bound later record is not resumable. */
+	n = bt_normal_stage_record(record, sizeof(record), &id, id.image_id,
+	    2, BT_NORMAL_STAGE_PREEXIT);
+	memset(slot + BT_NORMAL_PREEXIT_OFF, '\n', BT_NORMAL_STAGE_SIZE);
+	memcpy(slot + BT_NORMAL_PREEXIT_OFF, record, n);
+	assert(bt_normal_preexit_state(slot, sizeof(slot), &id, id.image_id, 1) == -1);
+	checks++;
+	assert(bt_normal_stage_record(record, sizeof(record), &id, id.image_id,
+	    1, (enum bt_normal_stage)0) == 0);
+	assert(bt_normal_stage_record(record, sizeof(record), &id, id.image_id,
+	    1, (enum bt_normal_stage)99) == 0);
+	assert(bt_normal_stage_record(record, 1, &id, id.image_id,
+	    1, BT_NORMAL_STAGE_PREEXIT) == 0);
+	checks++;
+	memset(slot, '\n', sizeof(slot));
+	n = bt_normal_record(record, sizeof(record), &id, id.image_id, 1);
+	memcpy(slot, record, n);
+	assert(bt_normal_preexit_state(slot, sizeof(slot), &id, id.image_id, 1) == -1);
+	checks++;
 	id.image_id[0] = '\n';
 	assert(bt_normal_record(record, sizeof(record), &id, "01234567-89ab-cdef-0123-456789abcdef", 1) == 0);
 	checks++;

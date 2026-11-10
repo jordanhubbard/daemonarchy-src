@@ -45,6 +45,14 @@ static int bt_cycle(void);
 static int bt_media_discover(void);
 static int bt_normal_capture(void);
 
+static struct {
+	struct bt_normal_identity id;
+	char partition[37];
+	unsigned slot;
+	bool ready;
+	bool preexit_completed;
+} bt_normal_session;
+
 static void
 bt_ring_name(char *name, size_t len, unsigned slot)
 {
@@ -1197,53 +1205,22 @@ bt_normal_sector(void *arg, uint64_t off, void *out, size_t size)
 	return (bt_blk_read(block, &extent, out, size) == EFI_SUCCESS ? 0 : -1);
 }
 
-/* A normal boot reserves its own immutable session slot. No STATE/QUEUE
- * writes, FAT fallback, NVRAM, tunables, listeners or reboot actions. */
-static int
-bt_normal_capture(void)
+/* Every phase renews the owned medium, identity, raw map and FAT extents. */
+static const char *
+bt_normal_admit(EFI_HANDLE handle, EFI_FILE_PROTOCOL *root,
+    const char *identity, size_t length, bool writable[BT_NORMAL_SLOTS])
 {
-	static bool completed;
 	static char fat[BT_NORMAL_SIZE];
-	struct bt_normal_identity declared;
+	char state[512], path[32], shortname[12];
 	struct bt_fat filesystem;
 	struct bt_fat_entry actual, normal;
 	struct bt_map_ent identity_extent = {0};
-	EFI_FILE_PROTOCOL *root = NULL;
-	EFI_HANDLE handle;
-	EFI_STATUS status;
 	const struct bt_map_ent *entry;
-	const char *outcome = "media-unavailable", *partition;
-	char identity[BT_NORMAL_ID_MAX], state[512], record[1024];
-	char path[32], session[48], extra;
-	char shortname[12];
-	bool writable[BT_NORMAL_SLOTS];
-	size_t length = 0, got, len;
-	ssize_t n = 0;
+	const char *outcome = "identity-mismatch";
+	size_t got;
 	unsigned slot;
-	int fd;
 
-	if (completed)
-		return (CMD_OK);
-	unsetenv("daemonarchy.trace.session");
-	unsetenv("daemonarchy.trace.capture");
-	root = bt_media_select(&handle, false);
-	if (root == NULL)
-		goto done;
-	outcome = "identity-invalid";
-	fd = open("/boot/trace-id", O_RDONLY);
-	if (fd < 0)
-		goto done;
-	while (length < sizeof(identity)) {
-		n = read(fd, identity + length, sizeof(identity) - length);
-		if (n <= 0)
-			break;
-		length += n;
-	}
-	n = n < 0 ? n : read(fd, &extra, 1);
-	(void)close(fd);
-	if (n != 0 || bt_normal_identity(identity, length, &declared) != 0)
-		goto done;
-	if (bt_normal_read(root, "\\INSTALL.ID", fat, sizeof(identity), &got) !=
+	if (bt_normal_read(root, "\\INSTALL.ID", fat, BT_NORMAL_ID_MAX, &got) !=
 	    EFI_SUCCESS || got != length || memcmp(fat, identity, length) != 0) {
 		outcome = "identity-mismatch";
 		goto done;
@@ -1297,6 +1274,57 @@ bt_normal_capture(void)
 			goto done;
 		writable[slot - 1] = (actual.attributes & 1) == 0;
 	}
+	return (NULL);
+done:
+	return (outcome);
+}
+
+/* A normal boot reserves its own immutable session slot. No STATE/QUEUE
+ * writes, FAT fallback, NVRAM, tunables, listeners or reboot actions. */
+static int
+bt_normal_capture(void)
+{
+	static bool completed;
+	static char fat[BT_NORMAL_SIZE];
+	struct bt_normal_identity declared;
+	EFI_FILE_PROTOCOL *root = NULL;
+	EFI_HANDLE handle;
+	EFI_STATUS status;
+	const struct bt_map_ent *entry;
+	const char *outcome = "media-unavailable", *partition;
+	char identity[BT_NORMAL_ID_MAX], record[1024];
+	char path[32], session[48], extra;
+	bool writable[BT_NORMAL_SLOTS];
+	size_t length = 0, len;
+	ssize_t n = 0;
+	unsigned slot;
+	int fd;
+
+	if (completed)
+		return (CMD_OK);
+	unsetenv("daemonarchy.trace.session");
+	unsetenv("daemonarchy.trace.capture");
+	root = bt_media_select(&handle, false);
+	if (root == NULL)
+		goto done;
+	outcome = "identity-invalid";
+	fd = open("/boot/trace-id", O_RDONLY);
+	if (fd < 0)
+		goto done;
+	while (length < sizeof(identity)) {
+		n = read(fd, identity + length, sizeof(identity) - length);
+		if (n <= 0)
+			break;
+		length += n;
+	}
+	n = n < 0 ? n : read(fd, &extra, 1);
+	(void)close(fd);
+	if (n != 0 || bt_normal_identity(identity, length, &declared) != 0)
+		goto done;
+	outcome = bt_normal_admit(handle, root, identity, length, writable);
+	if (outcome != NULL)
+		goto done;
+
 	for (slot = 1; slot <= BT_NORMAL_SLOTS; slot++) {
 		snprintf(path, sizeof(path), "\\NORMAL\\%04u.TXT", slot);
 		entry = bt_map_find(&bt_mapv, path);
@@ -1318,7 +1346,8 @@ bt_normal_capture(void)
 		goto done;
 	}
 	partition = getenv("daemonarchy.trace.partition");
-	len = bt_normal_record(record, sizeof(record), &declared, partition, slot);
+	len = bt_normal_stage_record(record, sizeof(record), &declared,
+	    partition, slot, BT_NORMAL_STAGE_READY);
 	if (len == 0) {
 		outcome = "metadata-invalid";
 		goto done;
@@ -1329,6 +1358,11 @@ bt_normal_capture(void)
 		outcome = "write-unverified";
 		goto done;
 	}
+	bt_normal_session.id = declared;
+	memcpy(bt_normal_session.partition, partition,
+	    sizeof(bt_normal_session.partition));
+	bt_normal_session.slot = slot;
+	bt_normal_session.ready = true;
 	completed = true;
 	snprintf(session, sizeof(session), "%s-%04u", declared.image_id, slot);
 	outcome = setenv("daemonarchy.trace.session", session, 1) == 0 ?
@@ -1340,6 +1374,100 @@ done:
 	printf("Boot diagnostics: %s%s%s\n", outcome,
 	    completed ? " " : "", completed ? path : "");
 	return (CMD_OK);
+}
+
+
+/* Called before memory-map acquisition, never inside the ExitBootServices
+ * retry loop. No stand filesystem is reopened after device cleanup. */
+void
+boottrace_normal_preexit(void)
+{
+	static char data[BT_NORMAL_SIZE];
+	EFI_FILE_PROTOCOL *root = NULL;
+	EFI_HANDLE handle;
+	EFI_STATUS status;
+	const struct bt_map_ent *entry;
+	struct bt_map_ent stage;
+	const char *enable, *partition, *outcome = "media-unavailable";
+	char identity[BT_NORMAL_ID_MAX], record[1024], path[32];
+	bool writable[BT_NORMAL_SLOTS];
+	size_t length, len;
+	int n, state;
+
+	enable = getenv("daemonarchy.trace.enable");
+	if (!bt_normal_session.ready || bt_normal_session.preexit_completed ||
+	    enable == NULL || strcmp(enable, "YES") != 0)
+		return;
+	root = bt_media_select(&handle, false);
+	if (root == NULL)
+		goto done;
+	outcome = "identity-mismatch";
+	partition = getenv("daemonarchy.trace.partition");
+	if (partition == NULL ||
+	    strcmp(partition, bt_normal_session.partition) != 0 ||
+	    bt_normal_session.slot == 0 ||
+	    bt_normal_session.slot > BT_NORMAL_SLOTS)
+		goto done;
+	n = snprintf(identity, sizeof(identity), BT_NORMAL_ID_TAG
+	    "image_id=%s\narchive_sha256=%s\nmode=observe-only\n",
+	    bt_normal_session.id.image_id,
+	    bt_normal_session.id.archive_sha256);
+	if (n < 0 || (size_t)n >= sizeof(identity))
+		goto done;
+	length = (size_t)n;
+	outcome = bt_normal_admit(handle, root, identity, length, writable);
+	if (outcome != NULL)
+		goto done;
+	outcome = "slot-readonly";
+	if (!writable[bt_normal_session.slot - 1])
+		goto done;
+	snprintf(path, sizeof(path), "\\NORMAL\\%04u.TXT",
+	    bt_normal_session.slot);
+	entry = bt_map_find(&bt_mapv, path);
+	outcome = "slot-read-failed";
+	if (entry == NULL || entry->size != sizeof(data) ||
+	    bt_blk_read(&bt_blkv, entry, data, sizeof(data)) != EFI_SUCCESS)
+		goto done;
+	state = bt_normal_preexit_state(data, sizeof(data),
+	    &bt_normal_session.id, partition, bt_normal_session.slot);
+	outcome = "parent-or-later-region-invalid";
+	if (state < 0)
+		goto done;
+	if (state == 1) {
+		bt_normal_session.preexit_completed = true;
+		outcome = "already-saved";
+		goto done;
+	}
+	len = bt_normal_stage_record(record, sizeof(record),
+	    &bt_normal_session.id, partition, bt_normal_session.slot,
+	    BT_NORMAL_STAGE_PREEXIT);
+	outcome = "metadata-invalid";
+	if (len == 0)
+		goto done;
+	/* Derive a bounded subextent of the newly admitted contiguous file.
+	 * Only the second bank may change; retain the parent and future banks. */
+	stage = *entry;
+	stage.off += BT_NORMAL_PREEXIT_OFF;
+	stage.size = BT_NORMAL_STAGE_SIZE;
+	status = bt_blk_write(&bt_blkv, &stage, record, len);
+	outcome = "write-unverified";
+	if (status != EFI_SUCCESS || bt_blkv.verify != DBT_LV_OK ||
+	    !bt_blkv.via_disk)
+		goto done;
+	/* Re-read the complete slot to check the parent and reserved bytes too. */
+	if (bt_blk_read(&bt_blkv, entry, data, sizeof(data)) != EFI_SUCCESS ||
+	    bt_normal_preexit_state(data, sizeof(data), &bt_normal_session.id,
+	    partition, bt_normal_session.slot) != 1)
+		goto done;
+	bt_normal_session.preexit_completed = true;
+	outcome = "saved";
+done:
+	if (root != NULL)
+		(void)root->Close(root);
+	/* This diagnostic happens before memory-map acquisition. It does not
+	 * claim that ExitBootServices, kernel entry or an installed OS succeeded. */
+	(void)setenv("daemonarchy.trace.preexit", outcome, 1);
+	printf("Boot diagnostics pre-exit: %s\n", outcome);
 }
 
 /* Write a stick file: raw through the map when possible, else FAT. */

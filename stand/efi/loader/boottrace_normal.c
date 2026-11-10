@@ -80,9 +80,9 @@ bt_normal_empty(const char *data, size_t size)
 	return (1);
 }
 
-size_t
-bt_normal_record(char *out, size_t cap, const struct bt_normal_identity *id,
-    const char *partition, unsigned slot)
+static size_t
+normal_record(char *out, size_t cap, const struct bt_normal_identity *id,
+    const char *partition, unsigned slot, unsigned version, const char *phase)
 {
 	uint32_t sum = 2166136261U;
 	size_t i;
@@ -94,11 +94,11 @@ bt_normal_record(char *out, size_t cap, const struct bt_normal_identity *id,
 	    !normal_uuid(id->image_id) || !normal_hex(id->archive_sha256, 64) ||
 	    slot == 0 || slot > BT_NORMAL_SLOTS)
 		return (0);
-	n = snprintf(out, cap, "Daemonarchy normal boot trace v1\n"
+	n = snprintf(out, cap, "Daemonarchy normal boot trace v%u\n"
 	    "image_id=%s\narchive_sha256=%s\ntrace_partition=%s\n"
-	    "session=%04u\nphase=loader-ready\nidentity=declared-archive\n"
+	    "session=%04u\nphase=%s\nidentity=declared-archive\n"
 	    "early_kernel_backend=not-enabled\n",
-	    id->image_id, id->archive_sha256, partition, slot);
+	    version, id->image_id, id->archive_sha256, partition, slot, phase);
 	if (n < 0 || (size_t)n >= cap)
 		return (0);
 	for (i = 0; i < (size_t)n; i++)
@@ -107,4 +107,75 @@ bt_normal_record(char *out, size_t cap, const struct bt_normal_identity *id,
 	if (added < 0 || (size_t)added >= cap - n)
 		return (0);
 	return ((size_t)n + added);
+}
+
+
+/* Retain the legacy encoder for historical records and existing callers. */
+size_t
+bt_normal_record(char *out, size_t cap, const struct bt_normal_identity *id,
+    const char *partition, unsigned slot)
+{
+	return (normal_record(out, cap, id, partition, slot, 1, "loader-ready"));
+}
+
+size_t
+bt_normal_stage_record(char *out, size_t cap,
+    const struct bt_normal_identity *id, const char *partition, unsigned slot,
+    enum bt_normal_stage stage)
+{
+	const char *phase;
+
+	switch (stage) {
+	case BT_NORMAL_STAGE_READY:
+		phase = "loader-ready";
+		break;
+	case BT_NORMAL_STAGE_PREEXIT:
+		phase = "pre-exit";
+		break;
+	default:
+		return (0);
+	}
+	if (cap > BT_NORMAL_STAGE_SIZE)
+		cap = BT_NORMAL_STAGE_SIZE;
+	return (normal_record(out, cap, id, partition, slot, 2, phase));
+}
+
+static int
+normal_padding(const char *data, size_t size)
+{
+	size_t i;
+
+	for (i = 0; i < size; i++)
+		if (data[i] != '\n')
+			return (0);
+	return (1);
+}
+
+/* Compare complete canonical records, including padding. Corrupt/partial later
+ * data is never an empty bank and must never be overwritten on a retry. */
+int
+bt_normal_preexit_state(const char *data, size_t size,
+    const struct bt_normal_identity *id, const char *partition, unsigned slot)
+{
+	char expected[1024];
+	size_t n;
+
+	if (data == NULL || size != BT_NORMAL_SIZE)
+		return (-1);
+	n = bt_normal_stage_record(expected, sizeof(expected), id, partition,
+	    slot, BT_NORMAL_STAGE_READY);
+	if (n == 0 || memcmp(data, expected, n) != 0 ||
+	    !normal_padding(data + n, BT_NORMAL_STAGE_SIZE - n) ||
+	    !normal_padding(data + BT_NORMAL_PREEXIT_OFF + BT_NORMAL_STAGE_SIZE,
+	    BT_NORMAL_SIZE - BT_NORMAL_PREEXIT_OFF - BT_NORMAL_STAGE_SIZE))
+		return (-1);
+	data += BT_NORMAL_PREEXIT_OFF;
+	if (normal_padding(data, BT_NORMAL_STAGE_SIZE))
+		return (0);
+	n = bt_normal_stage_record(expected, sizeof(expected), id, partition,
+	    slot, BT_NORMAL_STAGE_PREEXIT);
+	if (n == 0 || memcmp(data, expected, n) != 0 ||
+	    !normal_padding(data + n, BT_NORMAL_STAGE_SIZE - n))
+		return (-1);
+	return (1);
 }
