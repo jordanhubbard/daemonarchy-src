@@ -173,3 +173,12 @@ comes from the earlier af55 world build; only stand is rebuilt from fe12c0bb.
 Native amd64 callback assertions now run in CI before the EFI build, including
 sanitizers; their actual result must be checked separately. All remaining
 TRACE-001 stages, final-media and release gates stay open.
+
+The complete-GPT follow-up now also boots a writable trace-less primary beside
+the writable foreign trace disk, with zero changed bytes on either image.
+Both GPT header checksums and the identical entry arrays are independently
+validated before boot. The original primary lacked its backup GPT; that first
+run remains retained separately. Exact a486e309 native amd64 CI passes all three
+handoff fixture groups in both plain and sanitized modes and builds the EFI.
+The preserved outputs and input manifest match that source. This closes the
+callback-fixture gate only; amd64 firmware boot, BIOS and physical gates remain.

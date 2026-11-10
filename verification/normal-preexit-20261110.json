@@ -88,7 +88,7 @@
     "normal_policy_sanitized": 28,
     "fat_admission_sanitized": 19,
     "block_writer_groups": 10,
-    "native_amd64_bootinfo": "Callback-position assertions wired into native CI in plain and sanitized modes; no result claimed in this record."
+    "native_amd64_bootinfo": "PASS: three fixture groups in each plain/sanitized mode on exact a486e309 source; native EFI construction also passes."
   },
   "format": {
     "slots": 32,
@@ -328,6 +328,24 @@
       },
       "result_sha256": "dc21cd786d7f58e3ad0226b2c4d64e4feeee635090dfef9ce01b01d24c6b7e09",
       "serial_sha256": "0803c7dd534a91f766f44ae1f2e71d98f620a675195e56b5fdfc0475d7c36bb7"
+    },
+    "boot-foreign-r3": {
+      "result": {
+        "status": "pass",
+        "name": "boot-foreign-r3",
+        "records": {},
+        "changed_bytes": 0,
+        "only_expected_slot_changed": false,
+        "readonly": false,
+        "foreign_disk_unchanged": true,
+        "input_unchanged": true,
+        "kernel_control_boundary_reached": true,
+        "no_keyboard_input": true
+      },
+      "input": "prior returned trace-less primary with both GPT copies and mirrored entries independently validated",
+      "result_sha256": "1e586c47ddd6ab3c0348ae0aa77cb68b2391b70154b3c578faf406b4a74ecff9",
+      "serial_sha256": "f371584c939adb0b1a0a68bb7484282a7917a84d4c4becef71425de6fa8cf66b",
+      "returned_image_sha256": "5ba55e583c0eb682e9a95a506d09bdc9b887e02bd4dff7455744d30a191c094e"
     }
   },
   "interpretation": [
@@ -335,19 +353,62 @@
     "Synthetic partial later bank survives unchanged; next session records both stages. This is not actual interruption during a write.",
     "Read-only media boots without saving a record or changing the image.",
     "With a read-only trace-less primary and a writable foreign trace disk, boot continues and both images remain unchanged.",
-    "Earlier writable trace-less primary changed 81 bytes in backup GPT entries/header. Foreign disk stayed unchanged; whole-primary preservation is not passed for that run. Firmware/GPT repair attribution remains unresolved."
+    "Earlier writable trace-less primary changed 81 bytes in backup GPT entries/header. Foreign disk stayed unchanged; whole-primary preservation is not passed for that run. Firmware/GPT repair attribution remains unresolved.",
+    "With a complete validated GPT, a writable trace-less primary and writable foreign trace disk both remain unchanged through kernel entry. The missing backup GPT in the first input and its repair are retained separately."
   ],
   "remaining": [
     "Actual selected kernel/module identities and bounded firmware handoff facts",
     "Early kernel console, panic, init and installer automatic capture",
     "Clone-independent target and cross-stage boot identity",
     "Actual interrupted writes, cold-power loss and physical reset",
-    "AMD64 callback fixture/firmware and BIOS qualification for this source",
+    "AMD64 firmware boot and BIOS qualification for this source; native callback fixture passed",
     "Whole-filesystem alias and crash-consistency qualification",
     "Full refreshed world/ports/desktop media, installation, update and recovery",
     "Publication size budget, signed final closure, canonical SDK/lifecycle/receipt and release gates",
     "Physical Pi 4, Pi 5, Apple M2 and other required ARM targets"
   ],
   "release_qualified": false,
-  "private_evidence": "Raw logs, source archives, disk overlays and returned images are retained privately; credentials and worker addresses are excluded."
+  "private_evidence": "Raw logs, source archives, disk overlays and returned images are retained privately; credentials and worker addresses are excluded.",
+  "native_amd64_ci": {
+    "status": "pass",
+    "source_commit": "a486e309004eefbe4cc36e695a05332dd2880899",
+    "run_url": "https://github.com/jordanhubbard/daemonarchy-src/actions/runs/42774830140",
+    "worker": "FreeBSD 15.0-RELEASE-p13 amd64",
+    "modes": [
+      "plain",
+      "address-and-undefined-sanitizers"
+    ],
+    "fixture_groups_per_mode": 3,
+    "native_loader_built": true,
+    "loader_sha256": "d2b652aa47c10e7bd9492acba338ac7e6c31c53f467142975a8f68f9fa74d45e",
+    "feature_manifest_sha256": "e6c788e0b0ca4ac10277115d5fb9d1785c4f0c790cc320d4a13d2dd84e282db0",
+    "all_manifest_inputs_match_source": true,
+    "logs": [
+      {
+        "name": "exit-status",
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "name": "source-commit.txt",
+        "sha256": "4d46903ccc3ae5506a778664f9450f709be71974dc00c09d5d765abae029ce26"
+      },
+      {
+        "name": "worker.txt",
+        "sha256": "b3e81418ecae2f03279827b1a68562ea210a95afdf65cf419a99ec5b44642357"
+      },
+      {
+        "name": "bootinfo.stdout",
+        "sha256": "fed3035083592b758fe4d9ca25770c04fe261a451278527512f9bdc11131dfc4"
+      },
+      {
+        "name": "bootinfo-sanitize.stdout",
+        "sha256": "fed3035083592b758fe4d9ca25770c04fe261a451278527512f9bdc11131dfc4"
+      },
+      {
+        "name": "normal-trace.stdout",
+        "sha256": "ad3e3bbb621448f96cbf1f0a8ce3dc264ebead56b40f004309db048ee1041e8d"
+      }
+    ],
+    "scope": "Production handoff C in a native fixture with fake EFI services; native EFI construction. Not amd64 firmware boot, BIOS or physical acceptance."
+  }
 }
