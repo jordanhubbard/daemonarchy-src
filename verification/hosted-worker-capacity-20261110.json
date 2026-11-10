@@ -1,0 +1,111 @@
+{
+  "schema": "daemonarchy/hosted-worker-capacity-observation@1",
+  "run": "https://github.com/jordanhubbard/daemonarchy-src/actions/runs/42830553661",
+  "source_revision": "74195e167db9034d254eee0d689bc6f4ee1560c8",
+  "observations": [
+    {
+      "schema": "daemonarchy/hosted-worker-capacity@1",
+      "observed_utc": "2026-11-10T14:07:16.665958+00:00",
+      "source_revision": "74195e167db9034d254eee0d689bc6f4ee1560c8",
+      "host": {
+        "os": "Darwin",
+        "architecture": "x86_64",
+        "assigned_cpus": 4,
+        "total_memory_bytes": 15032385536,
+        "available_memory_bytes": 10126782464,
+        "storage_total_bytes": 348622118912,
+        "storage_free_bytes": 113584730112,
+        "hardware_virtualization_supported": true,
+        "hypervisor_execution_tested": false
+      },
+      "proposed_profile": {
+        "jobs": 3,
+        "guest_memory_bytes": 10737418240,
+        "host_memory_reserve_bytes": 2147483648
+      },
+      "required_host_free_bytes": 96636764160,
+      "host_capacity_sufficient": false,
+      "reasons": [
+        "insufficient or unknown available host memory"
+      ],
+      "cleanup_candidates": [],
+      "deletion_performed": false,
+      "qualification": {
+        "native_freebsd_execution": false,
+        "aggregate_build": false,
+        "sdk": false,
+        "performance": false,
+        "release": false
+      }
+    },
+    {
+      "schema": "daemonarchy/hosted-worker-capacity@1",
+      "observed_utc": "2026-11-10T14:06:27.360549+00:00",
+      "source_revision": "74195e167db9034d254eee0d689bc6f4ee1560c8",
+      "host": {
+        "os": "Linux",
+        "architecture": "x86_64",
+        "assigned_cpus": 4,
+        "total_memory_bytes": 16760344576,
+        "available_memory_bytes": 15548833792,
+        "storage_total_bytes": 154894188544,
+        "storage_free_bytes": 89878994944,
+        "hardware_virtualization_supported": true,
+        "hypervisor_execution_tested": false
+      },
+      "proposed_profile": {
+        "jobs": 4,
+        "guest_memory_bytes": 12884901888,
+        "host_memory_reserve_bytes": 2147483648
+      },
+      "required_host_free_bytes": 96636764160,
+      "host_capacity_sufficient": false,
+      "reasons": [
+        "less than 80 GiB native workspace plus 10 GiB bootstrap reserve"
+      ],
+      "cleanup_candidates": [
+        {
+          "path": "/usr/local/lib/android",
+          "state": "unknown",
+          "bytes": null
+        },
+        {
+          "path": "/usr/share/dotnet",
+          "state": "unknown",
+          "bytes": null
+        },
+        {
+          "path": "/opt/ghc",
+          "state": "absent"
+        },
+        {
+          "path": "/opt/hostedtoolcache",
+          "state": "unknown",
+          "bytes": null
+        }
+      ],
+      "deletion_performed": false,
+      "qualification": {
+        "native_freebsd_execution": false,
+        "aggregate_build": false,
+        "sdk": false,
+        "performance": false,
+        "release": false
+      }
+    }
+  ],
+  "decision": "Neither measured runner admits the proposed complete native CURRENT build profile. Retain existing native workers and frozen build inputs.",
+  "limitations": [
+    "Inspection success records a completed probe, not a passing native build.",
+    "Virtualization support was inspected; no guest or hypervisor execution was tested.",
+    "Cleanup inventory entries marked unknown do not prove reclaimable capacity. No deletion was performed.",
+    "These are time-bound observations of the selected runner instances, not a permanent exclusion of hosted workers."
+  ],
+  "qualification": {
+    "native_freebsd_execution": false,
+    "aggregate_build": false,
+    "sdk": false,
+    "performance": false,
+    "release": false
+  }
+}

@@ -108,6 +108,19 @@ and resumed runs. Do not use a moving branch name as a source selection. Every
 source change, kernel profile or build-option change needs a new build directory.
 Do not run baseline and diagnostic builds concurrently on a single-slot worker.
 
+## Hosted worker capacity
+
+The [2026-11-10 capacity observations](../../verification/hosted-worker-capacity-20261110.json)
+measure standard Linux and Intel macOS hosted runners before attempting a native
+CURRENT guest. Neither instance admits the proposed profile: Linux has 83.7 GiB
+free against the 90 GiB host requirement (80 GiB native output plus bootstrap
+reserve); Intel macOS has 9.4 GiB available RAM against a 10 GiB guest plus
+2 GiB host reserve. The capacity jobs pass because inspection completed. They
+have not booted FreeBSD or completed an aggregate build, SDK or release gate.
+Keep existing native builds and frozen inputs; do not lower the output reserve,
+substitute an older FreeBSD release or treat unknown cleanup sizes as space.
+A later allocation must be measured again before dispatch.
+
 ## Plan and build
 
 Use the same arguments for planning, running and resuming. Substitute an actual
