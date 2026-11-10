@@ -1,0 +1,42 @@
+{
+  "schema": "daemonarchy/current-worker-admission-checkpoint@1",
+  "source_parent": "baeb21da1beeef3227ccdc002448f81a3ed19ad9",
+  "source_tools_sha256": {
+    "tools/daemonarchy/build.py": "40b5b70cd18e0abac163118be1ad192c5d963f326ad622ab1a5cea99f45547bf",
+    "tools/daemonarchy/test_build.py": "b4d39e390e3c06cb2e7a37559a00b34b7d1de585d0802b5c657f392ee00d684d"
+  },
+  "policy": "An unprivileged matching-architecture native worker must report exactly the source REVISION-CURRENT kernel release. Refuse other release versions/branches before tools, resources or build dispatch.",
+  "tests": {
+    "linux": {
+      "run": 32,
+      "passed": 30,
+      "skipped": 2,
+      "skip_scope": "Native make/release controls require FreeBSD."
+    },
+    "native_freebsd_arm64": {
+      "run": 32,
+      "passed": 32,
+      "skipped": 0,
+      "log_sha256": "c7bf7bf164923cb9c0de3efb47735b3b8e05d4993e9034efaeafa756b8bf198c"
+    },
+    "wrong_release_cases": 12,
+    "matching_release_resource_probe_cases": 2,
+    "noncurrent_source_refused": true,
+    "no_build_dispatched_by_admission_tests": true
+  },
+  "observed_existing_worker_releases": {
+    "arm64": "16.0-CURRENT",
+    "amd64": "16.0-CURRENT"
+  },
+  "limits": [
+    "Release refusal/resource paths use explicit test fixtures; they are not complete aggregate builds.",
+    "Running builds keep their frozen source/controller and original plans.",
+    "Existing stand-only compiler CI on another FreeBSD release remains a compile control."
+  ],
+  "qualification": {
+    "native_controller_tests": true,
+    "aggregate_build": false,
+    "sdk": false,
+    "release": false
+  }
+}

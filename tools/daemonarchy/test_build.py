@@ -30,7 +30,7 @@ class BuildTests(unittest.TestCase):
             "sys/amd64/conf/GENERIC": "ident GENERIC\n",
             "sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC": "include GENERIC\n",
             "sys/arm64/conf/GENERIC": "ident GENERIC\n",
-            "sys/conf/newvers.sh": 'REVISION="16.0"\n',
+            "sys/conf/newvers.sh": 'REVISION="16.0"\nBRANCH="CURRENT"\n',
         }.items():
             path = self.source / name
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -124,6 +124,7 @@ class BuildTests(unittest.TestCase):
             with self.subTest(target=target, machine=machine), \
                     patch.object(build.platform, "system", return_value="FreeBSD"), \
                     patch.object(build.platform, "machine", return_value=machine), \
+                    patch.object(build.platform, "release", return_value="16.0-CURRENT"), \
                     patch.object(build.os, "geteuid", return_value=1001), \
                     patch.object(build.os, "access", return_value=False) as access:
                 message = "required installed tool" if matches else f"native {target} FreeBSD"
@@ -131,6 +132,54 @@ class BuildTests(unittest.TestCase):
                     build.native_preflight(self.parent, 1, 1, target=target)
                 if not matches:
                     access.assert_not_called()
+
+    def test_native_gate_refuses_wrong_release_before_tools_or_builds(self):
+        for target, machine in (("amd64", "amd64"), ("arm64", "arm64")):
+            for release in ("15.0-RELEASE", "16.0-RELEASE", "16.0-STABLE",
+                            "17.0-CURRENT", "unknown", "16.0-CURRENT-invalid"):
+                with self.subTest(target=target, release=release), \
+                        patch.object(build.platform, "system", return_value="FreeBSD"), \
+                        patch.object(build.platform, "machine", return_value=machine), \
+                        patch.object(build.platform, "release", return_value=release), \
+                        patch.object(build.os, "geteuid", return_value=1001), \
+                        patch.object(build.os, "access") as access, \
+                        patch.object(build.subprocess, "Popen") as execute:
+                    with self.assertRaisesRegex(ValueError, "native 16.0-CURRENT"):
+                        build.native_preflight(self.parent, 1, 80, target=target)
+                    access.assert_not_called()
+                    execute.assert_not_called()
+                    self.assertFalse(self.output.exists())
+
+    def test_matching_current_release_still_checks_all_worker_resources(self):
+        for target, machine in (("amd64", "amd64"), ("arm64", "arm64")):
+            with self.subTest(target=target), \
+                    patch.object(build.platform, "system", return_value="FreeBSD"), \
+                    patch.object(build.platform, "machine", return_value=machine), \
+                    patch.object(build.platform, "release", return_value="16.0-CURRENT"), \
+                    patch.object(build.os, "geteuid", return_value=1001), \
+                    patch.object(build.os, "access", return_value=True) as access, \
+                    patch.object(build.os, "cpu_count", return_value=4), \
+                    patch.object(build.shutil, "disk_usage") as disk, \
+                    patch.object(build.subprocess, "check_output",
+                                 side_effect=["2097152", "0", "4096"]) as probe, \
+                    patch.object(build.subprocess, "Popen") as execute:
+                disk.return_value.free = 100 * 1024**3
+                build.native_preflight(self.parent, 4, 80, target=target)
+                self.assertEqual(access.call_count, 3)
+                self.assertEqual(disk.call_count, 2)
+                self.assertEqual(probe.call_count, 3)
+                execute.assert_not_called()
+                self.assertFalse(self.output.exists())
+
+    def test_noncurrent_source_is_not_admitted_as_current(self):
+        (self.source / "sys/conf/newvers.sh").write_text('REVISION="16.0"\nBRANCH="STABLE"\n')
+        with patch.object(build.platform, "system", return_value="FreeBSD"), \
+                patch.object(build.platform, "machine", return_value="amd64"), \
+                patch.object(build.os, "geteuid", return_value=1001), \
+                patch.object(build.os, "access") as access:
+            with self.assertRaisesRegex(ValueError, "source must declare a CURRENT"):
+                build.native_preflight(self.parent, 1, 80)
+            access.assert_not_called()
 
     def test_arm_native_gate_keeps_unprivileged_requirement(self):
         with patch.object(build.platform, "system", return_value="FreeBSD"), \
@@ -370,6 +419,7 @@ class BuildTests(unittest.TestCase):
     def test_trace_preflight_requires_existing_device_without_worker_mutation(self):
         with patch.object(build.platform, "system", return_value="FreeBSD"), \
                 patch.object(build.platform, "machine", return_value="amd64"), \
+                patch.object(build.platform, "release", return_value="16.0-CURRENT"), \
                 patch.object(build.os, "geteuid", return_value=1001), \
                 patch.object(build.os, "access", return_value=False), \
                 patch.object(build.subprocess, "check_output") as process:

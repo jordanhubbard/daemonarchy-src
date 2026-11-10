@@ -165,6 +165,14 @@ def native_preflight(root, jobs, minimum_free_gib, trace_mode="off", target="amd
         raise ValueError(f"execution requires a native {target} FreeBSD worker; plan works on other hosts")
     if os.geteuid() == 0:
         raise ValueError("use an unprivileged build account")
+    version_text = (SOURCE / "sys/conf/newvers.sh").read_text()
+    revision = re.search(r'^REVISION="([0-9]+\.[0-9]+)"$', version_text, re.M)
+    branch = re.search(r'^BRANCH="([^"]+)"$', version_text, re.M)
+    if revision is None or branch is None or branch[1] != "CURRENT":
+        raise ValueError("source must declare a CURRENT release revision")
+    expected_release = f"{revision[1]}-CURRENT"
+    if platform.release() != expected_release:
+        raise ValueError(f"execution requires a native {expected_release} worker")
     if trace_mode == "filemon":
         minimum_free_gib = max(100, minimum_free_gib)
         if not os.access("/dev/filemon", os.R_OK | os.W_OK):

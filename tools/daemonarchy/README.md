@@ -83,6 +83,11 @@ through its reviewed plan/apply transaction when the next candidate is qualified
 Use a dedicated unprivileged FreeBSD-CURRENT build account with installed Git,
 Python 3.12+ and pkg (`/usr/local/sbin/pkg`), the native base toolchain, at least
 80 GiB free on the output volume, and 2 GiB available RAM per job (8 GiB minimum).
+The runtime preflight requires the worker kernel release to equal the source
+`REVISION` plus `-CURRENT` (currently `16.0-CURRENT`), as well as the
+matching architecture. FreeBSD 15, RELEASE/STABLE and another CURRENT revision are refused
+before tool/resource probes or build dispatch; controller tests and plans on
+other hosts retain their existing scope.
 Allow additional space for retained builds; a full first world/kernel build can
 take hours. Use the existing single-slot worker allocation. The protected signer
 and physical acceptance machines are not build workers.
