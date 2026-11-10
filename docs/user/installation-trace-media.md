@@ -186,8 +186,9 @@ callback-fixture gate only; amd64 firmware boot, BIOS and physical gates remain.
 
 ## Fresh boot correlation nonce
 
-The v3 normal writer requests 32 bytes from the firmware RNG once before
-loader-ready capture. A successful nonuniform result is encoded as a lowercase
+The v3 normal writer requests 32 bytes from the firmware RNG once per loader
+instance before its first admitted capture attempt. Failed-write retries keep
+the same cached value. A successful nonuniform result is encoded as a lowercase
 64-character boot_nonce with boot_identity=firmware-rng. Both independent banks
 use the same cached nonce. The pre-exit writer validates that nonce against the
 complete earlier record; a different boot's valid checksum cannot bind the

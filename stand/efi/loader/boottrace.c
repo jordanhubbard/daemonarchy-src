@@ -52,6 +52,7 @@ static struct {
 	char boot_nonce[BT_NORMAL_NONCE_SIZE];
 	unsigned slot;
 	bool ready;
+	bool nonce_initialized;
 	bool preexit_completed;
 } bt_normal_session;
 
@@ -1368,7 +1369,10 @@ bt_normal_capture(void)
 		goto done;
 	}
 	partition = getenv("daemonarchy.trace.partition");
-	bt_normal_random_nonce(bt_normal_session.boot_nonce);
+	if (!bt_normal_session.nonce_initialized) {
+		bt_normal_random_nonce(bt_normal_session.boot_nonce);
+		bt_normal_session.nonce_initialized = true;
+	}
 	len = bt_normal_boot_record(record, sizeof(record), &declared,
 	    partition, slot, BT_NORMAL_STAGE_READY, bt_normal_session.boot_nonce);
 	if (len == 0) {
