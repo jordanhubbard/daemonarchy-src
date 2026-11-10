@@ -59,11 +59,14 @@ else
     tail -80 "$out/module.log"
     exit 1
 fi
+# Keep feature selection local to each native Makefile. EFI and BIOS loaders
+# default to network support; a global override also enables it in boot blocks
+# whose libsa consumers deliberately lack the full network implementation.
 MAKEOBJDIRPREFIX=$(mktemp -d /var/tmp/earlynet-loader-objects.XXXXXXXX)
 export MAKEOBJDIRPREFIX
-make -C stand -j2 NO_ROOT=yes WITH_LOADER_BIOS=yes __MAKE_CONF=/dev/null SRCCONF=/dev/null LOADER_NET_SUPPORT=yes obj \
+make -C stand -j2 NO_ROOT=yes WITH_LOADER_BIOS=yes __MAKE_CONF=/dev/null SRCCONF=/dev/null obj \
     > "$out/obj.log" 2>&1
-if make -C stand -j2 NO_ROOT=yes WITH_LOADER_BIOS=yes __MAKE_CONF=/dev/null SRCCONF=/dev/null LOADER_NET_SUPPORT=yes all \
+if make -C stand -j2 NO_ROOT=yes WITH_LOADER_BIOS=yes __MAKE_CONF=/dev/null SRCCONF=/dev/null all \
     > "$out/build.log" 2>&1; then
     loader_obj=$(make -C stand/efi/loader_lua __MAKE_CONF=/dev/null SRCCONF=/dev/null -V .OBJDIR)
     cp "$loader_obj/loader_lua.efi" "$out/loader.efi"
