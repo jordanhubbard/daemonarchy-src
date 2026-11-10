@@ -211,3 +211,13 @@ Forty portable policy and nineteen FAT-admission controls cover legacy retention
 nonce formatting, missing/stuck entropy, truncation, mismatched later nonces and
 explicit unavailable state. Native construction and clone/restart controls must
 be bound to their actual artifacts before claiming runtime freshness.
+
+The [native correlation checkpoint](../../verification/normal-boot-identity-20261110.json)
+binds source 75299834 to new ARM64 and amd64 EFI binaries. On both architectures,
+two fresh processes boot the exact same image/archive/partition/session and
+record different nonces, with the same nonce in both banks. Only 809 bytes in
+the expected slot change. ARM fresh-process restart retains its earlier record
+and allocates a new slot with a new nonce. Without the RNG device, both targets
+persist an explicit unavailable identity, change only 701 slot bytes and still
+enter the kernel. These are boot-only controls held at an unavailable root.
+Kernel/userspace handoff querying and stable hardware identity remain open.
