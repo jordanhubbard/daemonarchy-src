@@ -13,8 +13,9 @@ static const char identity[] = BT_NORMAL_ID_TAG
     "mode=observe-only\n";
 
 int
-main(void)
+main(int argc, char **argv)
 {
+	FILE *fixture;
 	struct bt_normal_identity id;
 	char changed[sizeof(identity) + 2], record[1024], slot[BT_NORMAL_SIZE];
 	uint32_t sum;
@@ -23,6 +24,8 @@ main(void)
 	const char *end;
 	size_t i, n;
 	unsigned checks = 0;
+
+	assert(argc == 1 || argc == 2);
 
 	assert(bt_normal_identity(identity, sizeof(identity) - 1, &id) == 0);
 	assert(strcmp(id.image_id, "01234567-89ab-cdef-0123-456789abcdef") == 0);
@@ -235,6 +238,38 @@ main(void)
 	assert(bt_normal_boot_record(record, sizeof(record), &id, id.image_id,
 	    1, (enum bt_normal_stage)0, nonce) == 0);
 	assert(bt_normal_boot_preexit_state(slot, sizeof(slot), &id, id.image_id, 1, NULL) == -1);
+	checks++;
+	/* The live producer uses v4 without changing legacy caller formats. */
+	memset(slot, '\n', sizeof(slot));
+	n = bt_normal_session_record(record, sizeof(record), &id, id.image_id,
+	    1, BT_NORMAL_STAGE_READY, nonce);
+	assert(n > 0 && strstr(record, "normal boot trace v4\n") != NULL);
+	memcpy(slot, record, n);
+	assert(bt_normal_session_preexit_state(slot, sizeof(slot), &id, id.image_id, 1, nonce) == 0);
+	assert(bt_normal_boot_preexit_state(slot, sizeof(slot), &id, id.image_id, 1, nonce) == -1);
+	checks++;
+	n = bt_normal_session_record(record, sizeof(record), &id, id.image_id,
+	    1, BT_NORMAL_STAGE_PREEXIT, nonce);
+	assert(n > 0 && strstr(record, "normal boot trace v4\n") != NULL);
+	memcpy(slot + BT_NORMAL_PREEXIT_OFF, record, n);
+	assert(bt_normal_session_preexit_state(slot, sizeof(slot), &id, id.image_id, 1, nonce) == 1);
+	checks++;
+	if (argc == 2) {
+		fixture = fopen(argv[1], "wbx");
+		assert(fixture != NULL);
+		assert(fwrite(slot, 1, sizeof(slot), fixture) == sizeof(slot));
+		assert(fclose(fixture) == 0);
+	}
+
+	slot[BT_NORMAL_PREEXIT_OFF] ^= 1;
+	assert(bt_normal_session_preexit_state(slot, sizeof(slot), &id, id.image_id, 1, nonce) == -1);
+	slot[BT_NORMAL_PREEXIT_OFF] ^= 1;
+	slot[2 * BT_NORMAL_STAGE_SIZE] = 'x';
+	assert(bt_normal_session_preexit_state(slot, sizeof(slot), &id, id.image_id, 1, nonce) == -1);
+	checks++;
+	assert(bt_normal_session_record(record, sizeof(record), &id, id.image_id,
+	    1, BT_NORMAL_STAGE_READY, NULL) == 0);
+	assert(bt_normal_session_preexit_state(slot, sizeof(slot), &id, id.image_id, 1, NULL) == -1);
 	checks++;
 	id.image_id[0] = '\n';
 	assert(bt_normal_record(record, sizeof(record), &id, "01234567-89ab-cdef-0123-456789abcdef", 1) == 0);

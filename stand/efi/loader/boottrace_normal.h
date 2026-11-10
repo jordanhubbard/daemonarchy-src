@@ -42,6 +42,10 @@ size_t bt_normal_boot_record(char *, size_t, const struct bt_normal_identity *,
     const char *, unsigned, enum bt_normal_stage, const char *);
 int bt_normal_boot_preexit_state(const char *, size_t,
     const struct bt_normal_identity *, const char *, unsigned, const char *);
+size_t bt_normal_session_record(char *, size_t, const struct bt_normal_identity *,
+    const char *, unsigned, enum bt_normal_stage, const char *);
+int bt_normal_session_preexit_state(const char *, size_t,
+    const struct bt_normal_identity *, const char *, unsigned, const char *);
 void boottrace_normal_preexit(void);
 
 #endif

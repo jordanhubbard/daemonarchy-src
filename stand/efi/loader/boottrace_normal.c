@@ -175,7 +175,7 @@ bt_normal_record(char *out, size_t cap, const struct bt_normal_identity *id,
 static size_t
 normal_stage_record(char *out, size_t cap,
     const struct bt_normal_identity *id, const char *partition, unsigned slot,
-    enum bt_normal_stage stage, const char *nonce)
+    enum bt_normal_stage stage, const char *nonce, unsigned version)
 {
 	const char *phase;
 
@@ -189,13 +189,15 @@ normal_stage_record(char *out, size_t cap,
 	default:
 		return (0);
 	}
-	if (nonce != NULL && !normal_nonce_valid(nonce))
+	if (version < 2 || version > 4 ||
+	    (version == 2 ? nonce != NULL : !normal_nonce_valid(nonce)))
 		return (0);
 	if (cap > BT_NORMAL_STAGE_SIZE)
 		cap = BT_NORMAL_STAGE_SIZE;
 	return (normal_record(out, cap, id, partition, slot,
-	    nonce == NULL ? "Daemonarchy normal boot trace v2\n" :
-	    "Daemonarchy normal boot trace v3\n", phase, nonce));
+	    version == 2 ? "Daemonarchy normal boot trace v2\n" :
+	    version == 3 ? "Daemonarchy normal boot trace v3\n" :
+	    "Daemonarchy normal boot trace v4\n", phase, nonce));
 }
 
 size_t
@@ -203,7 +205,7 @@ bt_normal_stage_record(char *out, size_t cap,
     const struct bt_normal_identity *id, const char *partition, unsigned slot,
     enum bt_normal_stage stage)
 {
-	return (normal_stage_record(out, cap, id, partition, slot, stage, NULL));
+	return (normal_stage_record(out, cap, id, partition, slot, stage, NULL, 2));
 }
 
 size_t
@@ -213,7 +215,17 @@ bt_normal_boot_record(char *out, size_t cap,
 {
 	if (nonce == NULL)
 		return (0);
-	return (normal_stage_record(out, cap, id, partition, slot, stage, nonce));
+	return (normal_stage_record(out, cap, id, partition, slot, stage, nonce, 3));
+}
+
+/* v4 reserves the remaining two aligned banks for independently bound
+ * userspace evidence. The legacy v1/v2/v3 entry points retain their formats. */
+size_t
+bt_normal_session_record(char *out, size_t cap,
+    const struct bt_normal_identity *id, const char *partition, unsigned slot,
+    enum bt_normal_stage stage, const char *nonce)
+{
+    return (normal_stage_record(out, cap, id, partition, slot, stage, nonce, 4));
 }
 
 static int
@@ -232,7 +244,7 @@ normal_padding(const char *data, size_t size)
 static int
 normal_preexit_state(const char *data, size_t size,
     const struct bt_normal_identity *id, const char *partition, unsigned slot,
-    const char *nonce)
+    const char *nonce, unsigned version)
 {
 	char expected[1024];
 	size_t n;
@@ -240,7 +252,7 @@ normal_preexit_state(const char *data, size_t size,
 	if (data == NULL || size != BT_NORMAL_SIZE)
 		return (-1);
 	n = normal_stage_record(expected, sizeof(expected), id, partition,
-	    slot, BT_NORMAL_STAGE_READY, nonce);
+	    slot, BT_NORMAL_STAGE_READY, nonce, version);
 	if (n == 0 || memcmp(data, expected, n) != 0 ||
 	    !normal_padding(data + n, BT_NORMAL_STAGE_SIZE - n) ||
 	    !normal_padding(data + BT_NORMAL_PREEXIT_OFF + BT_NORMAL_STAGE_SIZE,
@@ -250,7 +262,7 @@ normal_preexit_state(const char *data, size_t size,
 	if (normal_padding(data, BT_NORMAL_STAGE_SIZE))
 		return (0);
 	n = normal_stage_record(expected, sizeof(expected), id, partition,
-	    slot, BT_NORMAL_STAGE_PREEXIT, nonce);
+	    slot, BT_NORMAL_STAGE_PREEXIT, nonce, version);
 	if (n == 0 || memcmp(data, expected, n) != 0 ||
 	    !normal_padding(data + n, BT_NORMAL_STAGE_SIZE - n))
 		return (-1);
@@ -261,7 +273,7 @@ int
 bt_normal_preexit_state(const char *data, size_t size,
     const struct bt_normal_identity *id, const char *partition, unsigned slot)
 {
-	return (normal_preexit_state(data, size, id, partition, slot, NULL));
+	return (normal_preexit_state(data, size, id, partition, slot, NULL, 2));
 }
 
 int
@@ -271,5 +283,14 @@ bt_normal_boot_preexit_state(const char *data, size_t size,
 {
 	if (nonce == NULL)
 		return (-1);
-	return (normal_preexit_state(data, size, id, partition, slot, nonce));
+	return (normal_preexit_state(data, size, id, partition, slot, nonce, 3));
+}
+
+
+int
+bt_normal_session_preexit_state(const char *data, size_t size,
+    const struct bt_normal_identity *id, const char *partition, unsigned slot,
+    const char *nonce)
+{
+    return (normal_preexit_state(data, size, id, partition, slot, nonce, 4));
 }

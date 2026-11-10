@@ -1373,7 +1373,7 @@ bt_normal_capture(void)
 		bt_normal_random_nonce(bt_normal_session.boot_nonce);
 		bt_normal_session.nonce_initialized = true;
 	}
-	len = bt_normal_boot_record(record, sizeof(record), &declared,
+	len = bt_normal_session_record(record, sizeof(record), &declared,
 	    partition, slot, BT_NORMAL_STAGE_READY, bt_normal_session.boot_nonce);
 	if (len == 0) {
 		outcome = "metadata-invalid";
@@ -1457,7 +1457,7 @@ boottrace_normal_preexit(void)
 	if (entry == NULL || entry->size != sizeof(data) ||
 	    bt_blk_read(&bt_blkv, entry, data, sizeof(data)) != EFI_SUCCESS)
 		goto done;
-	state = bt_normal_boot_preexit_state(data, sizeof(data),
+	state = bt_normal_session_preexit_state(data, sizeof(data),
 	    &bt_normal_session.id, partition, bt_normal_session.slot,
 	    bt_normal_session.boot_nonce);
 	outcome = "parent-or-later-region-invalid";
@@ -1468,7 +1468,7 @@ boottrace_normal_preexit(void)
 		outcome = "already-saved";
 		goto done;
 	}
-	len = bt_normal_boot_record(record, sizeof(record),
+	len = bt_normal_session_record(record, sizeof(record),
 	    &bt_normal_session.id, partition, bt_normal_session.slot,
 	    BT_NORMAL_STAGE_PREEXIT, bt_normal_session.boot_nonce);
 	outcome = "metadata-invalid";
@@ -1486,7 +1486,7 @@ boottrace_normal_preexit(void)
 		goto done;
 	/* Re-read the complete slot to check the parent and reserved bytes too. */
 	if (bt_blk_read(&bt_blkv, entry, data, sizeof(data)) != EFI_SUCCESS ||
-	    bt_normal_boot_preexit_state(data, sizeof(data), &bt_normal_session.id,
+	    bt_normal_session_preexit_state(data, sizeof(data), &bt_normal_session.id,
 	    partition, bt_normal_session.slot, bt_normal_session.boot_nonce) != 1)
 		goto done;
 	bt_normal_session.preexit_completed = true;
