@@ -19,6 +19,13 @@ sh tools/daemonarchy/tests/run-boottrace-media.sh "$PWD" \
     "$(mktemp -d /var/tmp/trace-media-parser.XXXXXXXX)" > "$out/trace-media.stdout"
 sh tools/daemonarchy/tests/run-boottrace-normal.sh "$PWD" \
     "$(mktemp -d /var/tmp/normal-trace-policy.XXXXXXXX)" > "$out/normal-trace.stdout"
+# Exercise the production EFI handoff before building the standalone loader.
+# The callback must run once before the memory-map/ExitBootServices window.
+sh tools/daemonarchy/tests/run-efi-bootinfo.sh "$PWD" \
+    "$(mktemp -d /var/tmp/preexit-bootinfo.XXXXXXXX)" > "$out/bootinfo.stdout"
+sh tools/daemonarchy/tests/run-efi-bootinfo.sh "$PWD" \
+    "$(mktemp -d /var/tmp/preexit-bootinfo-sanitize.XXXXXXXX)" sanitize \
+    > "$out/bootinfo-sanitize.stdout"
 cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
     -fno-omit-frame-pointer -Istand/efi/loader \
     stand/efi/loader/netconsole_undi.c tools/daemonarchy/tests/netconsole-undi.c \

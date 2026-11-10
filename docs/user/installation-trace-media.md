@@ -98,7 +98,7 @@ and `write-unverified`. These describe capture, separately from discovery's
 Read back with the product controller's `stick.py normal TARGET --out FRESH_DIR`.
 It preserves exact slot bytes, including partial/corrupt records, and writes a
 hash-bearing extraction manifest without changing the volume. The production
-policy and FAT readers have 18 and 19 sanitizer controls respectively:
+policy and FAT readers have 28 and 19 sanitizer controls respectively:
 
 ```sh
 sh tools/daemonarchy/tests/run-boottrace-normal.sh "$PWD" /private/new-test-objects
@@ -149,3 +149,27 @@ amd64 EFI bootinfo fixture now asserts the callback's position and one-time use
 across memory-map/exit failures and retries. Native EFI build/boot, actual
 interrupted writes, amd64/BIOS integration and full kernel/init/installer/physical
 acceptance remain required; controller and fake-block controls do not supply them.
+
+## Native pre-exit development checkpoint
+
+The [artifact-bound ARM64 checkpoint](../../verification/normal-preexit-20261110.json)
+binds the exact fe12c0bb source, native unprivileged stand build and 1,384,876-byte
+EFI to a minimal kernel-control medium. An automatic boot and fresh-process
+restart each save both banks and enter the CURRENT kernel; only 607 bytes in
+the newly allocated slot change. A synthetic partial later bank is retained
+while the next session records normally. Read-only media and a trace-less
+read-only primary beside a writable foreign trace disk boot without records
+or changes to either disk. There is no network device or keyboard input.
+
+The first foreign-disk run used a writable trace-less hybrid primary and changed
+81 bytes in its backup GPT sectors, while leaving the foreign trace disk intact.
+That run is retained and does not pass whole-primary preservation; attribution
+to firmware/GPT repair remains unresolved. The retry deliberately holds the
+primary read-only and does not establish that stronger writable-primary claim.
+
+These controls stop at a deliberately unavailable root prompt. They do not run
+init, an installer or a desktop and do not qualify physical hardware. The kernel
+comes from the earlier af55 world build; only stand is rebuilt from fe12c0bb.
+Native amd64 callback assertions now run in CI before the EFI build, including
+sanitizers; their actual result must be checked separately. All remaining
+TRACE-001 stages, final-media and release gates stay open.

@@ -1,0 +1,353 @@
+{
+  "schema": "daemonarchy/native-normal-preexit-checkpoint@1",
+  "recorded_date": "2026-11-10",
+  "status": "scoped-native-arm64-development-checkpoint",
+  "source": {
+    "commit": "fe12c0bb997b5081c451e60b7bc252c3e7fb4b2f",
+    "archive_bytes": 416264338,
+    "archive_sha256": "df8fc82696d9973a90404ffe3854bfa773d63c1a78e01217eb614d8f1e1f9f02",
+    "worker_source_kernel_base": "af55b6f9042e15b635e90926d476e7cbeb48a069",
+    "target": "native FreeBSD arm64/aarch64",
+    "source_readonly": true,
+    "build_uid": 1017,
+    "build_gid": 1017
+  },
+  "product_producers": [
+    {
+      "path": "scripts/make-efi-iso.sh",
+      "bytes": 5460,
+      "sha256": "b3dea4e35c72f2f3c5b1be96449d8040a2e4e8cfc0884c8b3c274336d40f07cc"
+    },
+    {
+      "path": "scripts/make-install-trace.py",
+      "bytes": 10239,
+      "sha256": "b232321e0fd5cc2defd10be9c98ef41f762d4692b6762cdc99577b9d2f6fb760"
+    },
+    {
+      "path": "tools/boottrace/stick.py",
+      "bytes": 30738,
+      "sha256": "f120fb261543155b339efa8ad1b3b61bbeb5c36960e773a68e63bd1722d21fd1"
+    }
+  ],
+  "product_base_commit": "b2509639c275dee338b5b760437c59b43b237747",
+  "artifacts": [
+    {
+      "name": "loader.efi",
+      "bytes": 1384876,
+      "sha256": "fdbbe6400453bb30b947d2b17f7309e3520f8cc7152195e3b9b5d0cc380e788f"
+    },
+    {
+      "name": "policy.log",
+      "bytes": 84,
+      "sha256": "ad3e3bbb621448f96cbf1f0a8ce3dc264ebead56b40f004309db048ee1041e8d"
+    },
+    {
+      "name": "blocks.log",
+      "bytes": 298,
+      "sha256": "718191cafe93d1e23b7b91692f96ea54a5d66ef0e1187d707134bc94803564c5"
+    },
+    {
+      "name": "stand-build.log",
+      "bytes": 965449,
+      "sha256": "cb2165de4662abd1d08b183e821c58033466418c144bb6bc5f5b75b1b68924ef"
+    },
+    {
+      "name": "build-identity.txt",
+      "bytes": 69,
+      "sha256": "191f0d37424897fc484175c102b2a3a14e0923349059184c5edbcc440d9e0d68"
+    },
+    {
+      "name": "control-image.log",
+      "bytes": 1530,
+      "sha256": "953dd682973248f770630817e8ea86233c94a3a9f653efe07a51c10cffc2953b"
+    },
+    {
+      "name": "control.iso",
+      "bytes": 393232896,
+      "sha256": "29bf12933a8b61d93e54f63090e649bcdea1e9d1d69aa3e66951c106034dbf32"
+    },
+    {
+      "name": "payload.iso",
+      "bytes": 124385280,
+      "sha256": "4cb0bc0b75feef933104766bfd73cd47e0937a199c21f1fbbf10829f584ce295"
+    }
+  ],
+  "native_build": {
+    "os": "FreeBSD 16.0-CURRENT",
+    "osversion": 1600031,
+    "target": "arm64/aarch64",
+    "uid": 1017,
+    "gid": 1017,
+    "readonly_source": true,
+    "external_objects": true,
+    "stand_exit": 0,
+    "compiler": "native FreeBSD Clang 21.1.8 from the af55 world",
+    "canonical_sdk_admitted": false
+  },
+  "original_tests": {
+    "normal_policy_sanitized": 28,
+    "fat_admission_sanitized": 19,
+    "block_writer_groups": 10,
+    "native_amd64_bootinfo": "Callback-position assertions wired into native CI in plain and sanitized modes; no result claimed in this record."
+  },
+  "format": {
+    "slots": 32,
+    "slot_bytes": 16384,
+    "loader_ready_bank_bytes": 4096,
+    "preexit_bank_bytes": 4096,
+    "reserved_bytes": 8192,
+    "mapped_files": 233,
+    "map_capacity": 256,
+    "legacy_v1_readable": true,
+    "preexit_meaning": "callback reached before first GetMemoryMap; not proof of successful ExitBootServices"
+  },
+  "vm": {
+    "execution": "native AArch64 KVM/UEFI",
+    "cpus": 2,
+    "memory_gib": 2,
+    "network_devices": 0,
+    "keyboard_input": false,
+    "kernel_source_commit": "af55b6f9042e15b635e90926d476e7cbeb48a069",
+    "kernel_sha256": "d4bb617d30643b623623221bf5833a627c65a3f97f2344b4ae6bea0052622d6c",
+    "boundary": "CURRENT kernel entered and held at deliberately unavailable control root; no init or installer",
+    "units_stopped_before_readback": true
+  },
+  "cases": {
+    "boot-r1": {
+      "result": {
+        "status": "native-loader-ready-and-preexit-recorded-kernel-entered",
+        "source_commit": "fe12c0bb997b5081c451e60b7bc252c3e7fb4b2f",
+        "input_sha256": "29bf12933a8b61d93e54f63090e649bcdea1e9d1d69aa3e66951c106034dbf32",
+        "kernel_source_commit": "af55b6f9042e15b635e90926d476e7cbeb48a069",
+        "record": {
+          "schema": "daemonarchy/normal-boot-trace@2",
+          "image_id": "05e92d6f-08cd-4d8e-b764-9adc7589c3aa",
+          "archive_sha256": "75fd14d4c6ded786b6d2eb957466ebc9c1f36b44928c86022a9a472878451ae8",
+          "trace_partition": "c6c75284-dcd4-11f1-1d08-61407e6af4da",
+          "session": "0001",
+          "phase": "loader-ready",
+          "identity": "declared-archive",
+          "early_kernel_backend": "not-enabled",
+          "pre_exit": {
+            "sha256": "3bcc2a61a1cd5b2ff6c009038a83f929124b02f5e537effa9cfb6c49950c6778",
+            "status": "recorded",
+            "record": {
+              "schema": "daemonarchy/normal-boot-trace@2",
+              "image_id": "05e92d6f-08cd-4d8e-b764-9adc7589c3aa",
+              "archive_sha256": "75fd14d4c6ded786b6d2eb957466ebc9c1f36b44928c86022a9a472878451ae8",
+              "trace_partition": "c6c75284-dcd4-11f1-1d08-61407e6af4da",
+              "session": "0001",
+              "phase": "pre-exit",
+              "identity": "declared-archive",
+              "early_kernel_backend": "not-enabled"
+            }
+          }
+        },
+        "changed_bytes": 607,
+        "only_current_normal_slot_changed": true,
+        "mapped_files": 233,
+        "input_unchanged": true,
+        "guest_memory_gib": 2,
+        "guest_cpus": 2,
+        "target": "native AArch64 KVM/UEFI",
+        "kernel_waited_at_deliberately_unavailable_control_root": true,
+        "full_os_or_installer": false
+      },
+      "result_sha256": "145778befeac61df8ec7479d6e330837c2e3e074cf3ec3249a17d0d1346a3ad5",
+      "serial_sha256": "d073bcb4c1a6cbed40f2996652623ef75e7090964b9f0d06d3dd5474df316b3e",
+      "returned_image_sha256": "a6475ac1a54fea54dd3da47e7da2255e17404a7f29ed8f88b0a87d7a3f2f363e"
+    },
+    "boot-r2": {
+      "result": {
+        "status": "pass",
+        "name": "boot-r2",
+        "records": {
+          "1": {
+            "schema": "daemonarchy/normal-boot-trace@2",
+            "image_id": "05e92d6f-08cd-4d8e-b764-9adc7589c3aa",
+            "archive_sha256": "75fd14d4c6ded786b6d2eb957466ebc9c1f36b44928c86022a9a472878451ae8",
+            "trace_partition": "c6c75284-dcd4-11f1-1d08-61407e6af4da",
+            "session": "0001",
+            "phase": "loader-ready",
+            "identity": "declared-archive",
+            "early_kernel_backend": "not-enabled",
+            "pre_exit": {
+              "sha256": "3bcc2a61a1cd5b2ff6c009038a83f929124b02f5e537effa9cfb6c49950c6778",
+              "status": "recorded",
+              "record": {
+                "schema": "daemonarchy/normal-boot-trace@2",
+                "image_id": "05e92d6f-08cd-4d8e-b764-9adc7589c3aa",
+                "archive_sha256": "75fd14d4c6ded786b6d2eb957466ebc9c1f36b44928c86022a9a472878451ae8",
+                "trace_partition": "c6c75284-dcd4-11f1-1d08-61407e6af4da",
+                "session": "0001",
+                "phase": "pre-exit",
+                "identity": "declared-archive",
+                "early_kernel_backend": "not-enabled"
+              }
+            }
+          },
+          "2": {
+            "schema": "daemonarchy/normal-boot-trace@2",
+            "image_id": "05e92d6f-08cd-4d8e-b764-9adc7589c3aa",
+            "archive_sha256": "75fd14d4c6ded786b6d2eb957466ebc9c1f36b44928c86022a9a472878451ae8",
+            "trace_partition": "c6c75284-dcd4-11f1-1d08-61407e6af4da",
+            "session": "0002",
+            "phase": "loader-ready",
+            "identity": "declared-archive",
+            "early_kernel_backend": "not-enabled",
+            "pre_exit": {
+              "sha256": "cbd10b057ccdd4f898b52cd0cfe0010e5793c3ba7f4ff8164c333cf714a52f1b",
+              "status": "recorded",
+              "record": {
+                "schema": "daemonarchy/normal-boot-trace@2",
+                "image_id": "05e92d6f-08cd-4d8e-b764-9adc7589c3aa",
+                "archive_sha256": "75fd14d4c6ded786b6d2eb957466ebc9c1f36b44928c86022a9a472878451ae8",
+                "trace_partition": "c6c75284-dcd4-11f1-1d08-61407e6af4da",
+                "session": "0002",
+                "phase": "pre-exit",
+                "identity": "declared-archive",
+                "early_kernel_backend": "not-enabled"
+              }
+            }
+          }
+        },
+        "changed_bytes": 607,
+        "only_expected_slot_changed": true,
+        "readonly": false,
+        "foreign_disk_unchanged": false,
+        "input_unchanged": true,
+        "kernel_control_boundary_reached": true,
+        "no_keyboard_input": true
+      },
+      "result_sha256": "5ced60194770f59aa675304d26c0d0e7c5794bea26c48cfca7cda41f66b19b84",
+      "serial_sha256": "2ba433effd5410b382cd1f41fb3e369e59049e4274fc30d2f68bd9be7676249f",
+      "returned_image_sha256": "7d1a5d557d263c823945017ab7d55ea0fecc45ed449c5ccf9855ea6f9588485f"
+    },
+    "boot-partial": {
+      "result": {
+        "status": "pass",
+        "name": "boot-partial",
+        "records": {
+          "1": {
+            "schema": "daemonarchy/normal-boot-trace@2",
+            "image_id": "05e92d6f-08cd-4d8e-b764-9adc7589c3aa",
+            "archive_sha256": "75fd14d4c6ded786b6d2eb957466ebc9c1f36b44928c86022a9a472878451ae8",
+            "trace_partition": "c6c75284-dcd4-11f1-1d08-61407e6af4da",
+            "session": "0001",
+            "phase": "loader-ready",
+            "identity": "declared-archive",
+            "early_kernel_backend": "not-enabled",
+            "pre_exit": {
+              "sha256": "bf9e5d3ac5bbb364bc1936510e39b747c567c1f3407235b8ea7d9aa23457b976",
+              "status": "unreadable",
+              "error": "normal boot slot has no complete checksum"
+            }
+          },
+          "2": {
+            "schema": "daemonarchy/normal-boot-trace@2",
+            "image_id": "05e92d6f-08cd-4d8e-b764-9adc7589c3aa",
+            "archive_sha256": "75fd14d4c6ded786b6d2eb957466ebc9c1f36b44928c86022a9a472878451ae8",
+            "trace_partition": "c6c75284-dcd4-11f1-1d08-61407e6af4da",
+            "session": "0002",
+            "phase": "loader-ready",
+            "identity": "declared-archive",
+            "early_kernel_backend": "not-enabled",
+            "pre_exit": {
+              "sha256": "cbd10b057ccdd4f898b52cd0cfe0010e5793c3ba7f4ff8164c333cf714a52f1b",
+              "status": "recorded",
+              "record": {
+                "schema": "daemonarchy/normal-boot-trace@2",
+                "image_id": "05e92d6f-08cd-4d8e-b764-9adc7589c3aa",
+                "archive_sha256": "75fd14d4c6ded786b6d2eb957466ebc9c1f36b44928c86022a9a472878451ae8",
+                "trace_partition": "c6c75284-dcd4-11f1-1d08-61407e6af4da",
+                "session": "0002",
+                "phase": "pre-exit",
+                "identity": "declared-archive",
+                "early_kernel_backend": "not-enabled"
+              }
+            }
+          }
+        },
+        "changed_bytes": 607,
+        "only_expected_slot_changed": true,
+        "readonly": false,
+        "foreign_disk_unchanged": false,
+        "input_unchanged": true,
+        "kernel_control_boundary_reached": true,
+        "no_keyboard_input": true
+      },
+      "result_sha256": "8da525e5aff502eb3b5abb83d19711fc9ba066f9cbe990e2c4e9840fd6b9ba10",
+      "serial_sha256": "2ba433effd5410b382cd1f41fb3e369e59049e4274fc30d2f68bd9be7676249f",
+      "returned_image_sha256": "000dcf4e7f1e1fe376dd3e46eb59bfece07d279e7933413780898a4a75e3c30a"
+    },
+    "boot-readonly": {
+      "result": {
+        "status": "pass",
+        "name": "boot-readonly",
+        "records": {},
+        "changed_bytes": 0,
+        "only_expected_slot_changed": false,
+        "readonly": true,
+        "foreign_disk_unchanged": false,
+        "input_unchanged": true,
+        "kernel_control_boundary_reached": true,
+        "no_keyboard_input": true
+      },
+      "result_sha256": "996472a3e697724f425672f2e285a5d60dca056253ddde3bfbd23319b6b8f652",
+      "serial_sha256": "38e90c0a1d7d4c3f59c51113bd837549c797aeda68895668265365996588b608"
+    },
+    "boot-foreign": {
+      "result": {
+        "status": "foreign-disk-refusal-observed-primary-GPT-change-unresolved",
+        "name": "boot-foreign",
+        "foreign_disk_unchanged": true,
+        "primary_changed_bytes": 81,
+        "primary_changed_regions": "backup GPT entry and header sectors only",
+        "kernel_control_boundary_reached": true,
+        "no_keyboard_input": true,
+        "loader_report": "media-unavailable",
+        "preexit_saved": false,
+        "scope": "No pass claimed for whole-primary preservation; generic postprocessor incorrectly required DATRACE on trace-less primary. Preserve original run and returned disks; distinguish firmware/GPT repair from trace writes with a separate control."
+      },
+      "result_sha256": "a3940f4d26f84bee3acb48b59497242fcd32b38fdf2b284337e566b618bfe8fd",
+      "serial_sha256": "3a24504fa649e0eed8a43ff1d4dbf6630d273f50aa5449ac5696e0767b95387b",
+      "returned_image_sha256": "5ba55e583c0eb682e9a95a506d09bdc9b887e02bd4dff7455744d30a191c094e"
+    },
+    "boot-foreign-r2": {
+      "result": {
+        "status": "pass",
+        "name": "boot-foreign-r2",
+        "records": {},
+        "changed_bytes": 0,
+        "only_expected_slot_changed": false,
+        "readonly": true,
+        "foreign_disk_unchanged": true,
+        "input_unchanged": true,
+        "kernel_control_boundary_reached": true,
+        "no_keyboard_input": true
+      },
+      "result_sha256": "dc21cd786d7f58e3ad0226b2c4d64e4feeee635090dfef9ce01b01d24c6b7e09",
+      "serial_sha256": "0803c7dd534a91f766f44ae1f2e71d98f620a675195e56b5fdfc0475d7c36bb7"
+    }
+  },
+  "interpretation": [
+    "Initial and restart boots write exactly 607 bytes in the new session NORMAL slot, retaining all other image bytes.",
+    "Synthetic partial later bank survives unchanged; next session records both stages. This is not actual interruption during a write.",
+    "Read-only media boots without saving a record or changing the image.",
+    "With a read-only trace-less primary and a writable foreign trace disk, boot continues and both images remain unchanged.",
+    "Earlier writable trace-less primary changed 81 bytes in backup GPT entries/header. Foreign disk stayed unchanged; whole-primary preservation is not passed for that run. Firmware/GPT repair attribution remains unresolved."
+  ],
+  "remaining": [
+    "Actual selected kernel/module identities and bounded firmware handoff facts",
+    "Early kernel console, panic, init and installer automatic capture",
+    "Clone-independent target and cross-stage boot identity",
+    "Actual interrupted writes, cold-power loss and physical reset",
+    "AMD64 callback fixture/firmware and BIOS qualification for this source",
+    "Whole-filesystem alias and crash-consistency qualification",
+    "Full refreshed world/ports/desktop media, installation, update and recovery",
+    "Publication size budget, signed final closure, canonical SDK/lifecycle/receipt and release gates",
+    "Physical Pi 4, Pi 5, Apple M2 and other required ARM targets"
+  ],
+  "release_qualified": false,
+  "private_evidence": "Raw logs, source archives, disk overlays and returned images are retained privately; credentials and worker addresses are excluded."
+}

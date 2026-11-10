@@ -160,6 +160,10 @@ jobs:
             tools/daemonarchy/tests/boottrace-media.c \
             tools/daemonarchy/tests/run-boottrace-media.sh \
             tools/daemonarchy/tests/boottrace-normal.c \
+            tools/daemonarchy/tests/efi-bootinfo.c \
+            tools/daemonarchy/tests/run-efi-bootinfo.sh \
+            tools/daemonarchy/tests/boottrace-blockmap.c \
+            stand/efi/loader/bootinfo.c \
             tools/daemonarchy/tests/boottrace-fat.c \
             tools/daemonarchy/tests/run-boottrace-normal.sh \
             tools/daemonarchy/tests/loader-normal-trace.lua stand/lua/boottrace.lua \
