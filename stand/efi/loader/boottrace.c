@@ -16,6 +16,7 @@
 #include <efilib.h>
 #include <Guid/Acpi.h>
 #include <Protocol/BlockIo.h>
+#include <Protocol/Rng.h>
 #include <Protocol/SimpleFileSystem.h>
 
 #include "bootstrap.h"
@@ -48,6 +49,7 @@ static int bt_normal_capture(void);
 static struct {
 	struct bt_normal_identity id;
 	char partition[37];
+	char boot_nonce[BT_NORMAL_NONCE_SIZE];
 	unsigned slot;
 	bool ready;
 	bool preexit_completed;
@@ -1279,6 +1281,25 @@ done:
 	return (outcome);
 }
 
+/* One bounded RNG request before capture; never fabricate a fallback identity.
+ * This is a correlation nonce, not authentication or RNG provenance admission. */
+static void
+bt_normal_random_nonce(char nonce[BT_NORMAL_NONCE_SIZE])
+{
+	EFI_GUID guid = EFI_RNG_PROTOCOL_GUID;
+	EFI_RNG_PROTOCOL *rng = NULL;
+	uint8_t bytes[BT_NORMAL_NONCE_BYTES];
+
+	strlcpy(nonce, BT_NORMAL_NONCE_UNAVAILABLE, BT_NORMAL_NONCE_SIZE);
+	memset(bytes, 0, sizeof(bytes));
+	if (BS->LocateProtocol(&guid, NULL, (void **)&rng) == EFI_SUCCESS &&
+	    rng != NULL && rng->GetRNG != NULL &&
+	    rng->GetRNG(rng, NULL, sizeof(bytes), bytes) == EFI_SUCCESS)
+		(void)bt_normal_nonce(nonce, BT_NORMAL_NONCE_SIZE, bytes,
+		    sizeof(bytes));
+	memset(bytes, 0, sizeof(bytes));
+}
+
 /* A normal boot reserves its own immutable session slot. No STATE/QUEUE
  * writes, FAT fallback, NVRAM, tunables, listeners or reboot actions. */
 static int
@@ -1304,6 +1325,7 @@ bt_normal_capture(void)
 		return (CMD_OK);
 	unsetenv("daemonarchy.trace.session");
 	unsetenv("daemonarchy.trace.capture");
+	unsetenv("daemonarchy.trace.boot_nonce");
 	root = bt_media_select(&handle, false);
 	if (root == NULL)
 		goto done;
@@ -1346,8 +1368,9 @@ bt_normal_capture(void)
 		goto done;
 	}
 	partition = getenv("daemonarchy.trace.partition");
-	len = bt_normal_stage_record(record, sizeof(record), &declared,
-	    partition, slot, BT_NORMAL_STAGE_READY);
+	bt_normal_random_nonce(bt_normal_session.boot_nonce);
+	len = bt_normal_boot_record(record, sizeof(record), &declared,
+	    partition, slot, BT_NORMAL_STAGE_READY, bt_normal_session.boot_nonce);
 	if (len == 0) {
 		outcome = "metadata-invalid";
 		goto done;
@@ -1365,7 +1388,9 @@ bt_normal_capture(void)
 	bt_normal_session.ready = true;
 	completed = true;
 	snprintf(session, sizeof(session), "%s-%04u", declared.image_id, slot);
-	outcome = setenv("daemonarchy.trace.session", session, 1) == 0 ?
+	outcome = setenv("daemonarchy.trace.session", session, 1) == 0 &&
+	    setenv("daemonarchy.trace.boot_nonce", bt_normal_session.boot_nonce,
+	    1) == 0 ?
 	    "saved" : "saved-handoff-unavailable";
 done:
 	if (root != NULL)
@@ -1428,8 +1453,9 @@ boottrace_normal_preexit(void)
 	if (entry == NULL || entry->size != sizeof(data) ||
 	    bt_blk_read(&bt_blkv, entry, data, sizeof(data)) != EFI_SUCCESS)
 		goto done;
-	state = bt_normal_preexit_state(data, sizeof(data),
-	    &bt_normal_session.id, partition, bt_normal_session.slot);
+	state = bt_normal_boot_preexit_state(data, sizeof(data),
+	    &bt_normal_session.id, partition, bt_normal_session.slot,
+	    bt_normal_session.boot_nonce);
 	outcome = "parent-or-later-region-invalid";
 	if (state < 0)
 		goto done;
@@ -1438,9 +1464,9 @@ boottrace_normal_preexit(void)
 		outcome = "already-saved";
 		goto done;
 	}
-	len = bt_normal_stage_record(record, sizeof(record),
+	len = bt_normal_boot_record(record, sizeof(record),
 	    &bt_normal_session.id, partition, bt_normal_session.slot,
-	    BT_NORMAL_STAGE_PREEXIT);
+	    BT_NORMAL_STAGE_PREEXIT, bt_normal_session.boot_nonce);
 	outcome = "metadata-invalid";
 	if (len == 0)
 		goto done;
@@ -1456,8 +1482,8 @@ boottrace_normal_preexit(void)
 		goto done;
 	/* Re-read the complete slot to check the parent and reserved bytes too. */
 	if (bt_blk_read(&bt_blkv, entry, data, sizeof(data)) != EFI_SUCCESS ||
-	    bt_normal_preexit_state(data, sizeof(data), &bt_normal_session.id,
-	    partition, bt_normal_session.slot) != 1)
+	    bt_normal_boot_preexit_state(data, sizeof(data), &bt_normal_session.id,
+	    partition, bt_normal_session.slot, bt_normal_session.boot_nonce) != 1)
 		goto done;
 	bt_normal_session.preexit_completed = true;
 	outcome = "saved";

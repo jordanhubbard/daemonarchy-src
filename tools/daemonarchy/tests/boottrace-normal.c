@@ -18,6 +18,8 @@ main(void)
 	struct bt_normal_identity id;
 	char changed[sizeof(identity) + 2], record[1024], slot[BT_NORMAL_SIZE];
 	uint32_t sum;
+	uint8_t entropy[BT_NORMAL_NONCE_BYTES];
+	char nonce[BT_NORMAL_NONCE_SIZE], other_nonce[BT_NORMAL_NONCE_SIZE];
 	const char *end;
 	size_t i, n;
 	unsigned checks = 0;
@@ -149,6 +151,90 @@ main(void)
 	n = bt_normal_record(record, sizeof(record), &id, id.image_id, 1);
 	memcpy(slot, record, n);
 	assert(bt_normal_preexit_state(slot, sizeof(slot), &id, id.image_id, 1) == -1);
+	checks++;
+
+	/* v3 correlates stages using independent boot entropy, never image/slot. */
+	for (i = 0; i < sizeof(entropy); i++)
+		entropy[i] = (uint8_t)i;
+	assert(bt_normal_nonce(nonce, sizeof(nonce), entropy, sizeof(entropy)) == 0);
+	assert(strcmp(nonce, "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f") == 0);
+	checks++;
+	memset(other_nonce, 'Q', sizeof(other_nonce));
+	assert(bt_normal_nonce(other_nonce, 64, entropy, sizeof(entropy)) == -1);
+	assert(other_nonce[0] == 'Q' && other_nonce[64] == 'Q');
+	assert(bt_normal_nonce(NULL, sizeof(nonce), entropy, sizeof(entropy)) == -1);
+	assert(bt_normal_nonce(other_nonce, sizeof(other_nonce), NULL, sizeof(entropy)) == -1);
+	assert(bt_normal_nonce(other_nonce, sizeof(other_nonce), entropy, sizeof(entropy) - 1) == -1);
+	checks++;
+	for (i = 0; i < 256; i++) {
+		memset(entropy, (int)i, sizeof(entropy));
+		assert(bt_normal_nonce(other_nonce, sizeof(other_nonce), entropy, sizeof(entropy)) == -1);
+	}
+	checks++;
+	memset(slot, '\n', sizeof(slot));
+	n = bt_normal_boot_record(record, sizeof(record), &id, id.image_id,
+	    1, BT_NORMAL_STAGE_READY, nonce);
+	assert(n > 0 && n < 1024);
+	assert(strstr(record, "normal boot trace v3\n") != NULL);
+	assert(strstr(record, "boot_identity=firmware-rng\n") != NULL);
+	memcpy(slot, record, n);
+	assert(bt_normal_boot_preexit_state(slot, sizeof(slot), &id, id.image_id, 1, nonce) == 0);
+	checks++;
+	for (i = 0; i < sizeof(entropy); i++)
+		entropy[i] = (uint8_t)(255 - i);
+	assert(bt_normal_nonce(other_nonce, sizeof(other_nonce), entropy, sizeof(entropy)) == 0);
+	assert(bt_normal_boot_preexit_state(slot, sizeof(slot), &id, id.image_id, 1, other_nonce) == -1);
+	assert(bt_normal_preexit_state(slot, sizeof(slot), &id, id.image_id, 1) == -1);
+	checks++;
+	for (i = 0; i < sizeof(slot); i++)
+		assert(bt_normal_boot_preexit_state(slot, i, &id, id.image_id, 1, nonce) == -1);
+	assert(bt_normal_boot_preexit_state(NULL, sizeof(slot), &id, id.image_id, 1, nonce) == -1);
+	checks++;
+	slot[BT_NORMAL_STAGE_SIZE - 1] = 'x';
+	assert(bt_normal_boot_preexit_state(slot, sizeof(slot), &id, id.image_id, 1, nonce) == -1);
+	slot[BT_NORMAL_STAGE_SIZE - 1] = '\n';
+	slot[sizeof(slot) - 1] = 'x';
+	assert(bt_normal_boot_preexit_state(slot, sizeof(slot), &id, id.image_id, 1, nonce) == -1);
+	slot[sizeof(slot) - 1] = '\n';
+	checks++;
+	n = bt_normal_boot_record(record, sizeof(record), &id, id.image_id,
+	    1, BT_NORMAL_STAGE_PREEXIT, nonce);
+	memcpy(slot + BT_NORMAL_PREEXIT_OFF, record, n);
+	assert(bt_normal_boot_preexit_state(slot, sizeof(slot), &id, id.image_id, 1, nonce) == 1);
+	checks++;
+	n = bt_normal_boot_record(record, sizeof(record), &id, id.image_id,
+	    1, BT_NORMAL_STAGE_PREEXIT, other_nonce);
+	memset(slot + BT_NORMAL_PREEXIT_OFF, '\n', BT_NORMAL_STAGE_SIZE);
+	memcpy(slot + BT_NORMAL_PREEXIT_OFF, record, n);
+	assert(bt_normal_boot_preexit_state(slot, sizeof(slot), &id, id.image_id, 1, nonce) == -1);
+	checks++;
+	memset(slot, '\n', sizeof(slot));
+	n = bt_normal_boot_record(record, sizeof(record), &id, id.image_id,
+	    1, BT_NORMAL_STAGE_READY, BT_NORMAL_NONCE_UNAVAILABLE);
+	assert(n > 0 && strstr(record, "boot_identity=unavailable\n") != NULL);
+	memcpy(slot, record, n);
+	assert(bt_normal_boot_preexit_state(slot, sizeof(slot), &id, id.image_id, 1, BT_NORMAL_NONCE_UNAVAILABLE) == 0);
+	n = bt_normal_boot_record(record, sizeof(record), &id, id.image_id,
+	    1, BT_NORMAL_STAGE_PREEXIT, BT_NORMAL_NONCE_UNAVAILABLE);
+	memcpy(slot + BT_NORMAL_PREEXIT_OFF, record, n);
+	assert(bt_normal_boot_preexit_state(slot, sizeof(slot), &id, id.image_id, 1, BT_NORMAL_NONCE_UNAVAILABLE) == 1);
+	checks++;
+	assert(bt_normal_boot_record(record, sizeof(record), &id, id.image_id,
+	    1, BT_NORMAL_STAGE_READY, NULL) == 0);
+	assert(bt_normal_boot_record(record, sizeof(record), &id, id.image_id,
+	    1, BT_NORMAL_STAGE_READY, "") == 0);
+	memset(other_nonce, '0', 64); other_nonce[64] = '\0';
+	assert(bt_normal_boot_record(record, sizeof(record), &id, id.image_id,
+	    1, BT_NORMAL_STAGE_READY, other_nonce) == 0);
+	memset(other_nonce, 'f', sizeof(other_nonce));
+	assert(bt_normal_boot_record(record, sizeof(record), &id, id.image_id,
+	    1, BT_NORMAL_STAGE_READY, other_nonce) == 0);
+	checks++;
+	assert(bt_normal_boot_record(record, 1, &id, id.image_id,
+	    1, BT_NORMAL_STAGE_READY, nonce) == 0);
+	assert(bt_normal_boot_record(record, sizeof(record), &id, id.image_id,
+	    1, (enum bt_normal_stage)0, nonce) == 0);
+	assert(bt_normal_boot_preexit_state(slot, sizeof(slot), &id, id.image_id, 1, NULL) == -1);
 	checks++;
 	id.image_id[0] = '\n';
 	assert(bt_normal_record(record, sizeof(record), &id, "01234567-89ab-cdef-0123-456789abcdef", 1) == 0);

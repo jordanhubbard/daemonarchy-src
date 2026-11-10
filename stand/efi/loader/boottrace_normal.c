@@ -33,6 +33,50 @@ normal_uuid(const char *p)
 	return (1);
 }
 
+/* A missing, failed or trivially stuck RNG is not a fresh boot identity. */
+int
+bt_normal_nonce(char *out, size_t cap, const uint8_t *bytes, size_t size)
+{
+	static const char hex[] = "0123456789abcdef";
+	size_t i;
+
+	if (out == NULL || cap < BT_NORMAL_NONCE_SIZE || bytes == NULL ||
+	    size != BT_NORMAL_NONCE_BYTES)
+		return (-1);
+	for (i = 1; i < size; i++)
+		if (bytes[i] != bytes[0])
+			break;
+	if (i == size)
+		return (-1);
+	for (i = 0; i < size; i++) {
+		out[2 * i] = hex[bytes[i] >> 4];
+		out[2 * i + 1] = hex[bytes[i] & 15];
+	}
+	out[2 * size] = '\0';
+	return (0);
+}
+
+static int
+normal_nonce_valid(const char *nonce)
+{
+	size_t i, length;
+
+	if (nonce == NULL)
+		return (0);
+	for (length = 0; length < BT_NORMAL_NONCE_SIZE && nonce[length] != '\0';
+	    length++)
+		;
+	if (length == sizeof(BT_NORMAL_NONCE_UNAVAILABLE) - 1 &&
+	    memcmp(nonce, BT_NORMAL_NONCE_UNAVAILABLE, length) == 0)
+		return (1);
+	if (length != BT_NORMAL_NONCE_SIZE - 1 || !normal_hex(nonce, length))
+		return (0);
+	for (i = 2; i < length; i++)
+		if (nonce[i] != nonce[i % 2])
+			return (1);
+	return (0);
+}
+
 int
 bt_normal_identity(const char *data, size_t size,
     struct bt_normal_identity *out)
@@ -82,7 +126,8 @@ bt_normal_empty(const char *data, size_t size)
 
 static size_t
 normal_record(char *out, size_t cap, const struct bt_normal_identity *id,
-    const char *partition, unsigned slot, const char *tag, const char *phase)
+    const char *partition, unsigned slot, const char *tag, const char *phase,
+    const char *nonce)
 {
 	uint32_t sum = 2166136261U;
 	size_t i;
@@ -101,6 +146,14 @@ normal_record(char *out, size_t cap, const struct bt_normal_identity *id,
 	    tag, id->image_id, id->archive_sha256, partition, slot, phase);
 	if (n < 0 || (size_t)n >= cap)
 		return (0);
+	if (nonce != NULL) {
+		added = snprintf(out + n, cap - n, "boot_nonce=%s\nboot_identity=%s\n",
+		    nonce, strcmp(nonce, BT_NORMAL_NONCE_UNAVAILABLE) == 0 ?
+		    "unavailable" : "firmware-rng");
+		if (added < 0 || (size_t)added >= cap - n)
+			return (0);
+		n += added;
+	}
 	for (i = 0; i < (size_t)n; i++)
 		sum = (sum ^ (unsigned char)out[i]) * 16777619U;
 	added = snprintf(out + n, cap - n, "sum=%08x\n", sum);
@@ -116,13 +169,13 @@ bt_normal_record(char *out, size_t cap, const struct bt_normal_identity *id,
     const char *partition, unsigned slot)
 {
 	return (normal_record(out, cap, id, partition, slot,
-	    "Daemonarchy normal boot trace v1\n", "loader-ready"));
+	    "Daemonarchy normal boot trace v1\n", "loader-ready", NULL));
 }
 
-size_t
-bt_normal_stage_record(char *out, size_t cap,
+static size_t
+normal_stage_record(char *out, size_t cap,
     const struct bt_normal_identity *id, const char *partition, unsigned slot,
-    enum bt_normal_stage stage)
+    enum bt_normal_stage stage, const char *nonce)
 {
 	const char *phase;
 
@@ -136,10 +189,31 @@ bt_normal_stage_record(char *out, size_t cap,
 	default:
 		return (0);
 	}
+	if (nonce != NULL && !normal_nonce_valid(nonce))
+		return (0);
 	if (cap > BT_NORMAL_STAGE_SIZE)
 		cap = BT_NORMAL_STAGE_SIZE;
 	return (normal_record(out, cap, id, partition, slot,
-	    "Daemonarchy normal boot trace v2\n", phase));
+	    nonce == NULL ? "Daemonarchy normal boot trace v2\n" :
+	    "Daemonarchy normal boot trace v3\n", phase, nonce));
+}
+
+size_t
+bt_normal_stage_record(char *out, size_t cap,
+    const struct bt_normal_identity *id, const char *partition, unsigned slot,
+    enum bt_normal_stage stage)
+{
+	return (normal_stage_record(out, cap, id, partition, slot, stage, NULL));
+}
+
+size_t
+bt_normal_boot_record(char *out, size_t cap,
+    const struct bt_normal_identity *id, const char *partition, unsigned slot,
+    enum bt_normal_stage stage, const char *nonce)
+{
+	if (nonce == NULL)
+		return (0);
+	return (normal_stage_record(out, cap, id, partition, slot, stage, nonce));
 }
 
 static int
@@ -155,17 +229,18 @@ normal_padding(const char *data, size_t size)
 
 /* Compare complete canonical records, including padding. Corrupt/partial later
  * data is never an empty bank and must never be overwritten on a retry. */
-int
-bt_normal_preexit_state(const char *data, size_t size,
-    const struct bt_normal_identity *id, const char *partition, unsigned slot)
+static int
+normal_preexit_state(const char *data, size_t size,
+    const struct bt_normal_identity *id, const char *partition, unsigned slot,
+    const char *nonce)
 {
 	char expected[1024];
 	size_t n;
 
 	if (data == NULL || size != BT_NORMAL_SIZE)
 		return (-1);
-	n = bt_normal_stage_record(expected, sizeof(expected), id, partition,
-	    slot, BT_NORMAL_STAGE_READY);
+	n = normal_stage_record(expected, sizeof(expected), id, partition,
+	    slot, BT_NORMAL_STAGE_READY, nonce);
 	if (n == 0 || memcmp(data, expected, n) != 0 ||
 	    !normal_padding(data + n, BT_NORMAL_STAGE_SIZE - n) ||
 	    !normal_padding(data + BT_NORMAL_PREEXIT_OFF + BT_NORMAL_STAGE_SIZE,
@@ -174,10 +249,27 @@ bt_normal_preexit_state(const char *data, size_t size,
 	data += BT_NORMAL_PREEXIT_OFF;
 	if (normal_padding(data, BT_NORMAL_STAGE_SIZE))
 		return (0);
-	n = bt_normal_stage_record(expected, sizeof(expected), id, partition,
-	    slot, BT_NORMAL_STAGE_PREEXIT);
+	n = normal_stage_record(expected, sizeof(expected), id, partition,
+	    slot, BT_NORMAL_STAGE_PREEXIT, nonce);
 	if (n == 0 || memcmp(data, expected, n) != 0 ||
 	    !normal_padding(data + n, BT_NORMAL_STAGE_SIZE - n))
 		return (-1);
 	return (1);
+}
+
+int
+bt_normal_preexit_state(const char *data, size_t size,
+    const struct bt_normal_identity *id, const char *partition, unsigned slot)
+{
+	return (normal_preexit_state(data, size, id, partition, slot, NULL));
+}
+
+int
+bt_normal_boot_preexit_state(const char *data, size_t size,
+    const struct bt_normal_identity *id, const char *partition, unsigned slot,
+    const char *nonce)
+{
+	if (nonce == NULL)
+		return (-1);
+	return (normal_preexit_state(data, size, id, partition, slot, nonce));
 }

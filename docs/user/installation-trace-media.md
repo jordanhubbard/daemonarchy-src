@@ -182,3 +182,31 @@ run remains retained separately. Exact a486e309 native amd64 CI passes all three
 handoff fixture groups in both plain and sanitized modes and builds the EFI.
 The preserved outputs and input manifest match that source. This closes the
 callback-fixture gate only; amd64 firmware boot, BIOS and physical gates remain.
+
+
+## Fresh boot correlation nonce
+
+The v3 normal writer requests 32 bytes from the firmware RNG once before
+loader-ready capture. A successful nonuniform result is encoded as a lowercase
+64-character boot_nonce with boot_identity=firmware-rng. Both independent banks
+use the same cached nonce. The pre-exit writer validates that nonce against the
+complete earlier record; a different boot's valid checksum cannot bind the
+later checkpoint. No RNG request is made in the memory-map/firmware-exit window.
+
+Missing/failed RNG and trivially stuck output produce boot_nonce=unavailable
+and boot_identity=unavailable. There is no clock, archive, slot or counter
+fallback pretending to be independent entropy. Ordinary capture and boot still
+continue. After a verified ready write, daemonarchy.trace.boot_nonce is exported
+for later stages before the kernel environment is copied.
+
+The nonce is public correlation metadata. It is not authentication, stable
+hardware identity or independent qualification of firmware entropy quality.
+Stable target descriptors, canonical RNG/SDK admission and backends without
+usable RNG remain separate requirements. Legacy v1/v2 records remain readable
+and occupied; no preceding slot is rewritten. The file/map geometry and
+independent checkpoint banks remain unchanged.
+
+Forty portable policy and nineteen FAT-admission controls cover legacy retention,
+nonce formatting, missing/stuck entropy, truncation, mismatched later nonces and
+explicit unavailable state. Native construction and clone/restart controls must
+be bound to their actual artifacts before claiming runtime freshness.

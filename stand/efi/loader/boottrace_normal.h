@@ -2,10 +2,16 @@
 #ifndef _BOOTTRACE_NORMAL_H_
 #define _BOOTTRACE_NORMAL_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #define BT_NORMAL_SLOTS 32
 #define BT_NORMAL_SIZE 16384
 #define BT_NORMAL_STAGE_SIZE 4096
 #define BT_NORMAL_PREEXIT_OFF BT_NORMAL_STAGE_SIZE
+#define BT_NORMAL_NONCE_BYTES 32
+#define BT_NORMAL_NONCE_SIZE 65
+#define BT_NORMAL_NONCE_UNAVAILABLE "unavailable"
 
 /* Separate aligned regions preserve the earlier checkpoint and map bound. */
 enum bt_normal_stage {
@@ -31,6 +37,11 @@ size_t bt_normal_stage_record(char *, size_t, const struct bt_normal_identity *,
 /* -1: invalid/partial, 0: empty later region, 1: identical completed stage. */
 int bt_normal_preexit_state(const char *, size_t,
     const struct bt_normal_identity *, const char *, unsigned);
+int bt_normal_nonce(char *, size_t, const uint8_t *, size_t);
+size_t bt_normal_boot_record(char *, size_t, const struct bt_normal_identity *,
+    const char *, unsigned, enum bt_normal_stage, const char *);
+int bt_normal_boot_preexit_state(const char *, size_t,
+    const struct bt_normal_identity *, const char *, unsigned, const char *);
 void boottrace_normal_preexit(void);
 
 #endif
