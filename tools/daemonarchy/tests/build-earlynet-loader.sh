@@ -5,7 +5,7 @@ set -eu
 test "$(uname -s)" = FreeBSD
 test "$(uname -m)" = amd64
 out=$PWD/_build/earlynet-native
-mkdir -p "$out/lua"
+mkdir -p "$out/lua" "$out/bios"
 uname -a > "$out/worker.txt"
 test -s "$out/source-commit.txt"
 test -s "$out/source-tree.txt"
@@ -61,13 +61,25 @@ else
 fi
 MAKEOBJDIRPREFIX=$(mktemp -d /var/tmp/earlynet-loader-objects.XXXXXXXX)
 export MAKEOBJDIRPREFIX
-make -C stand -j2 NO_ROOT=yes WITHOUT_LOADER_BIOS=yes LOADER_NET_SUPPORT=yes obj \
+make -C stand -j2 NO_ROOT=yes WITH_LOADER_BIOS=yes __MAKE_CONF=/dev/null SRCCONF=/dev/null LOADER_NET_SUPPORT=yes obj \
     > "$out/obj.log" 2>&1
-if make -C stand -j2 NO_ROOT=yes WITHOUT_LOADER_BIOS=yes LOADER_NET_SUPPORT=yes all \
+if make -C stand -j2 NO_ROOT=yes WITH_LOADER_BIOS=yes __MAKE_CONF=/dev/null SRCCONF=/dev/null LOADER_NET_SUPPORT=yes all \
     > "$out/build.log" 2>&1; then
-    loader_obj=$(make -C stand/efi/loader_lua -V .OBJDIR)
+    loader_obj=$(make -C stand/efi/loader_lua __MAKE_CONF=/dev/null SRCCONF=/dev/null -V .OBJDIR)
     cp "$loader_obj/loader_lua.efi" "$out/loader.efi"
     cp stand/lua/*.lua "$out/lua/"
+    # Retain all legacy BIOS entry points from the same native stand build.
+    # These are compile products; a firmware boot must qualify them separately.
+    for pair in loader_lua:loader cdboot:cdboot isoboot:isoboot pmbr:pmbr; do
+        directory=${pair%%:*}
+        destination=${pair#*:}
+        bios_obj=$(make -C "stand/i386/$directory" __MAKE_CONF=/dev/null SRCCONF=/dev/null -V .OBJDIR)
+        input=$directory
+        test -s "$bios_obj/$input"
+        cp "$bios_obj/$input" "$out/bios/$destination"
+    done
+    file "$out/bios/"* > "$out/bios/FILE"
+    sha256 "$out/bios/loader" "$out/bios/cdboot" "$out/bios/isoboot" "$out/bios/pmbr" > "$out/bios/SHA256"
     sha256 "$out/loader.efi" "$out"/lua/*.lua > "$out/SHA256"
     # A separate bring-up medium exposes firmware capability without
     # requiring the failing kernel to start or altering the 1.3 installer.

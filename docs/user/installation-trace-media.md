@@ -242,3 +242,9 @@ kernel/init/installer diagnostics or qualify refreshed whole media, a desktop,
 BIOS tracing, hardware identity, physical targets or final release. Initial
 fixture assembly and readback-harness failures remain recorded. Pi 4, Pi 5 and
 Apple M2 remain untested physically.
+
+
+The native amd64 stand CI cell also builds and exports loader, cdboot, isoboot
+and pmbr for BIOS from the same sealed source checkout as EFI. All tracked
+stand inputs are hash-checked after native synchronization. These independent
+compile products do not qualify a BIOS firmware boot or normal BIOS capture.
