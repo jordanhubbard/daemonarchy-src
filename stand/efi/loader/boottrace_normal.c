@@ -82,7 +82,7 @@ bt_normal_empty(const char *data, size_t size)
 
 static size_t
 normal_record(char *out, size_t cap, const struct bt_normal_identity *id,
-    const char *partition, unsigned slot, unsigned version, const char *phase)
+    const char *partition, unsigned slot, const char *tag, const char *phase)
 {
 	uint32_t sum = 2166136261U;
 	size_t i;
@@ -94,11 +94,11 @@ normal_record(char *out, size_t cap, const struct bt_normal_identity *id,
 	    !normal_uuid(id->image_id) || !normal_hex(id->archive_sha256, 64) ||
 	    slot == 0 || slot > BT_NORMAL_SLOTS)
 		return (0);
-	n = snprintf(out, cap, "Daemonarchy normal boot trace v%u\n"
+	n = snprintf(out, cap, "%s"
 	    "image_id=%s\narchive_sha256=%s\ntrace_partition=%s\n"
 	    "session=%04u\nphase=%s\nidentity=declared-archive\n"
 	    "early_kernel_backend=not-enabled\n",
-	    version, id->image_id, id->archive_sha256, partition, slot, phase);
+	    tag, id->image_id, id->archive_sha256, partition, slot, phase);
 	if (n < 0 || (size_t)n >= cap)
 		return (0);
 	for (i = 0; i < (size_t)n; i++)
@@ -115,7 +115,8 @@ size_t
 bt_normal_record(char *out, size_t cap, const struct bt_normal_identity *id,
     const char *partition, unsigned slot)
 {
-	return (normal_record(out, cap, id, partition, slot, 1, "loader-ready"));
+	return (normal_record(out, cap, id, partition, slot,
+	    "Daemonarchy normal boot trace v1\n", "loader-ready"));
 }
 
 size_t
@@ -137,7 +138,8 @@ bt_normal_stage_record(char *out, size_t cap,
 	}
 	if (cap > BT_NORMAL_STAGE_SIZE)
 		cap = BT_NORMAL_STAGE_SIZE;
-	return (normal_record(out, cap, id, partition, slot, 2, phase));
+	return (normal_record(out, cap, id, partition, slot,
+	    "Daemonarchy normal boot trace v2\n", phase));
 }
 
 static int
