@@ -64,6 +64,29 @@ else:
     profile = dict(jobs=4, guest_memory_bytes=12*GIB, host_memory_reserve_bytes=2*GIB)
     candidates = []
 
+# Inspect possible bootstrap filesystems separately, without aggregating their
+# capacity or admitting a multi-volume profile before its layout is reviewed.
+storage_observations = []
+locations = [('workspace', Path.cwd()), ('temporary', Path('/tmp'))]
+if os.environ.get('RUNNER_TEMP'):
+    locations.append(('runner-temporary', Path(os.environ['RUNNER_TEMP'])))
+if system == 'Linux':
+    locations.append(('ephemeral-mount', Path('/mnt')))
+for role, location in locations:
+    try:
+        selected = location.resolve(strict=True)
+        volume = shutil.disk_usage(selected)
+        observation = dict(role=role, path=str(selected), device_id=selected.stat().st_dev,
+                           total_bytes=volume.total, free_bytes=volume.free,
+                           directly_writable=os.access(selected, os.W_OK),
+                           state='observed')
+        if system == 'Linux':
+            observation['mount'] = command(
+                ['findmnt', '-n', '-T', str(selected), '-o', 'FSTYPE,SOURCE,MAJ:MIN'])
+        storage_observations.append(observation)
+    except OSError:
+        storage_observations.append(dict(role=role, path=str(location), state='unknown'))
+
 storage = shutil.disk_usage('.')
 # Keep the native controller's 80 GiB output requirement plus bootstrap space.
 required_disk = 90 * GIB
@@ -98,6 +121,8 @@ report = dict(schema='daemonarchy/hosted-worker-capacity@1',
               hardware_virtualization_supported=acceleration, hypervisor_execution_tested=False),
     proposed_profile=profile, required_host_free_bytes=required_disk,
     host_capacity_sufficient=not reasons, reasons=reasons,
+    storage_observations=storage_observations,
+    multi_volume_profile_admitted=False,
     cleanup_candidates=cleanup_candidates, deletion_performed=False,
     qualification=dict(native_freebsd_execution=False, aggregate_build=False,
                        sdk=False, performance=False, release=False))
