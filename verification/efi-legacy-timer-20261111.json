@@ -1,0 +1,66 @@
+{
+  "schema": "daemonarchy/efi-legacy-timer-guard-observation@1",
+  "targets": [
+    "FreeBSD armv7 EFI",
+    "FreeBSD riscv64 EFI"
+  ],
+  "problem": "The separate legacy EFI timer could arm a failed event creation, retain failed periodic setup, leak on repeated initialization, and cancel or close null/already-closed handles. The previously reviewed cleanup guard had not reached owned main.",
+  "change": "Restore the branch cleanup guard and clear retired handles; use EFIAPI for the callback, make initialization idempotent, check creation/arming status, close failed setup once and retain unavailable state for retry.",
+  "baseline_revision": "e67d7848a0223a4a22599ba52347b742594d70b4",
+  "baseline_cases": {
+    "run": 6,
+    "failed": 5,
+    "passed": 1,
+    "scope": "Original timer unit against strict mock firmware services, using the real EFI error high bit."
+  },
+  "corrected_cases": {
+    "linux_host": 6,
+    "freebsd_current_amd64_host": 6,
+    "failed": 0,
+    "scope": "Verbatim production timer unit with counted, strict mock firmware handles, timing callback and initialization failures; no actual EFI execution."
+  },
+  "source_controller": {
+    "run": 150,
+    "passed": 145,
+    "skipped": 5,
+    "result": "passed on the final authored files; native-only skips retained"
+  },
+  "cross_object_compilation": {
+    "compiler": "FreeBSD clang version 21.1.8 (https://github.com/llvm/llvm-project.git llvmorg-21.1.8-0-g2078da43e25a)",
+    "compiler_sha256": "8c5dbe8122a5f0c3f24167a9134fc007bd2091f894527c16d9318598fd2e2256",
+    "original_header_revision": "4b6dd598234450bf82278a846bfec809e4cc0077",
+    "flags": [
+      "-D_STANDALONE",
+      "-ffreestanding",
+      "-fshort-wchar",
+      "-nostdinc",
+      "-Wall",
+      "-Wextra",
+      "-Werror"
+    ],
+    "private_export": "Original machine headers and the original include/Makefile stdint.h export; original source/header checkout unchanged.",
+    "objects": [
+      {
+        "target": "armv7-unknown-freebsd16.0",
+        "bytes": 2152,
+        "sha256": "32e02d8db5ebf46cf83b9e5fa96abceb8b1e187c68f3ed9735cea4dd4bd259e2",
+        "elf_class": "ELF32",
+        "machine": "ARM",
+        "compile_exit": 0
+      },
+      {
+        "target": "riscv64-unknown-freebsd16.0",
+        "bytes": 2904,
+        "sha256": "d8a6e41c6d81e2917e0732cc56d272783180b1af007c7e37c1ba18be9948671a",
+        "elf_class": "ELF64",
+        "machine": "RISC-V",
+        "compile_exit": 0
+      }
+    ]
+  },
+  "source_sha256": "f2e16297aae4b7e738d4847bef35b80e82f75cc2ec841f9fe78047651cff563b",
+  "test_sha256": "54b4e726ad3aaad4952fe134da7e029f5cac74dc495d0624640146237f8c28ba",
+  "full_stand_link_or_efi_boot": false,
+  "native_current_world_build": "Existing running amd64 build remains frozen at its selected preceding revision; these legacy target changes are not claimed part of that frozen build.",
+  "canonical_lifecycle_receipt": false
+}
