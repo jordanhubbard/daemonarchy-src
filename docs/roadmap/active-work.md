@@ -13,7 +13,9 @@
 - **Implementation and evidence:**
   - [x] Keep framework documentation/queue commands on their conventional `docs/`
     paths and land owned changes through an integration branch distinct from
-    upstream-tracking `main`. Move only newly authored metadata documents.
+    pristine `freebsd/main`. Owned `main` also receives reviewed integration
+    history per operator direction on 2026-11-11. Move only newly authored metadata
+    documents.
   - [x] Validate three authored unit contracts and resolve exact dependency locks.
   - [x] Review and apply original-source authority without moving original files.
   - [x] Establish explicit shared native build-support and external bootstrap
@@ -125,7 +127,9 @@ It created only the two authority/evidence JSON files under `.literate`,
 preserved all tracked source bytes and retained original release authority.
 Its record explicitly grants no execution admission.
 The owned `daemonarchy` integration branch starts at the selected upstream tip;
-the source-development review targets it while `main` remains upstream-tracking.
+the source-development review targets it. Owned `main` receives reviewed
+integration history per operator direction on 2026-11-11; pristine upstream
+remains in `freebsd/main`.
 **Next action in progress:** configure the actual Standard/native profile,
 complete selected input ownership and SDK/test custody, then earn execution
 admission; no original unit has yet been compiled through this lifecycle.

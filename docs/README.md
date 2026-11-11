@@ -30,9 +30,11 @@ alone does not establish that qualification.
 installation/recovery requirements. `tools/daemonarchy/README.md` owns the
 existing native controller procedures.
 
-`main` tracks the selected FreeBSD upstream. Owned contributions target the
-`daemonarchy` integration branch; review branches hold changes until their
-required gates pass. Keep upstream-oriented fixes separately reviewable.
+Owned contributions target the `daemonarchy` integration branch; review
+branches hold changes until their required gates pass. Per operator direction on
+2026-11-11, synchronize owned `main` with reviewed integration and feature
+history. Pristine upstream history remains in `freebsd/main`. Keep
+upstream-oriented fixes separately reviewable.
 Use an explicit `--repo jordanhubbard/daemonarchy-src` for GitHub commands:
 the GitHub CLI may otherwise select the fork's FreeBSD upstream automatically.
 
