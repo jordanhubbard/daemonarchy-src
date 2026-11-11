@@ -68,5 +68,35 @@
     "log_sha256": "b5b8961181016f2bc933c9be85f9f01f3a7796282e7dbbeb1275b9f320635813"
   },
   "native_capacity_merge": "be906a8f0940c32cd0191c4bd49fd276e157a89c",
-  "final_controller_log_sha256": "d9869a64ab376f4de84c063bc0a52693d696952f760cf847bcfd2c247781d1b9"
+  "final_controller_log_sha256": "ec1fe022ed6b67fc659b4a2b850281b6e6cc10148de93cd385d3b44971cbe9ac",
+  "dma_diagnostics_merge": "f7ec9d2cebf18207a6236184bbcd0751e56417f7",
+  "original_open_pr_heads_in_ancestry": [
+    86,
+    85,
+    84,
+    83,
+    82,
+    81,
+    80,
+    79,
+    78,
+    77,
+    76,
+    75,
+    74,
+    73,
+    72,
+    71,
+    70,
+    69,
+    68,
+    67,
+    66,
+    65,
+    64,
+    63
+  ],
+  "dma_controller_groups": 18,
+  "dma_controller_log_sha256": "936e73c8138f5c5eae9ba58e3827580b396138ebb15b6819670f93b3a88bd097",
+  "dma_xhci_control_log_sha256": "5b515f52bb9486385e15be046eb70ec9ad66447e8a704df714ddb9fecc5b807d"
 }
