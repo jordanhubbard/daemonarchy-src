@@ -57,5 +57,16 @@
   "initial_compiler_failure": "Local default clang23-trunk emitted a host GCC-search warning under -Werror before compilation; retained logs. The configured stable system clang18 controls pass without suppressing diagnostics.",
   "native_kernel_rebuilt": false,
   "hardware_qualified": false,
-  "canonical_lifecycle_receipt": false
+  "canonical_lifecycle_receipt": false,
+  "additional_feature_heads": {
+    "79": "44742b5cc6eb540233079b4c3761770e327a04c0",
+    "85": "a699848ea46525e2b0f4b16cba920bf93f4fbaff"
+  },
+  "apple_aic_layout_control": {
+    "exit": 0,
+    "scope": "Portable AICv1/v2 layout, J474s IRQ, die/FIQ/capacity bounds; not hardware execution",
+    "log_sha256": "b5b8961181016f2bc933c9be85f9f01f3a7796282e7dbbeb1275b9f320635813"
+  },
+  "native_capacity_merge": "be906a8f0940c32cd0191c4bd49fd276e157a89c",
+  "final_controller_log_sha256": "d9869a64ab376f4de84c063bc0a52693d696952f760cf847bcfd2c247781d1b9"
 }
