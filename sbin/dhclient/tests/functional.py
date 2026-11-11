@@ -223,7 +223,9 @@ class TestDhclient(VnetTestTemplate):
         )
         assert discover_count == 1
         assert "inet {}".format(self._CLIENT_IP) in result["ifconfig"]
-        assert "dhcp.example.com" in result["lease"]
+        assert 'server-name "dhcp.example.com";' in (
+            line.strip() for line in result["lease"].splitlines()
+        )
 
     @pytest.mark.require_user("root")
     @pytest.mark.require_progs(["scapy"])
