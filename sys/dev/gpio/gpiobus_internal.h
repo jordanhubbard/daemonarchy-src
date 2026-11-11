@@ -35,6 +35,7 @@
  * these should not be called directly by other drivers.
  */
 int gpiobus_attach(device_t);
+int gpiobus_attach_failed(device_t, int);
 int gpiobus_detach(device_t);
 int gpiobus_init_softc(device_t);
 int gpiobus_alloc_ivars(struct gpiobus_ivar *);

@@ -15,6 +15,51 @@ on:
       - 'sys/dev/daemonarchy/**'
       - 'sys/modules/daemonarchy_earlynet/**'
       - 'sys/conf/files.amd64'
+      - 'sys/conf/files'
+      - 'sys/dev/usb/controller/generic_xhci*'
+      - 'sys/dev/usb/controller/xhci.c'
+      - 'sys/dev/usb/controller/xhci.h'
+      - 'sys/dev/regulator/regulator.c'
+      - 'sys/dev/regulator/regulator.h'
+      - 'sys/dev/gpio/bcmstb_gpio.c'
+      - 'sys/dev/gpio/gpiobus*'
+      - 'sys/dev/gpio/ofw_gpiobus.c'
+      - 'sys/dev/gpio/acpi_gpiobus.c'
+      - 'sys/dev/gpio/gpioregulator.c'
+      - 'sys/arm64/broadcom/bcm2712_pinctrl*'
+      - 'sys/arm64/broadcom/bcmstb_reset.c'
+      - 'sys/arm64/broadcom/bcm2712_mip.c'
+      - 'sys/arm64/broadcom/bcm2712_dma_policy.*'
+      - 'sys/arm64/arm64/busdma_bounce.c'
+      - 'sys/arm64/arm64/busdma_machdep.c'
+      - 'sys/arm64/arm64/pmap.c'
+      - 'sys/dev/uart/uart_dev_pl011.c'
+      - 'sys/dev/uart/uart_core.c'
+      - 'sys/dev/uart/uart_bus.h'
+      - 'sys/dev/uart/uart_if.m'
+      - 'sys/dev/uart/uart_tty.c'
+      - 'sys/dev/uart/uart.h'
+      - 'sys/sys/serial.h'
+      - 'sys/sys/ttydisc.h'
+      - 'sys/sys/_termios.h'
+      - 'sys/sys/bus.h'
+      - 'sys/arm64/include/bus_dma.h'
+      - 'sys/arm64/include/bus_dma_impl.h'
+      - 'sys/arm64/broadcom/bcm2712_dma_ram.*'
+      - 'sys/arm64/broadcom/bcm2712_pcie*'
+      - 'sys/dev/pci/pci_host_generic*'
+      - 'sys/kern/subr_busdma_bounce.c'
+      - 'sys/kern/subr_bus_dma.c'
+      - 'sys/kern/subr_intr.c'
+      - 'sys/sys/intr.h'
+      - 'sys/sys/bus_dma.h'
+      - 'sys/arm/arm/gic.c'
+      - 'sys/arm/arm/gic_if.m'
+      - 'sys/conf/files.arm64'
+      - 'sys/dev/fdt/fdt_pinctrl.c'
+      - 'sys/dev/fdt/fdt_pinctrl.h'
+      - 'sys/dev/sdhci/sdhci_fdt_bcm2712.c'
+      - 'sys/dev/sdhci/sdhci_bcm2712_policy.h'
       - 'sys/conf/options'
       - 'tools/daemonarchy/**'
       - 'sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC'
@@ -40,6 +85,51 @@ on:
       - 'sys/dev/daemonarchy/**'
       - 'sys/modules/daemonarchy_earlynet/**'
       - 'sys/conf/files.amd64'
+      - 'sys/conf/files'
+      - 'sys/dev/usb/controller/generic_xhci*'
+      - 'sys/dev/usb/controller/xhci.c'
+      - 'sys/dev/usb/controller/xhci.h'
+      - 'sys/dev/regulator/regulator.c'
+      - 'sys/dev/regulator/regulator.h'
+      - 'sys/dev/gpio/bcmstb_gpio.c'
+      - 'sys/dev/gpio/gpiobus*'
+      - 'sys/dev/gpio/ofw_gpiobus.c'
+      - 'sys/dev/gpio/acpi_gpiobus.c'
+      - 'sys/dev/gpio/gpioregulator.c'
+      - 'sys/arm64/broadcom/bcm2712_pinctrl*'
+      - 'sys/arm64/broadcom/bcmstb_reset.c'
+      - 'sys/arm64/broadcom/bcm2712_mip.c'
+      - 'sys/arm64/broadcom/bcm2712_dma_policy.*'
+      - 'sys/arm64/arm64/busdma_bounce.c'
+      - 'sys/arm64/arm64/busdma_machdep.c'
+      - 'sys/arm64/arm64/pmap.c'
+      - 'sys/dev/uart/uart_dev_pl011.c'
+      - 'sys/dev/uart/uart_core.c'
+      - 'sys/dev/uart/uart_bus.h'
+      - 'sys/dev/uart/uart_if.m'
+      - 'sys/dev/uart/uart_tty.c'
+      - 'sys/dev/uart/uart.h'
+      - 'sys/sys/serial.h'
+      - 'sys/sys/ttydisc.h'
+      - 'sys/sys/_termios.h'
+      - 'sys/sys/bus.h'
+      - 'sys/arm64/include/bus_dma.h'
+      - 'sys/arm64/include/bus_dma_impl.h'
+      - 'sys/arm64/broadcom/bcm2712_dma_ram.*'
+      - 'sys/arm64/broadcom/bcm2712_pcie*'
+      - 'sys/dev/pci/pci_host_generic*'
+      - 'sys/kern/subr_busdma_bounce.c'
+      - 'sys/kern/subr_bus_dma.c'
+      - 'sys/kern/subr_intr.c'
+      - 'sys/sys/intr.h'
+      - 'sys/sys/bus_dma.h'
+      - 'sys/arm/arm/gic.c'
+      - 'sys/arm/arm/gic_if.m'
+      - 'sys/conf/files.arm64'
+      - 'sys/dev/fdt/fdt_pinctrl.c'
+      - 'sys/dev/fdt/fdt_pinctrl.h'
+      - 'sys/dev/sdhci/sdhci_fdt_bcm2712.c'
+      - 'sys/dev/sdhci/sdhci_bcm2712_policy.h'
       - 'sys/conf/options'
       - 'tools/daemonarchy/**'
       - 'sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC'
@@ -83,6 +173,49 @@ jobs:
         run: >-
           sh tools/daemonarchy/tests/run-boottrace-normal.sh
           "$PWD" "${{ runner.temp }}"
+      - name: BCM2712 bootstrap CFG and clock policy (not controller acceptance)
+        run: |
+          clang -std=c17 -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -fno-omit-frame-pointer -Isys/dev/sdhci \
+            tools/daemonarchy/tests/bcm2712-sdhci-policy.c \
+            -o "${{ runner.temp }}/bcm2712-sdhci-policy"
+          "${{ runner.temp }}/bcm2712-sdhci-policy"
+      - name: Checked FDT pinctrl faults (not native provider acceptance)
+        run: |
+          clang -std=c17 -D_DEFAULT_SOURCE -Wall -Wextra -Werror \
+            -fsanitize=address,undefined -fno-omit-frame-pointer \
+            -Itools/daemonarchy/tests/fdt-pinctrl-stubs -idirafter sys \
+            sys/dev/fdt/fdt_pinctrl.c tools/daemonarchy/tests/fdt-pinctrl-checked.c \
+            -o "${{ runner.temp }}/fdt-pinctrl-checked"
+          "${{ runner.temp }}/fdt-pinctrl-checked"
+      - name: BCM2712 GPIO MMIO and provider faults (not hardware acceptance)
+        run: |
+          python3 tools/daemonarchy/tests/bcmstb-gpio-controls.py --cc clang --sanitize
+          python3 tools/daemonarchy/tests/bcmstb-gpio-binding.py --cc clang
+          python3 tools/daemonarchy/tests/gpiobus-lifetime-controls.py --cc clang --sanitize
+          python3 tools/daemonarchy/tests/pi5-sd-provider-controls.py --cc clang
+      - name: BCM STB reset and calibration faults (not hardware acceptance)
+        run: python3 tools/daemonarchy/tests/bcmstb-reset-controls.py --cc clang --sanitize
+      - name: BCM2712 MIP and checked GIC ownership (not hardware acceptance)
+        run: |
+          python3 tools/daemonarchy/tests/bcm2712-mip-controls.py --cc clang --sanitize
+          python3 tools/daemonarchy/tests/msi-provider-query-controls.py --cc clang
+          python3 tools/daemonarchy/tests/gic-checked-msi-controls.py --cc clang --sanitize
+      - name: BCM2712 DMA policy and RAM backend (not native DMA acceptance)
+        run: |
+          python3 tools/daemonarchy/tests/bcm2712-dma-policy-controls.py --cc clang --sanitize
+          python3 tools/daemonarchy/tests/bcm2712-dma-policy-independent.py --cc clang
+          python3 tools/daemonarchy/tests/bcm2712-busdma-controls.py --cc clang
+          python3 tools/daemonarchy/tests/bcm2712-pcie-controls.py --cc clang
+          python3 tools/daemonarchy/tests/bcm2712-pcie-wrapper.py --cc clang
+      - name: ARM64 direct-map lookup (not native MMU acceptance)
+        run: python3 tools/daemonarchy/tests/arm64-dmap-lookup.py --cc clang
+      - name: PL011 finite receive overflow (not hardware latency acceptance)
+        run: python3 tools/daemonarchy/tests/pl011-rx-controls.py --cc clang
+      - name: GPIO regulator producer lifetime (not native concurrency acceptance)
+        run: python3 tools/daemonarchy/tests/run-regnode-lifetime.py --cc clang
+      - name: ACPI USB DMA aperture and lifetime (not controller acceptance)
+        run: python3 tools/daemonarchy/tests/xhci-acpi-dma.py --cc clang
       - name: Loader setup interactions (not EFI acceptance)
         run: >-
           python3 tools/daemonarchy/tests/run-loader-debug-setup.py
@@ -184,11 +317,41 @@ jobs:
             > _build/earlynet-native/feature-inputs.sha256
           git ls-files -z stand | xargs -0 sha256sum \
             >> _build/earlynet-native/feature-inputs.sha256
+      - name: Checkout exact upstream FreeBSD action
+        uses: actions/checkout@v4
+        with:
+          repository: vmactions/freebsd-vm
+          ref: c46abacb49f09938ca4e1702d15d836285d694cc
+          path: _actions/freebsd-vm
+          persist-credentials: false
+      - name: Prepare verified official AnyVM release asset via GitHub API
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p _build/earlynet-native
+          runtime=$(mktemp "$RUNNER_TEMP/anyvm-0.7.2.XXXXXX.py")
+          trap 'rm -f "$runtime"' EXIT
+          gh api -H 'Accept: application/octet-stream' \
+            repos/anyvm-org/anyvm/releases/assets/589232152 > "$runtime"
+          test "$(wc -c < "$runtime")" -eq 618865
+          printf '%s  %s\n' \
+            40a16e846bc07030759936d792343e770acdeb14d4c9991af7409648661a650d \
+            "$runtime" | sha256sum --check --status
+          python3 tools/daemonarchy/tests/test-freebsd-vm-bootstrap.py \
+            --action-checkout _actions/freebsd-vm --runtime "$runtime" \
+            2>&1 | tee _build/earlynet-native/bootstrap-controls.log
+          python3 tools/daemonarchy/prepare-freebsd-vm-action.py \
+            --action-directory _actions/freebsd-vm --runtime "$runtime" \
+            --receipt _build/earlynet-native/bootstrap-action.json
       - name: Native FreeBSD BIOS/EFI build and admission controls
-        uses: vmactions/freebsd-vm@c46abacb49f09938ca4e1702d15d836285d694cc # v1
+        uses: ./_actions/freebsd-vm
         with:
           release: '15.0'
           arch: x86_64
+          # Preserve the upstream default pair, sync mode and work-volume cache.
+          sync: rsync
+          cache-dir: '$HOME/work/_actions/_vmcache/freebsd-15.0-2.2.8-amd64-v3'
           mem: '4096'
           cpu: '2'
           run: |

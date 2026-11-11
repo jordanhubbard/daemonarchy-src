@@ -2,10 +2,39 @@
 #ifndef _MACHINE_BUS_DMA_H_
 #define	_MACHINE_BUS_DMA_H_
 
+#define BUS_DMA_TEMPLATE_MD_FIELDS unsigned arm64_requires_translation;
+#define BUS_DMA_TEMPLATE_MD_INIT(t) ((t)->arm64_requires_translation = 0)
+#define BUS_DMA_TEMPLATE_MD_CHECK(t) ((t)->arm64_requires_translation != 0)
+#define BUS_DMA_MEMDESC_UNSUPPORTED(dmat) \
+    (((struct bus_dma_tag_common *)(dmat))->impl == &bus_dma_bounce_impl && \
+    bus_dma_bounce_ram_translated(dmat) ? EINVAL : 0)
+
 #define WANT_INLINE_DMAMAP
 #include <sys/bus_dma.h>
 
+/* Use existing ARM64 padding, preserving legacy module stack ABI. */
+_Static_assert(sizeof(bus_dma_template_t) == 96, "ARM64 DMA template ABI");
+_Static_assert(__builtin_offsetof(bus_dma_template_t,
+    arm64_requires_translation) == 52, "ARM64 DMA template marker");
+_Static_assert(__builtin_offsetof(bus_dma_template_t, maxsegsize) == 56,
+    "ARM64 DMA template maxsegsize ABI");
+_Static_assert(__builtin_offsetof(bus_dma_template_t, name) == 88,
+    "ARM64 DMA template name ABI");
+
 #include <machine/bus_dma_impl.h>
+
+/* Opt-in BCM2712 affine RAM translation.  The parent remains owned until
+ * all translated descendants are destroyed.  No device is published here.
+ * lowaddr must be a page-ended contiguous mask; highaddr must be MAXADDR.
+ * Ordinary bus_dma_tag_create children inherit the selected device domain.
+ * Passing an already translated parent with a new composed policy changes
+ * domain explicitly, retaining its physical constraints and lifetime.
+ */
+struct bcm2712_dma_policy;
+int bus_dma_tag_create_bcm2712_ram(bus_dma_tag_t,
+    const struct bcm2712_dma_policy *, bus_size_t, bus_addr_t, bus_addr_t,
+    bus_addr_t, bus_size_t, int, bus_size_t, int, bus_dma_lock_t *, void *,
+    bus_dma_tag_t *);
 
 /*
  * Is DMA address 1:1 mapping of physical address

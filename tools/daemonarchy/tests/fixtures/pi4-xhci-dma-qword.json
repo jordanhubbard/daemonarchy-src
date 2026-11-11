@@ -1,0 +1,18 @@
+{
+  "ssdt_sha256": "f95dbcedade83d2159c61ef5f20c1325b336c8c351fdc212c70a086b77dce676",
+  "dma_aml_name_offset": 196,
+  "qword_descriptor_offset": 204,
+  "qword_descriptor_hex": "8a2b00000c0100000000000000000000000000000000ffffffbf000000000000000000000000000000c000000000",
+  "resource_type": 0,
+  "general_flags": 12,
+  "memory_flags": 1,
+  "granularity": "0x0",
+  "minimum": "0x0",
+  "maximum": "0xbfffffff",
+  "translation": "0x0",
+  "length": "0xc0000000",
+  "schema": "daemonarchy/pi4-xhci-acpi-dma-fixture/1",
+  "oem_table_id": "RPI4XHCI",
+  "namespace": "\\_SB_.SCB0._DMA",
+  "primary_source": "https://github.com/tianocore/edk2-platforms/blob/08566230c98729eb9760211e3111c7b4c391ccbf/Platform/RaspberryPi/AcpiTables/Xhci.asl"
+}

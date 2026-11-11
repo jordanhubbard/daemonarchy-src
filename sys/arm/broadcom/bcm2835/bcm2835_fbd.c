@@ -51,6 +51,7 @@
 #include <dev/vt/colors/vt_termcolors.h>
 
 #include <arm/broadcom/bcm2835/bcm2835_mbox_prop.h>
+#include <arm/broadcom/bcm2835/bcm2835_vcbus.h>
 
 #include "fb_if.h"
 #include "mbox_if.h"
@@ -209,6 +210,11 @@ bcm_fb_probe(device_t dev)
 {
 
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
+		return (ENXIO);
+
+	/* Legacy VideoCore DMA translations are SoC-specific. Keep the EFI
+	 * framebuffer available when this kernel has no matching translation. */
+	if (!bcm283x_vcbus_is_supported())
 		return (ENXIO);
 
 	device_set_desc(dev, "BCM2835 VT framebuffer driver");

@@ -35,3 +35,16 @@ Use an explicit `--repo jordanhubbard/daemonarchy-src` for GitHub commands:
 the GitHub CLI may otherwise select the fork's FreeBSD upstream automatically.
 
 - [RTX Spark bring-up and loader topology capture](rtx-spark-bringup.md)
+- [BCM2712 SDHCI bootstrap attachment and qualification limits](pi5-sdhci-bootstrap.md)
+- [BCM2712 D0 SD provider preparation](pi5-sd-providers.md)
+- [BCM2712 reset prerequisites for RP1](pi5-rp1-reset-prerequisites.md)
+- [Selected D0 AON GPIO hog ownership](pi5-aon-gpio-hogs.md)
+- [Selected BCM2712 MIP0 MSI provider](pi5-mip-msi.md)
+- [BCM2712 DMA address-domain policy](pi5-dma-policy.md)
+- [BCM2712 translated RAM busdma](pi5-translated-ram-busdma.md)
+- [Selected BCM2712 PCIe2 frontend preparation](pi5-pcie2-frontend.md)
+- [ACPI xHCI DMA reachability with full system RAM](pi4-acpi-xhci-dma.md)
+- [ARM64 direct-map lookup during mapping updates](arm64-dmap-lookup.md)
+- [PL011 receive overflow and interrupt progress](pl011-rx-overflow.md)
+
+- [Pinned FreeBSD CI bootstrap and asset custody](freebsd-vm-ci-bootstrap.md)

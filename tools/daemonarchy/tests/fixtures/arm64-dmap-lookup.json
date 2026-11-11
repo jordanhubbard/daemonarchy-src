@@ -1,0 +1,128 @@
+{
+  "label": "abstract syntheticmap corpus, not retainedVMmap inventory",
+  "base": 0,
+  "mapped_intervals": [
+    [
+      4096,
+      1006632960
+    ],
+    [
+      1073741824,
+      4227858432
+    ],
+    [
+      4294967296,
+      8589934592
+    ]
+  ],
+  "cases": [
+    {
+      "virtual": "0xffffa00000000000",
+      "expected_valid": false,
+      "expected_pa": null,
+      "pa_output_on_false": "unchanged"
+    },
+    {
+      "virtual": "0xffffa00000000fff",
+      "expected_valid": false,
+      "expected_pa": null,
+      "pa_output_on_false": "unchanged"
+    },
+    {
+      "virtual": "0xffffa00000001000",
+      "expected_valid": true,
+      "expected_pa": "0x1000",
+      "pa_output_on_false": "unchanged"
+    },
+    {
+      "virtual": "0xffffa00000001001",
+      "expected_valid": true,
+      "expected_pa": "0x1001",
+      "pa_output_on_false": "unchanged"
+    },
+    {
+      "virtual": "0xffffa0003bffffff",
+      "expected_valid": true,
+      "expected_pa": "0x3bffffff",
+      "pa_output_on_false": "unchanged"
+    },
+    {
+      "virtual": "0xffffa0003c000000",
+      "expected_valid": false,
+      "expected_pa": null,
+      "pa_output_on_false": "unchanged"
+    },
+    {
+      "virtual": "0xffffa0003fffffff",
+      "expected_valid": false,
+      "expected_pa": null,
+      "pa_output_on_false": "unchanged"
+    },
+    {
+      "virtual": "0xffffa00040000000",
+      "expected_valid": true,
+      "expected_pa": "0x40000000",
+      "pa_output_on_false": "unchanged"
+    },
+    {
+      "virtual": "0xffffa000fbffffff",
+      "expected_valid": true,
+      "expected_pa": "0xfbffffff",
+      "pa_output_on_false": "unchanged"
+    },
+    {
+      "virtual": "0xffffa000fc000000",
+      "expected_valid": false,
+      "expected_pa": null,
+      "pa_output_on_false": "unchanged"
+    },
+    {
+      "virtual": "0xffffa000ffffffff",
+      "expected_valid": false,
+      "expected_pa": null,
+      "pa_output_on_false": "unchanged"
+    },
+    {
+      "virtual": "0xffffa00100000000",
+      "expected_valid": true,
+      "expected_pa": "0x100000000",
+      "pa_output_on_false": "unchanged"
+    },
+    {
+      "virtual": "0xffffa00104266248",
+      "expected_valid": true,
+      "expected_pa": "0x104266248",
+      "pa_output_on_false": "unchanged"
+    },
+    {
+      "virtual": "0xffffa0010412d888",
+      "expected_valid": true,
+      "expected_pa": "0x10412d888",
+      "pa_output_on_false": "unchanged"
+    },
+    {
+      "virtual": "0xffffa001044ac000",
+      "expected_valid": true,
+      "expected_pa": "0x1044ac000",
+      "pa_output_on_false": "unchanged"
+    },
+    {
+      "virtual": "0xffffa001044ac110",
+      "expected_valid": true,
+      "expected_pa": "0x1044ac110",
+      "pa_output_on_false": "unchanged"
+    },
+    {
+      "virtual": "0xffffa001ffffffff",
+      "expected_valid": true,
+      "expected_pa": "0x1ffffffff",
+      "pa_output_on_false": "unchanged"
+    },
+    {
+      "virtual": "0xffffa00200000000",
+      "expected_valid": false,
+      "expected_pa": null,
+      "pa_output_on_false": "unchanged"
+    }
+  ]
+}

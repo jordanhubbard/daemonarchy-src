@@ -84,6 +84,10 @@ struct intr_map_data_gpio {
 
 struct gpiobus_softc
 {
+	bool		sc_rman_initialized;
+	bool		sc_initialized;
+	bool		sc_deferred_provider;
+	int		sc_attach_error;
 	struct mtx	sc_mtx;		/* bus mutex */
 	struct rman	sc_intr_rman;	/* isr resources */
 	device_t	sc_busdev;	/* bus device */
@@ -170,7 +174,14 @@ struct resource *gpio_alloc_intr_resource(device_t consumer_dev, int rid,
     u_int alloc_flags, gpio_pin_t pin, uint32_t intr_mode);
 
 int gpio_check_flags(uint32_t, uint32_t);
+/* Reserved gpiobus device flag, separate from GPIO pin flags. */
+/* Reserved factory flag; no existing gpiobus hint flag bits are assigned. */
+#define GPIOBUS_FLAG_DEFER_PROVIDER 0x80000000U
 device_t gpiobus_add_bus(device_t);
+/* Opt-in metadata/gpioc-only bus; caller publishes its provider explicitly. */
+device_t gpiobus_add_bus_deferred(device_t);
+bool gpiobus_ready(device_t);
+void gpiobus_quarantine(device_t, int);
 int gpiobus_detach_bus(device_t);
 
 #endif	/* __GPIOBUS_H__ */

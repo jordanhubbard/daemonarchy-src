@@ -1377,6 +1377,37 @@ intr_msi_register(device_t dev, intptr_t xref)
 	return (0);
 }
 
+/*
+ * Validate publication and exact identity, not hardware readiness or lifetime.
+ * Use the allocation lookup: a device-only/wildcard registration cannot satisfy
+ * a nonzero MSI xref.  Refuse ambiguous xrefs even if the first match is ours.
+ */
+int
+intr_msi_validate_provider(device_t expected, intptr_t xref)
+{
+	struct intr_pic *pic, *other;
+	int error;
+
+	if (expected == NULL || xref == 0)
+		return (EINVAL);
+	mtx_lock(&pic_list_lock);
+	pic = pic_lookup_locked(NULL, xref, FLAG_MSI);
+	if (pic == NULL) {
+		error = ESRCH;
+	} else {
+		error = pic->pic_dev == expected ? 0 : ENXIO;
+		SLIST_FOREACH(other, &pic_list, pic_next) {
+			if (other != pic && other->pic_xref == xref &&
+			    (other->pic_flags & FLAG_TYPE_MASK) == FLAG_MSI) {
+				error = EEXIST;
+				break;
+			}
+		}
+	}
+	mtx_unlock(&pic_list_lock);
+	return (error);
+}
+
 int
 intr_alloc_msi(device_t pci, device_t child, intptr_t xref, int count,
     int maxcount, int *irqs)

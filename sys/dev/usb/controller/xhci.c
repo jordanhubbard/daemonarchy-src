@@ -660,13 +660,17 @@ xhci_init(struct xhci_softc *sc, device_t self, uint8_t dma32)
 
 	/* get all DMA memory */
 	if (usb_bus_mem_alloc_all(&sc->sc_bus,
+	    sc->sc_owned_dma_tag != NULL ? sc->sc_owned_dma_tag :
 	    USB_GET_DMA_TAG(self), &xhci_iterate_hw_softc)) {
 		return (ENOMEM);
 	}
 
+	sc->sc_init_flags |= XHCI_INIT_DMA;
+
 	/* set up command queue mutex and condition varible */
 	cv_init(&sc->sc_cmd_cv, "CMDQ");
 	sx_init(&sc->sc_cmd_sx, "CMDQ lock");
+	sc->sc_init_flags |= XHCI_INIT_CMD_LOCKS;
 
 	sc->sc_config_msg[0].hdr.pm_callback = &xhci_configure_msg;
 	sc->sc_config_msg[0].bus = &sc->sc_bus;
@@ -685,10 +689,19 @@ xhci_uninit(struct xhci_softc *sc)
 	 * waiting for the configuration messages to complete is not
 	 * needed.
 	 */
-	usb_bus_mem_free_all(&sc->sc_bus, &xhci_iterate_hw_softc);
-
-	cv_destroy(&sc->sc_cmd_cv);
-	sx_destroy(&sc->sc_cmd_sx);
+	/*
+	 * Failed DMA allocation already unwinds itself; earlier failures never
+	 * initialize these locks. Clear stages so a retained-owner retry is safe.
+	 */
+	if ((sc->sc_init_flags & XHCI_INIT_DMA) != 0) {
+		usb_bus_mem_free_all(&sc->sc_bus, &xhci_iterate_hw_softc);
+		sc->sc_init_flags &= ~XHCI_INIT_DMA;
+	}
+	if ((sc->sc_init_flags & XHCI_INIT_CMD_LOCKS) != 0) {
+		cv_destroy(&sc->sc_cmd_cv);
+		sx_destroy(&sc->sc_cmd_sx);
+		sc->sc_init_flags &= ~XHCI_INIT_CMD_LOCKS;
+	}
 }
 
 static void

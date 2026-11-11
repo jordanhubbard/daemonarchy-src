@@ -387,6 +387,18 @@ These tests use small synthetic fixtures to exercise refusals, byte verification
 and actual subprocess timeout/failure behavior. They do not stand in for native
 FreeBSD compilation or package acceptance.
 
+The [translated RAM backend](../../docs/pi5-translated-ram-busdma.md) has
+separate production-function host controls:
+
+```sh
+python3 tools/daemonarchy/tests/bcm2712-busdma-controls.py --cc gcc --out /path/to/new/gcc-proof
+python3 tools/daemonarchy/tests/bcm2712-busdma-controls.py --cc clang --out /path/to/new/clang-proof
+```
+
+They inject VM/scheduler primitives and do not establish native busdma or device
+DMA. A fresh native kernel, actual nonzero-offset DMA, and existing Pi4 controls
+remain separate gates; run aggregate builds only on allocated aligned workers.
+
 ### Qualified framework renewal
 
 The controller review now binds framework `d6070ba5`, whose complete local
@@ -513,6 +525,29 @@ peers, covering phase continuation, blank input, command admission, EOF capture,
 wrong-boot refusal, missing-peer and idle deadlines, and default exit behavior.
 These peers supply controller regression evidence, not native kernel transport,
 physical NIC, panic or release acceptance.
+
+## Checked MSI provider publication
+
+`intr_msi_validate_provider(expected, xref)` checks the allocation registry under
+its list mutex without allocating vectors or returning a private pointer. It
+requires a non-NULL device and nonzero xref (`EINVAL`), rejects a missing exact
+MSI xref (`ESRCH`), a different device (`ENXIO`) or any duplicate exact MSI xref
+(`EEXIST`). Device-only wildcard registrations do not satisfy the xref lookup.
+Existing registration and allocation behavior remains unchanged.
+
+```sh
+python3 tools/daemonarchy/tests/msi-provider-query-controls.py --cc clang
+```
+
+The host control extracts the production registry structure, lookup, creation,
+registration and query functions. Injected mutex/allocation primitives check
+cold/missing, wrong-type/device, wildcard and duplicate states, idempotent
+registration, failed registration and publication immediately before lock
+acquisition. Each query must leave the registry and allocation count unchanged.
+Success is a registry snapshot with exact identity, not hardware readiness or a
+lifetime token. Selected MIP readiness additionally relies on its audited
+ready-before-register invariant and correct OFW device publication. Native
+interrupt delivery and physical PCIe/MSI acceptance remain separate gates.
 
 ## Debugnet receive-buffer class fixture
 

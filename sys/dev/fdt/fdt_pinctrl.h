@@ -37,6 +37,17 @@ int fdt_pinctrl_configure(device_t client, u_int index);
 int fdt_pinctrl_configure_by_name(device_t client, const char * name);
 
 /*
+ * Opt-in checked variants: validate all xrefs before configuring any provider,
+ * return ENXIO for an unresolved provider, and propagate provider errors.
+ * Missing properties/names return ENOENT; malformed cell/string lists and an
+ * empty requested name return EINVAL. Empty pinctrl-N properties are valid.
+ * Earlier successful provider operations are not rolled back on later errors.
+ * Legacy callers above retain their original best-effort semantics.
+ */
+int fdt_pinctrl_configure_checked(device_t client, u_int index);
+int fdt_pinctrl_configure_by_name_checked(device_t client, const char *name);
+
+/*
  * Register a pinctrl driver so that it can be used by other devices which call
  * fdt_pinctrl_configure().  The pinprop argument is the name of a property that
  * identifies each descendent of the pinctrl node which is a pin configuration

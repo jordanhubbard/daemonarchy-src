@@ -197,6 +197,9 @@ typedef struct {
 	bus_addr_t		highaddr;
 	bus_size_t		maxsize;
 	int			nsegments;
+#ifdef BUS_DMA_TEMPLATE_MD_FIELDS
+	BUS_DMA_TEMPLATE_MD_FIELDS
+#endif
 	bus_size_t		maxsegsize;
 	int			flags;
 	bus_dma_lock_t		*lockfunc;
