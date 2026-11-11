@@ -174,7 +174,9 @@ Each phase has a six-hour default deadline (`--phase-timeout` changes it).
 Interrupts and deadlines terminate only that phase's process group. Logs and
 failed state remain. An existing output directory is refused unless `--resume`
 is given and its retained plan matches exactly. Successful phases are skipped
-only when their retained logs still match. A failed phase reruns incrementally;
+only when their retained logs still match. After a host/controller crash,
+resume preserves unrecorded phase logs and chooses a new monotonically numbered
+exclusive log rather than overwriting an interrupted attempt. A failed phase reruns incrementally;
 use a fresh output directory if clean rebuild evidence is required.
 
 `--through buildkernel` permits stopping after compilation for inspection.

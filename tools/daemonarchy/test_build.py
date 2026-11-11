@@ -263,6 +263,49 @@ class BuildTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "identity"):
             build.verify(self.output)
 
+    def test_resume_preserves_unrecorded_crash_logs_and_occupied_names(self):
+        plan, state = self.built_fixture()
+        logs = self.output / "logs"
+        logs.mkdir()
+        previous = []
+        for attempt in (1, 2):
+            path = logs / f"buildworld-{attempt}.log"
+            path.write_text("previous controlled failed attempt\n")
+            previous.append({"name": "buildworld", "exit": 7,
+                             "log": str(path.relative_to(self.output)),
+                             "log_sha256": build.digest(path)})
+        state.update(status="running", active_phase="buildworld", phases=previous)
+        build.write_json(self.output / "result.json", state)
+        orphan = logs / "buildworld-3.log"
+        orphan.write_bytes(b"interrupted phase output\n")
+        missing = self.parent / "missing-log-target"
+        occupied = logs / "buildworld-4.log"
+        occupied.symlink_to(missing)
+        (logs / "buildkernel-99.log").write_text("unrelated phase\n")
+        original_command = build.run_command
+
+        def controlled_command(argv, env, log, timeout):
+            return original_command(
+                [sys.executable, "-c",
+                 "print('synthetic resumed phase'); raise SystemExit(7)"],
+                env, log, timeout)
+
+        args = type("Args", (), {"resume": True, "jobs": 2,
+                                 "minimum_free_gib": 0, "phase_timeout": 10})()
+        with patch.object(build, "native_preflight"), \
+                patch.object(build, "run_command", side_effect=controlled_command):
+            with self.assertRaisesRegex(ValueError, "buildworld failed"):
+                build.run(plan, args)
+        self.assertEqual(orphan.read_bytes(), b"interrupted phase output\n")
+        self.assertTrue(occupied.is_symlink())
+        self.assertFalse(missing.exists())
+        result = json.loads((self.output / "result.json").read_text())
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(result["phases"][-1]["exit"], 7)
+        self.assertEqual(result["phases"][-1]["log"], "logs/buildworld-5.log")
+        self.assertIn("synthetic resumed phase",
+                      (logs / "buildworld-5.log").read_text())
+
     def test_resume_cannot_rebind_an_existing_build(self):
         plan, _ = self.built_fixture()
         changed = dict(plan, jobs=3)

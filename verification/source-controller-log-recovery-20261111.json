@@ -1,0 +1,37 @@
+{
+  "schema": "daemonarchy/source-controller-interrupted-log-recovery@1",
+  "observed_utc": "2026-11-11T03:40:38.867218+00:00",
+  "source_parent": "f5d8029be63e04b4625950d1fa6d26bfc6ee444c",
+  "source_sha256": {
+    "tools/daemonarchy/build.py": "751de8c4d87244997b5fc9e9db7271ea924969db75391de9c62f152148a11128",
+    "tools/daemonarchy/test_build.py": "d7e0bece1640f66b05e718ea70750c26b77ee44c1006985a25ffed2198d7d3c0"
+  },
+  "problem": "A host crash leaves a numbered phase log before result.json records that attempt. Resume reused that occupied name and failed before starting the phase.",
+  "behavior": "Select a monotonically newer exclusive phase log while retaining interrupted output, prior recorded attempts and occupied symlink names.",
+  "regression": {
+    "fixture": "two recorded failed attempts, orphan third log, dangling fourth log name, unrelated phase attempt99",
+    "controlled_child_exit": 7,
+    "before": "FileExistsError yields internal phase exit -1 instead of running the child",
+    "after": "new buildworld-5.log retains actual controlled child exit7; orphan and symlink unchanged",
+    "native_system": "FreeBSD CURRENT ARM64",
+    "native_before_test_exit": 1,
+    "native_after_test_exit": 0,
+    "native_before_log_sha256": "9e40b7504eae050dc9fdca5052fe3191f4e38332c3f558e01537d8fc13230d00",
+    "native_after_log_sha256": "197e42e295d97140bb7fc5d80d98494debe138d63c8bae09ac1b53b44c5f843b",
+    "portable_before_log_sha256": "6ae288abc7b1a6532e894b22168d55ad2e18e6a3a4672fd6035dacb7bd729444",
+    "portable_after_log_sha256": "8535251383e275a193a0c466b655c44c88bc3775d18d7243162922244317f658"
+  },
+  "controller_suite": {
+    "groups": 136,
+    "passed": 131,
+    "skipped": 5,
+    "exit": 0,
+    "log_sha256": "2f15018cb84c6ebc0518202faceb00a93f6d5473c1869c785c8f5715299986ca"
+  },
+  "limitations": [
+    "The native regression uses a synthetic child and temporary fixture; it is not an aggregate world build or native lifecycle receipt.",
+    "Existing frozen native workers were not edited or restarted.",
+    "Exclusive creation and output locking remain enforced.",
+    "Unrecorded crash logs are retained, not treated as successful phase evidence."
+  ]
+}

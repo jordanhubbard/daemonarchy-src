@@ -198,6 +198,18 @@ def native_preflight(root, jobs, minimum_free_gib, trace_mode="off", target="amd
         raise ValueError("insufficient available memory: reserve at least 2 GiB per job and 8 GiB total")
 
 
+
+def next_phase_log(root, phase, recorded_attempts):
+    # A host crash can leave an exclusive log before its result was recorded.
+    # Preserve that evidence, including occupied symlink/directory names, and
+    # keep attempt numbers monotonic across interrupted controllers.
+    attempt = recorded_attempts + 1
+    for path in (root / "logs").glob(f"{phase}-*.log"):
+        match = re.fullmatch(rf"{re.escape(phase)}-([0-9]+)\.log", path.name)
+        if match:
+            attempt = max(attempt, int(match[1]) + 1)
+    return root / "logs" / f"{phase}-{attempt}.log"
+
 def run_command(argv, env, log, timeout):
     with log.open("xb") as stream:
         child = subprocess.Popen(argv, env=env, stdout=stream, stderr=subprocess.STDOUT,
@@ -485,8 +497,8 @@ def run(plan, args):
             clean_revision(plan["source_revision"])
             if phase not in successful:
                 native_preflight(root, args.jobs, args.minimum_free_gib, plan.get("trace_mode", "off"), plan["target"])
-                attempt = 1 + sum(p["name"] == phase for p in state["phases"])
-                log = root / "logs" / f"{phase}-{attempt}.log"
+                log = next_phase_log(root, phase,
+                                     sum(p["name"] == phase for p in state["phases"]))
                 state["status"] = "running"
                 state.pop("error", None)
                 state["active_phase"] = phase
