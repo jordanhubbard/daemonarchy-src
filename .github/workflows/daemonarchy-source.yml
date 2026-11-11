@@ -220,6 +220,8 @@ jobs:
         run: python3 tools/daemonarchy/tests/arm64-dmap-lookup.py --cc clang
       - name: PL011 finite receive overflow (not hardware latency acceptance)
         run: python3 tools/daemonarchy/tests/pl011-rx-controls.py --cc clang
+      - name: Native DMA diagnostic controller guards (not native DMA acceptance)
+        run: python3 tools/daemonarchy/tests/test-bcm2711-dma-native-control.py
       - name: GPIO regulator producer lifetime (not native concurrency acceptance)
         run: python3 tools/daemonarchy/tests/run-regnode-lifetime.py --cc clang
       - name: ACPI USB DMA aperture and lifetime (not controller acceptance)

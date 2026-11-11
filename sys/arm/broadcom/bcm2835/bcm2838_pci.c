@@ -25,6 +25,8 @@
  * this driver is taken from the Raspberry Pi 4 Broadcom 2838 chip.
  */
 
+#include "opt_bcm2711_dma_test.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/endian.h>
@@ -48,6 +50,10 @@
 
 #include <machine/bus.h>
 #include <machine/intr.h>
+#ifdef BCM2711_DMA_TEST
+#include <machine/bus_dma.h>
+#include <arm64/broadcom/bcm2711_dma_test.h>
+#endif
 
 #include "pcib_if.h"
 #include "msi_if.h"
@@ -618,6 +624,9 @@ bcm_pcib_attach(device_t dev)
 	bus_size_t size;
 	uint32_t hardware_rev, bridge_state, link_state, tmp;
 	int error, tries;
+#ifdef BCM2711_DMA_TEST
+	bus_dma_tag_t test_tag = NULL, physical_tag = NULL;
+#endif
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -649,6 +658,22 @@ bcm_pcib_attach(device_t dev)
 		goto failed;
 
 	mtx_init(&sc->config_mtx, "bcm_pcib: config_mtx", NULL, MTX_DEF);
+
+#ifdef BCM2711_DMA_TEST
+	if (bcm2711_dma_test_requested()) {
+		/* Only prepare unpublished metadata here. Root config is not yet
+		 * readable on a cold controller; the QEMU guard follows link-up.
+		 */
+		if (!ofw_bus_is_compatible(dev, "brcm,bcm2711-pcie")) {
+			error = ENXIO;
+			goto failed;
+		}
+		physical_tag = sc->dmat;
+		error = bcm2711_dma_test_create(physical_tag, &test_tag);
+		if (error != 0)
+			goto failed;
+	}
+#endif
 
 	bcm_pcib_reset_controller(sc);
 
@@ -698,6 +723,23 @@ bcm_pcib_attach(device_t dev)
 		device_printf(dev, "note: reported link speed is %s.\n",
 		    bcm_pcib_link_state_string(link_state));
 
+#ifdef BCM2711_DMA_TEST
+	if (test_tag != NULL) {
+		/* Preserve normal identity initialization until config is live.
+		 * No special alias is written on physical BCM hardware: require
+		 * the unchanged QEMU root port's genuine ID first.
+		 */
+		tmp = bcm_pcib_read_config(dev, 0, 0, 0, PCIR_DEVVENDOR, 4);
+		if (tmp != 0x000c1b36) {
+			device_printf(dev, "diagnostic QEMU root ID refused: %#x\n", tmp);
+			error = ENXIO;
+			goto failed;
+		}
+		bcm_pcib_set_reg(sc, REG_DMA_WINDOW_HIGH,
+		    BCM2711_DMA_TEST_WINDOW_HIGH);
+	}
+#endif
+
 	/*
 	 * Set the CPU->PCI memory window. The map in this direction is not 1:1.
 	 * Addresses seen by the CPU need to be adjusted to make sense to the
@@ -745,11 +787,33 @@ bcm_pcib_attach(device_t dev)
 	if (error != 0)
 		goto failed;
 
+#ifdef BCM2711_DMA_TEST
+	if (test_tag != NULL) {
+		/* Readback before any PCI child can allocate DMA or run a device. */
+		error = bcm2711_dma_test_publish(dev, test_tag, physical_tag,
+		    bcm_pcib_read_reg(sc, REG_DMA_WINDOW_LOW),
+		    bcm_pcib_read_reg(sc, REG_DMA_WINDOW_HIGH));
+		if (error != 0)
+			goto failed;
+		sc->dmat = test_tag;
+		/* Keep the original physical ownership until guest reset as well
+		 * as the backend's own parent reference. No test module frees it.
+		 */
+	}
+#endif
+
 	/* Done. */
 	device_add_child(dev, "pci", DEVICE_UNIT_ANY);
 	bus_attach_children(dev);
 	return (0);
 failed:
+#ifdef BCM2711_DMA_TEST
+	if (test_tag != NULL) {
+		/* No PCI children were published on these failure paths. */
+		if (bus_dma_tag_destroy(test_tag) != 0)
+			panic("unpublished diagnostic DMA tag retained owners");
+	}
+#endif
 	pci_host_generic_destroy_fdt(dev);
 	return (error);
 }
