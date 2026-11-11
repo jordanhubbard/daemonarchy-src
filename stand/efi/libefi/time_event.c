@@ -33,31 +33,47 @@
 static EFI_EVENT time_event;
 static uint64_t curtime;
 
-static void
+static void EFIAPI
 time_update(EFI_EVENT event, void *context)
 {
 
+	(void)event;
+	(void)context;
 	curtime++;
 }
 
 void
 efi_time_init(void)
 {
+	EFI_STATUS status;
 
-	/* Create a timer event */
-	BS->CreateEvent(EVT_TIMER | EVT_NOTIFY_SIGNAL, TPL_CALLBACK,
-	    time_update, 0, &time_event);
-	/* Use a 1s timer */
-	BS->SetTimer(time_event, TimerPeriodic, 10000000);
+	if (time_event != NULL)
+		return;
+	/* Create a timer event. Never arm or close an unavailable handle. */
+	status = BS->CreateEvent(EVT_TIMER | EVT_NOTIFY_SIGNAL, TPL_CALLBACK,
+	    time_update, NULL, &time_event);
+	if (!EFI_ERROR(status)) {
+		/* Use a 1s timer. */
+		status = BS->SetTimer(time_event, TimerPeriodic, 10000000);
+		if (EFI_ERROR(status))
+			BS->CloseEvent(time_event);
+	}
+	if (EFI_ERROR(status)) {
+		time_event = NULL;
+		printf("EFI timer unavailable\n");
+	}
 }
 
 void
 efi_time_fini(void)
 {
 
+	if (time_event == NULL)
+		return;
 	/* Cancel the timer */
 	BS->SetTimer(time_event, TimerCancel, 0);
 	BS->CloseEvent(time_event);
+	time_event = NULL;
 }
 
 time_t
