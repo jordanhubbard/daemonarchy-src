@@ -143,7 +143,7 @@ def loader_operations(args, target):
 
     if args.tftp_root is not None:
         server = args.tftp_address or args.bind
-        if server in ("0.0.0.0", ""):
+        if server in (None, "0.0.0.0", ""):
             raise ValueError("--tftp-root needs --tftp-address or a specific --bind address")
         ops += [("set", f"set net.static.ip={value(args.static_ip or target, 'static IP')}"),
                 ("set", f"set net.static.rootpath=tftp://{server}:{args.tftp_port}/")]
@@ -175,13 +175,14 @@ def loader_operations(args, target):
 
 
 class Console:
-    def __init__(self, target, port, key, *, bind="0.0.0.0", timeout=30, output=None, events=None,
+    def __init__(self, target, port, key, *, bind=None, timeout=30, output=None, events=None,
                  stage=None):
         self.key = key
         self.stage = stage
         self.event_lock = threading.Lock()
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.socket.bind((bind, 0))
+        if bind is not None:
+            self.socket.bind((bind, 0))
         self.socket.connect((target, port))
         self.socket.setblocking(False)
         self.timeout = timeout
@@ -366,7 +367,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("target", nargs="?")
     parser.add_argument("--port", type=int, default=6668)
-    parser.add_argument("--bind", default="0.0.0.0")
+    parser.add_argument("--bind", help="specific local IPv4 source address; default: route to target")
     parser.add_argument("--key-file", type=Path)
     parser.add_argument("--plain", action="store_true",
                         help="explicit unauthenticated debug mode; trusted wired network only")
@@ -427,11 +428,14 @@ def main():
             if args.last_stage.exists():
                 raise ValueError("--last-stage must name a new file")
             stage = StageRecorder(str(args.last_stage))
-        if args.kernel_transport == "debugnet":
-            kernel_listener = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            kernel_listener.bind((args.bind, debugnet_backend().PORT))
         client = Console(args.target, args.port, bytes(32) if args.plain else read_key(args.key_file), bind=args.bind,
                          timeout=args.timeout, output=output, events=events, stage=stage)
+        if args.kernel_transport == "debugnet":
+            kernel_listener = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            # Listen on the selected route's local interface before pairing,
+            # so the first kernel packet cannot race listener creation.
+            kernel_listener.bind((args.bind or client.socket.getsockname()[0],
+                                  debugnet_backend().PORT))
         if args.tftp_root is not None:
             tftp = TftpServer(args.tftp_root, args.tftp_address or args.bind, args.tftp_port,
                               event=client.event).start()
