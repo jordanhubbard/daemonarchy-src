@@ -2,7 +2,7 @@ name: Hosted x86 worker capacity
 
 on:
   push:
-    branches: [work/16-native-ci]
+    branches: [work/16-native-ci, work/16-native-ci-2604]
     paths:
       - '.github/workflows/hosted-worker-capacity.yml'
       - 'tools/daemonarchy/inspect-hosted-capacity.py'
@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-15-intel]
+        os: [ubuntu-24.04, ubuntu-26.04, macos-15-intel]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 5
     steps:
