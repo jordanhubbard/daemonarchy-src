@@ -1,0 +1,27 @@
+{
+  "schema": "daemonarchy/current-source-tip-sync@1",
+  "observed_utc": "2026-11-11T03:34:22.966585+00:00",
+  "owned_parent": "97d15adddd39d1dee09f3baa9b89758d96a8b005",
+  "upstream_parent": "2af08ab3f125ce5988a641c32c777afc52f917e1",
+  "upstream_commits_added": 106,
+  "merge_commit": "a350e8abc6a3109b5fea7b78b0c8654be3094273",
+  "code_tree": "f2d92d79ecbee8a24fecef914d0df356cfd5b2db",
+  "upstream_common_ancestor": "d0fd70983b6b93d4a6a4671457619eb34786b38d",
+  "previous_downstream_paths": 273,
+  "delta_paths_vs_upstream": 273,
+  "delta_outside_previous_downstream": [],
+  "conflicts": 0,
+  "controller_groups_run": 135,
+  "controller_groups_passed": 130,
+  "controller_groups_skipped": 5,
+  "controller_exit": 0,
+  "controller_log_sha256": "01f4bb67de16cb9041b844986bc88cbd946c0038cf313e89d3a01730018cb98c",
+  "native_world_kernel": false,
+  "native_loader": false,
+  "release_qualified": false,
+  "notes": [
+    "The actual native AMD64 world and ARM bulk retain their original frozen source pins.",
+    "Controller tests emit retained sqlite ResourceWarnings; no native product or lifecycle qualification is inferred.",
+    "Native loader/world/kernel/module and final matched media acceptance remain required for this new input."
+  ]
+}

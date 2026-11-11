@@ -1,0 +1,233 @@
+{
+  "schema": "daemonarchy/normal-boot-userspace-handoff@1",
+  "date": "2026-11-10",
+  "status": "scoped-native-vm-controls-pass",
+  "source_code_revision": "7529983474b69ef693761378376d1caf4797fb20",
+  "product_revision_before_evidence": "c9446b76dca532f13a221fda93d767834e060dfd",
+  "prerequisite": "verification/normal-boot-identity-20261110.json",
+  "purpose": "Observe the actual loader-to-kernel-to-init/userspace kenv handoff and independently compare raw NORMAL records after shutdown, including unavailable RNG.",
+  "images": [
+    {
+      "architecture": "arm64",
+      "bytes": 423641600,
+      "sha256": "c020cd077cf7e82dfa0251bf770e3a584535aebd3b599b46ab0c9c5320d34461",
+      "native_export_hash_independently_verified": true,
+      "native_controller_exit": 0,
+      "native_builder_identity": "uid=1017(nativebuild) gid=1017(nativebuild) groups=1017(nativebuild)",
+      "native_inputs": [
+        {
+          "file": "base.txz",
+          "sha256": "32924d5e234aa31bc7455bae49b349694a902d8e97fba9c2acdb2f4c91537c3f"
+        },
+        {
+          "file": "kernel",
+          "sha256": "d4bb617d30643b623623221bf5833a627c65a3f97f2344b4ae6bea0052622d6c"
+        },
+        {
+          "file": "loader.efi",
+          "sha256": "91aeaebe66e72fa15c00d99ff3858a62db68b3959bddfde0a2a6cf9d588e72ff"
+        },
+        {
+          "file": "world.tar",
+          "sha256": "4f499f342f4367e96f60d4f9890a55a67efd0bba12dba911c32ade26383d7106"
+        },
+        {
+          "file": "mfsroot",
+          "sha256": "29cb656b3487e54213118434029066d6f374b1e249b8ad470241f9c956cd2395"
+        }
+      ],
+      "native_script_sha256": "3f8813b317f678ec0a404a4a6e08fe72a85b7fa723ccdc6ae712f64bf93a4da1",
+      "controller_script_sha256": "fbc61ee3304db6ed1652385aa4ba02223659cfa6be2f56b3a05df904c2b8a32e",
+      "root": "minimal uncompressed UFS2 memory disk",
+      "runtime": "matched CURRENT base set/kernel from af55b6f9042e15b635e90926d476e7cbeb48a069; OSVERSION 1600031 established by prerequisite native worker evidence",
+      "efi_code_revision": "7529983474b69ef693761378376d1caf4797fb20",
+      "mapped_files": 233,
+      "normal_slots": 32,
+      "native_root_fsck_exit": 0
+    },
+    {
+      "architecture": "amd64",
+      "bytes": 795886080,
+      "sha256": "d8a598c106a5ab55b9cbc5f4e168d67dd86355d0810011b166c86c9e845b7049",
+      "native_export_hash_independently_verified": true,
+      "native_controller_exit": 0,
+      "native_builder_identity": "uid=1017(nativebuild) gid=1017(nativebuild) groups=1017(nativebuild)",
+      "native_inputs": [
+        {
+          "file": "runtime.tar.gz",
+          "sha256": "96b9af3f458ac0ba230e9603463c52aaa9c495136def0d03a98e0ff4577653e8"
+        },
+        {
+          "file": "kernel",
+          "sha256": "a0e9278e4c8a4790644814d839be6ccc027b7afad4bac9fa6952ad88eabce4b8"
+        },
+        {
+          "file": "loader.efi",
+          "sha256": "86fe708ee8d381ed375720425d5e4a5a89cdcf3a396ca1efa9723c2e73861db5"
+        },
+        {
+          "file": "world.tar",
+          "sha256": "3ae0d6adab69d851ce6ca0e9f7691ac6d2da1bdc0643a5b1d6dfc3d4b1a563e0"
+        },
+        {
+          "file": "mfsroot",
+          "sha256": "74a1f1187eade2afed37f61fb2355a0403e11f740ca0a6d78d652161e70d2ff8"
+        }
+      ],
+      "native_script_sha256": "40f994cb882149dd02bafcf4e69a09ffbec3e107892efb8da8014b9e56168a55",
+      "controller_script_sha256": "26a4e41ba259b85097c3688de6124ff390cde1906ea345a4308960a8827164e5",
+      "root": "minimal uncompressed UFS2 memory disk",
+      "runtime": "runtime export from retained installed 1.5.1 amd64 worker; kernel/userland OSVERSION 1600029 verified at export",
+      "efi_code_revision": "7529983474b69ef693761378376d1caf4797fb20",
+      "mapped_files": 233,
+      "normal_slots": 32,
+      "native_root_fsck_exit": 0
+    }
+  ],
+  "cases": [
+    {
+      "case": "handoff-a",
+      "architecture": "arm64",
+      "rng_device": true,
+      "status": "pass",
+      "image_sha256": "c020cd077cf7e82dfa0251bf770e3a584535aebd3b599b46ab0c9c5320d34461",
+      "image_id": "df0a3063-f88f-4cc0-8599-9cdaad0ed9ff",
+      "trace_partition": "702ed5a4-dce9-11f1-1d08-61407e6af4da",
+      "session": "df0a3063-f88f-4cc0-8599-9cdaad0ed9ff-0001",
+      "boot_identity": "firmware-rng",
+      "boot_nonce_sha256": "75109d51c0e7c6c4d388220bd6511efe9bdf6a6c2fae9bb895b067887769459d",
+      "boot_nonce_unavailable": false,
+      "userspace_kenv_matches_ready_record": [
+        "partition",
+        "session",
+        "capture=saved",
+        "boot_nonce"
+      ],
+      "pre_exit_bank": "recorded and decoder-bound to ready identity",
+      "changed_bytes": 809,
+      "only_current_normal_slot_changed": true,
+      "input_unchanged": true,
+      "kernel_init_rc_reached": true,
+      "normal_synced_shutdown": true,
+      "no_keyboard_input": true,
+      "network_device": false,
+      "serial_sha256": "9e70f9877a1ae1fa531c28bebcd6d2e665063b74f3a38bada6ede4677504b0d8",
+      "private_result_sha256": "56e11f72cb12a1dc6c9d8e7c5e45a6bc336654888d82fb68921586cf7743b377"
+    },
+    {
+      "case": "handoff-r0",
+      "architecture": "arm64",
+      "rng_device": false,
+      "status": "pass",
+      "image_sha256": "c020cd077cf7e82dfa0251bf770e3a584535aebd3b599b46ab0c9c5320d34461",
+      "image_id": "df0a3063-f88f-4cc0-8599-9cdaad0ed9ff",
+      "trace_partition": "702ed5a4-dce9-11f1-1d08-61407e6af4da",
+      "session": "df0a3063-f88f-4cc0-8599-9cdaad0ed9ff-0001",
+      "boot_identity": "unavailable",
+      "boot_nonce_sha256": null,
+      "boot_nonce_unavailable": true,
+      "userspace_kenv_matches_ready_record": [
+        "partition",
+        "session",
+        "capture=saved",
+        "boot_nonce"
+      ],
+      "pre_exit_bank": "recorded and decoder-bound to ready identity",
+      "changed_bytes": 701,
+      "only_current_normal_slot_changed": true,
+      "input_unchanged": true,
+      "kernel_init_rc_reached": true,
+      "normal_synced_shutdown": true,
+      "no_keyboard_input": true,
+      "network_device": false,
+      "serial_sha256": "d4f2792655f29da651e654fb41a78e44bae1bd3a7b450a7bb1734e7ed1069542",
+      "private_result_sha256": "f09e66f5f5968b5e06e01d61291892303d7408bd2fd05a348c603869c0cf660c"
+    },
+    {
+      "case": "xhand-a",
+      "architecture": "amd64",
+      "rng_device": true,
+      "status": "pass",
+      "image_sha256": "d8a598c106a5ab55b9cbc5f4e168d67dd86355d0810011b166c86c9e845b7049",
+      "image_id": "3030ea41-ff5a-476f-9bc8-f5aa42ae1d5e",
+      "trace_partition": "cffba8fe-dce9-11f1-17a5-d14fff7c5968",
+      "session": "3030ea41-ff5a-476f-9bc8-f5aa42ae1d5e-0001",
+      "boot_identity": "firmware-rng",
+      "boot_nonce_sha256": "c0859023351610113dbe43268ec6abd4577fab97d01e8bfad3663862afabf69a",
+      "boot_nonce_unavailable": false,
+      "userspace_kenv_matches_ready_record": [
+        "partition",
+        "session",
+        "capture=saved",
+        "boot_nonce"
+      ],
+      "pre_exit_bank": "recorded and decoder-bound to ready identity",
+      "changed_bytes": 809,
+      "only_current_normal_slot_changed": true,
+      "input_unchanged": true,
+      "kernel_init_rc_reached": true,
+      "normal_synced_shutdown": true,
+      "no_keyboard_input": true,
+      "network_device": false,
+      "serial_sha256": "2cb1871f11a7a2edef07ae8ee9a3a5324023083f543582904a4196c154ce4225",
+      "private_result_sha256": "28eea6e9dffa6e264dd8ab0492ce9bbbb676ccf87a8996a36b89520143eae61c"
+    },
+    {
+      "case": "xhand-r0",
+      "architecture": "amd64",
+      "rng_device": false,
+      "status": "pass",
+      "image_sha256": "d8a598c106a5ab55b9cbc5f4e168d67dd86355d0810011b166c86c9e845b7049",
+      "image_id": "3030ea41-ff5a-476f-9bc8-f5aa42ae1d5e",
+      "trace_partition": "cffba8fe-dce9-11f1-17a5-d14fff7c5968",
+      "session": "3030ea41-ff5a-476f-9bc8-f5aa42ae1d5e-0001",
+      "boot_identity": "unavailable",
+      "boot_nonce_sha256": null,
+      "boot_nonce_unavailable": true,
+      "userspace_kenv_matches_ready_record": [
+        "partition",
+        "session",
+        "capture=saved",
+        "boot_nonce"
+      ],
+      "pre_exit_bank": "recorded and decoder-bound to ready identity",
+      "changed_bytes": 701,
+      "only_current_normal_slot_changed": true,
+      "input_unchanged": true,
+      "kernel_init_rc_reached": true,
+      "normal_synced_shutdown": true,
+      "no_keyboard_input": true,
+      "network_device": false,
+      "serial_sha256": "525f48f71f492694f1e7af6871312b7f9f67a7a69559786482e0fee55a6bec8e",
+      "private_result_sha256": "bed68cc408e55a353ba6f38feb577e095bb78f85cf52e0d85678b9c6dc771ab8"
+    }
+  ],
+  "retained_failures": [
+    {
+      "attempt": "arm-r1",
+      "failure": "private input directory was not traversable by build UID; assembly stopped before VM boot"
+    },
+    {
+      "attempt": "arm-r2",
+      "failure": "minimal world lacked etc directory required by assembler; assembly stopped before VM boot"
+    },
+    {
+      "attempt": "arm first readback harness",
+      "failure": "expected an architecture-specific poweroff message absent from ARM serial output",
+      "resolution": "same stopped VM/disk/log reanalyzed with inactive status, zero exit and actual All buffers synced marker; no repeated boot"
+    },
+    {
+      "attempt": "all four runtime fixtures",
+      "failure": "ancillary /bin/uname call was absent from the deliberately minimal runtime",
+      "resolution": "no in-fixture OSVERSION query claimed; all four required kenv fields independently match persisted records; base/kernel identities and externally observed worker versions retained separately"
+    }
+  ],
+  "limits": [
+    "Minimal RAM-root handoff fixtures, not full CURRENT installer or desktop qualification.",
+    "AMD64 uses retained OSVERSION 1600029 runtime/kernel; its refreshed native world build is separate.",
+    "Queries the handoff through kernel kenv in init/rc; does not implement automatic kernel console, panic, init or installer log persistence.",
+    "No userspace DATRACE write, stable hardware identity, authenticated identity or entropy-quality claim.",
+    "No BIOS capture, actual interrupted write, physical reset/power loss, signing, SDK/Component/lifecycle or final size qualification.",
+    "Physical Pi 4, Pi 5 and Apple M2 remain untested."
+  ]
+}

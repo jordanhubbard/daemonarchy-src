@@ -1,0 +1,273 @@
+{
+  "schema": "daemonarchy/normal-boot-identity-development@1",
+  "recorded_date": "2026-11-10",
+  "status": "scoped-native-clone-restart-and-unavailable-controls-pass",
+  "source": {
+    "commit": "7529983474b69ef693761378376d1caf4797fb20",
+    "archive_sha256": "ea0f8342084088f6f008a5bf46411cc1140af5a9ff8eaa48dfa1cdfa21522508",
+    "archive_bytes": 416300764,
+    "target": "native FreeBSD arm64/aarch64",
+    "source_readonly": true,
+    "build_uid": 1017,
+    "build_gid": 1017
+  },
+  "native_arm_exports": {
+    "status": "native-and-controller-hashes-match",
+    "files": [
+      {
+        "name": "loader.efi",
+        "bytes": 1384876,
+        "sha256": "91aeaebe66e72fa15c00d99ff3858a62db68b3959bddfde0a2a6cf9d588e72ff"
+      },
+      {
+        "name": "policy.log",
+        "bytes": 84,
+        "sha256": "6dd08806eeb4536073480c1d95435f7fdcceea77ef8d3398af5279d386c5ab5e"
+      },
+      {
+        "name": "blocks.log",
+        "bytes": 298,
+        "sha256": "718191cafe93d1e23b7b91692f96ea54a5d66ef0e1187d707134bc94803564c5"
+      },
+      {
+        "name": "build-identity.txt",
+        "bytes": 69,
+        "sha256": "191f0d37424897fc484175c102b2a3a14e0923349059184c5edbcc440d9e0d68"
+      },
+      {
+        "name": "build.log",
+        "bytes": 957221,
+        "sha256": "9d2f247f57abe7f029c2761222526a70435eb96fd5168fa4d99e569451404db8"
+      },
+      {
+        "name": "control.iso",
+        "bytes": 393232896,
+        "sha256": "ec7a9cae87ed127510a10fbec1edb218eeaf1ce799dc5ccb4876a3b67d6c8724"
+      },
+      {
+        "name": "control-image.log",
+        "bytes": 1454,
+        "sha256": "f7b3a318d30a51feb324c90e6ae2acf5132bc88d7b68d0f7c4a96f9894d71c5a"
+      }
+    ]
+  },
+  "producer_inputs": [
+    {
+      "path": "scripts/make-efi-iso.sh",
+      "sha256": "d92f46c6d356e335f696612de99b36ed3cbabff0774cdaa131a01d615558a92d"
+    },
+    {
+      "path": "scripts/make-install-trace.py",
+      "sha256": "f5168199fbc3e01a8b12fc5c8f00f3a80e59958943073c6df75d9071ead6e48d"
+    },
+    {
+      "path": "tools/boottrace/stick.py",
+      "sha256": "a26a87b40e91e91dd1c76b9216db76c72237dd2041a95b6125822360240850cc"
+    }
+  ],
+  "amd64_control_inputs": {
+    "scope": "Retained CB38 kernel/BIOS with exact source-752 EFI/Lua; boot-only control",
+    "archive_sha256": "7da9e62b68ea2031a316fb50ccec2c6ab96e2c6cede50af410e95757226aa1a0",
+    "efi_sha256": "86fe708ee8d381ed375720425d5e4a5a89cdcf3a396ca1efa9723c2e73861db5",
+    "kernel_sha256": "a0e9278e4c8a4790644814d839be6ccc027b7afad4bac9fa6952ad88eabce4b8",
+    "source_commit": "7529983474b69ef693761378376d1caf4797fb20"
+  },
+  "amd64_ci": {
+    "source_commit": "7529983474b69ef693761378376d1caf4797fb20",
+    "run_url": "https://github.com/jordanhubbard/daemonarchy-src/actions/runs/42785724013",
+    "stand_exit": 0,
+    "policy_controls": 40,
+    "fat_controls": 19,
+    "worker": "FreeBSD 15.0-RELEASE-p13 amd64",
+    "loader_sha256": "86fe708ee8d381ed375720425d5e4a5a89cdcf3a396ca1efa9723c2e73861db5"
+  },
+  "native_arm_build": {
+    "worker": "FreeBSD 16.0-CURRENT arm64",
+    "uid": 1017,
+    "gid": 1017,
+    "readonly_source": true,
+    "stand_exit": 0,
+    "policy_controls": 40,
+    "fat_controls": 19,
+    "block_writer_groups": 10,
+    "compiler": "Native Clang 21.1.8 from the earlier af55 world; canonical SDK not admitted"
+  },
+  "cases": {
+    "arm-clone-a": {
+      "status": "pass",
+      "records": {
+        "1": {
+          "format": "daemonarchy/normal-boot-trace@3",
+          "image_id": "c376599e-6995-4497-b073-d4f24be1c774",
+          "archive_sha256": "7e05ae64faea8e6d8859fefa69dcd9426b69806e443b19d93f0376771571e0da",
+          "trace_partition": "9fe190d4-dce4-11f1-1d08-61407e6af4da",
+          "session": "0001",
+          "boot_identity": "firmware-rng",
+          "nonce_sha256": "d5e9d397dd11521d0cc3b87a6d92415b4e942983d9a3ad7bde68f8e099aeda15",
+          "preexit_nonce_matches": true
+        }
+      },
+      "changed_bytes": 809,
+      "only_expected_normal_slot_changed": true,
+      "kernel_entry_observed": true,
+      "no_keyboard_input": true,
+      "serial_sha256": "0e057c873c1fa68d2b71432a61995423fa4153f40760156302871532c4f8b8e2",
+      "returned_image_sha256": "81793b2b5daa360928985911c690694967b0513b7fc7e7959236d399ac09d5de"
+    },
+    "arm-clone-b": {
+      "status": "pass",
+      "records": {
+        "1": {
+          "format": "daemonarchy/normal-boot-trace@3",
+          "image_id": "c376599e-6995-4497-b073-d4f24be1c774",
+          "archive_sha256": "7e05ae64faea8e6d8859fefa69dcd9426b69806e443b19d93f0376771571e0da",
+          "trace_partition": "9fe190d4-dce4-11f1-1d08-61407e6af4da",
+          "session": "0001",
+          "boot_identity": "firmware-rng",
+          "nonce_sha256": "387b7e4efc5cb070a6060358d86763dd7772ecf8d0220120199bd37e0d5f6854",
+          "preexit_nonce_matches": true
+        }
+      },
+      "changed_bytes": 809,
+      "only_expected_normal_slot_changed": true,
+      "kernel_entry_observed": true,
+      "no_keyboard_input": true,
+      "serial_sha256": "0e057c873c1fa68d2b71432a61995423fa4153f40760156302871532c4f8b8e2",
+      "returned_image_sha256": "5790558404e2915279493521532ec5da8c4c61bd8b94513ea339fe6d08f9b259"
+    },
+    "arm-restart": {
+      "status": "pass",
+      "records": {
+        "1": {
+          "format": "daemonarchy/normal-boot-trace@3",
+          "image_id": "c376599e-6995-4497-b073-d4f24be1c774",
+          "archive_sha256": "7e05ae64faea8e6d8859fefa69dcd9426b69806e443b19d93f0376771571e0da",
+          "trace_partition": "9fe190d4-dce4-11f1-1d08-61407e6af4da",
+          "session": "0001",
+          "boot_identity": "firmware-rng",
+          "nonce_sha256": "d5e9d397dd11521d0cc3b87a6d92415b4e942983d9a3ad7bde68f8e099aeda15",
+          "preexit_nonce_matches": true
+        },
+        "2": {
+          "format": "daemonarchy/normal-boot-trace@3",
+          "image_id": "c376599e-6995-4497-b073-d4f24be1c774",
+          "archive_sha256": "7e05ae64faea8e6d8859fefa69dcd9426b69806e443b19d93f0376771571e0da",
+          "trace_partition": "9fe190d4-dce4-11f1-1d08-61407e6af4da",
+          "session": "0002",
+          "boot_identity": "firmware-rng",
+          "nonce_sha256": "41e7b27da9cba7b4b7f9c2434f68da78b254d81462b9a8b8bcc3900415e636cd",
+          "preexit_nonce_matches": true
+        }
+      },
+      "changed_bytes": 809,
+      "only_expected_normal_slot_changed": true,
+      "kernel_entry_observed": true,
+      "no_keyboard_input": true,
+      "serial_sha256": "4576b9e78f1c2bbd4c52b47128ad03574481b99f4f32df2ded956e589b452668",
+      "returned_image_sha256": "b40f5fc95e0d92dc21ad3de8cf5350778885668cf8e9c2e97788412fac5e930e"
+    },
+    "arm-rng-unavailable": {
+      "status": "pass",
+      "records": {
+        "1": {
+          "format": "daemonarchy/normal-boot-trace@3",
+          "image_id": "c376599e-6995-4497-b073-d4f24be1c774",
+          "archive_sha256": "7e05ae64faea8e6d8859fefa69dcd9426b69806e443b19d93f0376771571e0da",
+          "trace_partition": "9fe190d4-dce4-11f1-1d08-61407e6af4da",
+          "session": "0001",
+          "boot_identity": "unavailable",
+          "nonce_sha256": null,
+          "preexit_nonce_matches": true
+        }
+      },
+      "changed_bytes": 701,
+      "only_expected_normal_slot_changed": true,
+      "kernel_entry_observed": true,
+      "no_keyboard_input": true,
+      "serial_sha256": "687e91544950b39de5668ab04a7418d4976227a9fee1a7e25b3bc5e365bb678b",
+      "returned_image_sha256": "faa6892f0f5ce2d94a00bfc1602ebfcb2799f8dc82725bc49bdb34c8db028fe5"
+    },
+    "amd64-clone-a": {
+      "status": "pass",
+      "records": {
+        "1": {
+          "format": "daemonarchy/normal-boot-trace@3",
+          "image_id": "011a6a38-2f00-482b-b9e0-d59b7da56b24",
+          "archive_sha256": "7da9e62b68ea2031a316fb50ccec2c6ab96e2c6cede50af410e95757226aa1a0",
+          "trace_partition": "1afb0c90-dce6-11f1-17a5-d14fff7c5968",
+          "session": "0001",
+          "boot_identity": "firmware-rng",
+          "nonce_sha256": "2003d90ede68903c29fb54a7f5149757d6a3b22d46b608c07fb63de4c5e38f84",
+          "preexit_nonce_matches": true
+        }
+      },
+      "changed_bytes": 809,
+      "only_expected_normal_slot_changed": true,
+      "kernel_entry_observed": true,
+      "no_keyboard_input": true,
+      "serial_sha256": "d4998b4ff253cb3c3ff0ba733018d1fba06789fb5e8250888b4790572ce3dcea",
+      "returned_image_sha256": "72f74b827a5f43c29de0ab42393e7ec02722405121819e1d91b07b1bb6509d71"
+    },
+    "amd64-clone-b": {
+      "status": "pass",
+      "records": {
+        "1": {
+          "format": "daemonarchy/normal-boot-trace@3",
+          "image_id": "011a6a38-2f00-482b-b9e0-d59b7da56b24",
+          "archive_sha256": "7da9e62b68ea2031a316fb50ccec2c6ab96e2c6cede50af410e95757226aa1a0",
+          "trace_partition": "1afb0c90-dce6-11f1-17a5-d14fff7c5968",
+          "session": "0001",
+          "boot_identity": "firmware-rng",
+          "nonce_sha256": "052f58941b2180b8fa2c49aea8541eb43d2cd6caa3ec59cf5c2f00d638d19d3f",
+          "preexit_nonce_matches": true
+        }
+      },
+      "changed_bytes": 809,
+      "only_expected_normal_slot_changed": true,
+      "kernel_entry_observed": true,
+      "no_keyboard_input": true,
+      "serial_sha256": "a2309dd4df1fe37bec64472cae88c1a63a269f3056693f7fb9bf36f1590d7b1e",
+      "returned_image_sha256": "29667a74312d4aa330c0d6aa37e9762c438ce82d4b4a51321778be31cd85030b"
+    },
+    "amd64-rng-unavailable": {
+      "status": "pass",
+      "records": {
+        "1": {
+          "format": "daemonarchy/normal-boot-trace@3",
+          "image_id": "011a6a38-2f00-482b-b9e0-d59b7da56b24",
+          "archive_sha256": "7da9e62b68ea2031a316fb50ccec2c6ab96e2c6cede50af410e95757226aa1a0",
+          "trace_partition": "1afb0c90-dce6-11f1-17a5-d14fff7c5968",
+          "session": "0001",
+          "boot_identity": "unavailable",
+          "nonce_sha256": null,
+          "preexit_nonce_matches": true
+        }
+      },
+      "changed_bytes": 701,
+      "only_expected_normal_slot_changed": true,
+      "kernel_entry_observed": true,
+      "no_keyboard_input": true,
+      "serial_sha256": "a074214b79c86136d14d20363d3de5224ed6d6fc2851c9e4e5812fab2bf1e9a0",
+      "returned_image_sha256": "e09b273abed1f5be8d23532db9039622e44e1afdaee40df28415f11b892564c1"
+    }
+  },
+  "nonce_publication": "Only runtime nonce SHA-256 values are published; exact slot bytes and nonce values remain in private evidence.",
+  "geometry": {
+    "slots": 32,
+    "slot_bytes": 16384,
+    "stage_bank_bytes": 4096,
+    "reserved_bytes": 8192,
+    "mapped_files": 233
+  },
+  "remaining": [
+    "Stable hardware/target descriptors and independent firmware entropy-quality admission",
+    "Actual kernel/userspace nonce handoff query and later-stage capture",
+    "Runtime interrupted-write/failed-I/O recovery and physical reset/power loss",
+    "BIOS capture, early kernel/panic/init/installer tracing and remaining TRACE-001 scope",
+    "Final rebuilt world/ports/desktop media, installation/update/recovery and size budgets",
+    "Canonical SDK/Component/lifecycle/receipt, signing and documentation-review gates",
+    "Physical Pi 4, Pi 5, Apple M2 and other required targets"
+  ],
+  "release_qualified": false,
+  "private_evidence": "Immutable source archives, native logs, firmware variables, controllers and returned images retained privately; no credentials or worker addresses committed."
+}

@@ -1,0 +1,133 @@
+{
+  "schema": "daemonarchy/efi-trace-media-checkpoint@1",
+  "scope": "Read-only boot-medium discovery prerequisite for TRACE-001; no automatic capture or kernel/installation qualification",
+  "native_source_base": "0e1ddb782d1e27390cd380b5e3560b794607f78e",
+  "review_base": "9eb753c98a1264c38e0e51a7781994c5ad8811db",
+  "base_difference": "Only sys/arm64/arm64/locore.S differs between native source base and review base; no EFI source/build input changes. That independent kernel change remains in source PR 80.",
+  "source_overlay_sha256": {
+    "stand/efi/loader/Makefile": "656f74d53fe8fc13862edba127cee1d95a9b0e70df9efd71acc12640b5a97fc1",
+    "stand/efi/loader/boottrace.c": "d944a59286ebfc84770978f8904a48400935fbc5d466c9e0815a82435d947d35",
+    "stand/efi/loader/boottrace_media.c": "9cfa5aab71d4d304b4bb39c137eb6750eae896aca84f3049623db50ae1ffdc01",
+    "stand/efi/loader/boottrace_media.h": "ce5bb3ecb60af48d6b61a7d0b5e4a543f581ba091c5d46b6ace2112809688415",
+    "tools/daemonarchy/tests/boottrace-media.c": "cb10e79a7715a219b4bc73c31155710406bc1c7b9239888ae630c408607ae5c5",
+    "tools/daemonarchy/tests/run-boottrace-media.sh": "624e14c6b1583fcbf16da13dd79c1b6681584c76763e35a0012a01e58b029817"
+  },
+  "native_build": {
+    "host": "FreeBSD 16 AArch64 disposable allocated VM",
+    "compiler": "FreeBSD clang 21.1.8, llvmorg-21.1.8-0-g2078da43e25a, aarch64-unknown-freebsd16.0",
+    "method": "Full native stand build in a private source copy and separate object prefix; retained original source unchanged",
+    "command": "make -C stand -j 4 with private MAKEOBJDIRPREFIX inside the aligned build root",
+    "exit_status": 0,
+    "portable_parser_controls_on_native_worker": 17,
+    "efi_sha256": "1c1838624c76efe4ea8483e05c04142187e67d7ee99a14f920e5250008bec9c5",
+    "efi_file_identity": "PE32+ EFI application, ARM64",
+    "compiler_producer_provenance_qualified": false,
+    "original_boottrace_and_makefile_hashes_match_retained_base": true
+  },
+  "controller_tests": {
+    "production_parser_sanitizer_controls": 17,
+    "sanitizers": [
+      "address",
+      "undefined"
+    ],
+    "shellcheck_warning_or_error": false
+  },
+  "efi_vm_controls": {
+    "firmware": "QEMU AArch64 EFI",
+    "machine": "QEMU virt/GIC, native AArch64 KVM, two vCPUs and 1 GiB for loader-only tests",
+    "kernel_boot_tested": false,
+    "owned": {
+      "status": "ready",
+      "writes_since_vm_start": 0,
+      "scope": "EFI discovery only, no kernel boot",
+      "partition_uuid": "5b259a8a-dc80-11f1-1d08-61407e6af4da"
+    },
+    "readonly": {
+      "status": "readonly",
+      "writes_since_vm_start": 0,
+      "scope": "EFI discovery only, no kernel boot"
+    },
+    "ambiguous": {
+      "status": "ambiguous",
+      "writes_since_vm_start": 0,
+      "scope": "EFI discovery only, no kernel boot"
+    },
+    "foreign": {
+      "status": "notfound",
+      "before_write_operations": {
+        "stick": 0,
+        "foreign": 0,
+        "floppy0": 0,
+        "sd0": 0
+      },
+      "after_write_operations": {
+        "stick": 0,
+        "foreign": 0,
+        "floppy0": 0,
+        "sd0": 0
+      },
+      "incremental_writes": 0,
+      "complete_gpt_fixture": true,
+      "foreign_datrace_ignored": true
+    },
+    "additional_controls": {
+      "corrupt-tag": {
+        "status": "notfound",
+        "stale_writable_identity_cleared": true,
+        "before_write_operations": {
+          "stick": 0,
+          "floppy0": 0,
+          "sd0": 0
+        },
+        "after_write_operations": {
+          "stick": 0,
+          "floppy0": 0,
+          "sd0": 0
+        },
+        "incremental_writes": 0
+      },
+      "optical": {
+        "status": "unbound",
+        "stale_writable_identity_cleared": true,
+        "before_write_operations": {
+          "cd": 0,
+          "foreign": 0,
+          "floppy0": 0,
+          "sd0": 0
+        },
+        "after_write_operations": {
+          "cd": 0,
+          "foreign": 0,
+          "floppy0": 0,
+          "sd0": 0
+        },
+        "incremental_writes": 0
+      },
+      "owned_uuid_independently_matches_gpt": true,
+      "owned_source_image_unchanged": true
+    },
+    "owned_fixture_bytes": 298861056,
+    "owned_fixture_sha256": "c11941cd9353d7b51446140a0f74bfd943936323eb91bccd4923a57182844369",
+    "source_media_unchanged": true,
+    "no_experiment_queue_or_state_writes": true,
+    "normal_startup_capture_enabled": false
+  },
+  "preserved_attempts": [
+    "Native r1 EFI built successfully before stricter exact-length tag matching and status renewal cleanup; frozen r2 carries the final code and all firmware controls.",
+    "The first foreign fixture used the unaugmented intermediate ISO, with an all-zero backup GPT signature. Its discovery result was notfound, but two disk writes since startup caused the aggregate zero-write assertion to fail. The corrected fixture removes the trace partition from a complete GPT image; its cold boot has zero writes before and after discovery. The earlier result is retained, not attributed to the command."
+  ],
+  "qualification": {
+    "native_efi_build": true,
+    "read_only_vm_media_discovery": true,
+    "automatic_loader_capture": false,
+    "automatic_kernel_capture": false,
+    "automatic_installer_capture": false,
+    "image_payload_binding": false,
+    "raw_map_write_admission": false,
+    "reset_or_power_loss": false,
+    "physical_firmware": false,
+    "installation": false,
+    "framework_lifecycle_admission": false,
+    "release": false
+  }
+}

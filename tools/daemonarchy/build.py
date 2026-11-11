@@ -25,6 +25,10 @@ SOURCE = Path(__file__).resolve().parents[2]
 PHASES = ("buildworld", "buildkernel", "packages", "release-obj", "sets")
 PATH = "/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin"
 SCHEMA = "daemonarchy/source-build-plan@1"
+TARGETS = {
+    "amd64": ("amd64", ("amd64", "x86_64")),
+    "arm64": ("aarch64", ("arm64", "aarch64")),
+}
 TRACE_FILE_LIMIT = 64 * 1024**2
 TRACE_CHUNK_SIZE = 1024**2
 TRACE_TOTAL_LIMIT = 16 * 1024**3
@@ -49,9 +53,107 @@ def git(*args):
     ).strip()
 
 
+# Retained-snapshot identity, set by main() only when SOURCE has no .git (see load_snapshot).
+SNAPSHOT = None
+# Never exemptable: the controller and the inputs make_plan reads.
+SNAPSHOT_PROTECTED = ("tools/daemonarchy/build.py", "tools/daemonarchy/src.conf", "sys/conf/newvers.sh")
+
+
+def has_git():
+    return (SOURCE / ".git").exists()
+
+
+def git_object_id(kind, stream, size):
+    h = hashlib.sha1(f"{kind} {size}\0".encode())
+    for block in iter(lambda: stream.read(1024 * 1024), b""):
+        h.update(block)
+    return h.digest()
+
+
+def snapshot_tree(directory, excludes, prefix=""):
+    """Git tree ID of the files under directory, computed without git (empty dirs ignored)."""
+    entries = []
+    with os.scandir(directory) as scan:
+        for entry in scan:
+            rel = prefix + entry.name
+            if any(rel == e or rel.startswith(e + "/") for e in excludes):
+                continue
+            mode = entry.stat(follow_symlinks=False).st_mode
+            name = os.fsencode(entry.name)
+            if stat.S_ISDIR(mode):
+                oid = snapshot_tree(entry.path, excludes, rel + "/")
+                if oid is not None:
+                    entries.append((name + b"/", b"40000", name, oid))
+            elif stat.S_ISLNK(mode):
+                target = os.fsencode(os.readlink(entry.path))
+                entries.append((name, b"120000", name, hashlib.sha1(b"blob %d\0" % len(target) + target).digest()))
+            elif stat.S_ISREG(mode):
+                with open(entry.path, "rb") as stream:
+                    oid = git_object_id("blob", stream, os.fstat(stream.fileno()).st_size)
+                entries.append((name, b"100755" if mode & 0o100 else b"100644", name, oid))
+            else:
+                raise ValueError(f"snapshot contains a non-regular file: {rel}")
+    if not entries and prefix:
+        return None
+    body = b"".join(m + b" " + n + b"\0" + o for _, m, n, o in sorted(entries, key=lambda e: e[0]))
+    return hashlib.sha1(b"tree %d\0" % len(body) + body).digest()
+
+
+def load_snapshot(args):
+    """Validate the pinned identity options. Returns None when a checkout (.git) is present."""
+    given = (args.snapshot_commit, args.snapshot_upstream_base, args.snapshot_exclude)
+    if has_git():
+        if any(given):
+            raise ValueError("--snapshot-* options are only valid in a source tree without .git")
+        return None
+    if not (args.snapshot_commit and args.snapshot_upstream_base):
+        raise ValueError("no .git: a snapshot needs --snapshot-commit and --snapshot-upstream-base")
+    if not re.fullmatch(r"[0-9a-f]{40}", args.snapshot_upstream_base):
+        raise ValueError("--snapshot-upstream-base must be a full 40-character commit ID")
+    excludes = sorted(set(args.snapshot_exclude or ()))
+    for e in excludes:
+        parts = Path(e).parts
+        if Path(e).is_absolute() or ".." in parts or "." in parts or not parts or e != "/".join(parts):
+            raise ValueError("--snapshot-exclude must be a normalized relative path")
+        if any(p == e or p.startswith(e + "/") for p in SNAPSHOT_PROTECTED):
+            raise ValueError(f"--snapshot-exclude may not cover {e}")
+    raw = Path(args.snapshot_commit).read_bytes()
+    commit = hashlib.sha1(b"commit %d\0" % len(raw) + raw).hexdigest()
+    header = raw.split(b"\n\n", 1)[0].decode()
+    tree = re.match(r"tree ([0-9a-f]{40})\n", header)
+    stamp = re.search(r"^committer .* (\d+) [+-]\d{4}$", header, re.M)
+    if not tree or not stamp:
+        raise ValueError("--snapshot-commit is not a raw git commit object")
+    return {"revision": commit, "tree": tree[1], "commit_time": stamp[1],
+            "upstream_base": args.snapshot_upstream_base, "excludes": excludes}
+
+
+def source_tree():
+    return SNAPSHOT["tree"] if SNAPSHOT else git("rev-parse", "HEAD^{tree}")
+
+
+def commit_time(revision):
+    return SNAPSHOT["commit_time"] if SNAPSHOT else git("show", "-s", "--format=%ct", revision)
+
+
+def upstream_base(revision):
+    return SNAPSHOT["upstream_base"] if SNAPSHOT else git("merge-base", revision, "refs/remotes/upstream/main")
+
+
+def clean_snapshot(revision):
+    if SNAPSHOT is None:
+        raise ValueError("source has no .git and no verified snapshot identity")
+    if revision != SNAPSHOT["revision"]:
+        raise ValueError("snapshot commit object does not match --revision")
+    if snapshot_tree(SOURCE, SNAPSHOT["excludes"]).hex() != SNAPSHOT["tree"]:
+        raise ValueError("source snapshot does not match the pinned commit tree (modified, added or missing files)")
+
+
 def clean_revision(revision):
     if not re.fullmatch(r"[0-9a-f]{40}", revision):
         raise ValueError("--revision must be a full 40-character commit ID")
+    if not has_git():
+        return clean_snapshot(revision)
     if git("rev-parse", "HEAD") != revision:
         raise ValueError("checkout does not match --revision")
     if git("status", "--porcelain=v1", "--untracked-files=normal"):
@@ -71,7 +173,10 @@ def safe_path(value):
     return path
 
 
-def make_plan(revision, output, profile, jobs, trace_mode="off"):
+def make_plan(revision, output, profile, jobs, trace_mode="off", target="amd64"):
+    if target not in TARGETS:
+        raise ValueError("unsupported native target")
+    target_arch = TARGETS[target][0]
     clean_revision(revision)
     root = safe_path(output)
     safe_path(str(SOURCE))
@@ -83,19 +188,21 @@ def make_plan(revision, output, profile, jobs, trace_mode="off"):
         raise ValueError("unsupported native trace mode")
     kernel = {"baseline": "GENERIC", "diagnostic": "DAEMONARCHY_DIAGNOSTIC"}[profile]
     config = SOURCE / "tools/daemonarchy/src.conf"
-    kernel_config = SOURCE / "sys/amd64/conf" / kernel
+    kernel_config = SOURCE / "sys" / target / "conf" / kernel
+    if not kernel_config.is_file():
+        raise ValueError(f"{target} kernel profile {kernel} is not available")
     version_text = (SOURCE / "sys/conf/newvers.sh").read_text()
     match = re.search(r'^REVISION="([0-9.]+)"', version_text, re.M)
     if not match:
         raise ValueError("cannot identify source release version")
     stamp = datetime.datetime.fromtimestamp(
-        int(git("show", "-s", "--format=%ct", revision)), datetime.timezone.utc
+        int(commit_time(revision)), datetime.timezone.utc
     ).strftime("%Y%m%d%H%M%S")
     version = f"{match[1]}.snap{stamp}.{revision[:12]}.{profile}"
     if trace_mode == "filemon":
         version += ".filemon"
     common = [
-        "TARGET=amd64", "TARGET_ARCH=amd64", f"KERNCONF={kernel}",
+        f"TARGET={target}", f"TARGET_ARCH={target_arch}", f"KERNCONF={kernel}",
         "__MAKE_CONF=/dev/null", "SRC_ENV_CONF=/dev/null", f"SRCCONF={config}",
         "NO_ROOT=yes", "DB_FROM_SRC=yes", "WITHOUT_LOCAL_MODULES=yes",
         f"REPODIR={root / 'repo'}", f"PKG_VERSION={version}",
@@ -120,19 +227,21 @@ def make_plan(revision, output, profile, jobs, trace_mode="off"):
         "sets": [*release, "packagesystem"],
     }
     plan = {
-        "schema": SCHEMA, "source_revision": revision, "source_tree": git("rev-parse", "HEAD^{tree}"),
+        "schema": SCHEMA, "source_revision": revision, "source_tree": source_tree(),
         "source_directory": str(SOURCE), "source_repository": "https://github.com/jordanhubbard/daemonarchy-src",
         "upstream_repository": "https://github.com/freebsd/freebsd-src",
-        "upstream_base": git("merge-base", revision, "refs/remotes/upstream/main"),
+        "upstream_base": upstream_base(revision),
         "profile": profile, "kernel": kernel, "package_version": version,
-        "target": "amd64", "target_arch": "amd64", "jobs": jobs, "output": str(root),
+        "target": target, "target_arch": target_arch, "jobs": jobs, "output": str(root),
         "configurations": {str(p.relative_to(SOURCE)): digest(p) for p in (config, kernel_config)},
         "environment": {"PATH": PATH, "MAKEOBJDIRPREFIX": str(root / "obj"),
                         "HOME": str(root / "home"), "TMPDIR": str(root / "tmp"),
-                        "LC_ALL": "C", "TZ": "UTC", "SOURCE_DATE_EPOCH": git("show", "-s", "--format=%ct", revision)},
+                        "LC_ALL": "C", "TZ": "UTC", "SOURCE_DATE_EPOCH": commit_time(revision)},
         "commands": commands, "release_directory_query": [*release, "-V", ".OBJDIR"],
         "publication": "unsigned-development-only", "acceptance": "not-qualified",
     }
+    if SNAPSHOT:
+        plan["source_snapshot"] = {"excludes": SNAPSHOT["excludes"], "upstream_base": "pinned-unverified"}
     if trace_mode != "off":
         plan["trace_mode"] = trace_mode
     plan["identity"] = hashlib.sha256(canonical(plan)).hexdigest()
@@ -149,11 +258,21 @@ def write_json(path, value):
     temporary.replace(path)
 
 
-def native_preflight(root, jobs, minimum_free_gib, trace_mode="off"):
-    if platform.system() != "FreeBSD" or platform.machine() not in ("amd64", "x86_64"):
-        raise ValueError("execution requires a native amd64 FreeBSD worker; plan works on other hosts")
+def native_preflight(root, jobs, minimum_free_gib, trace_mode="off", target="amd64"):
+    if target not in TARGETS:
+        raise ValueError("unsupported native target")
+    if platform.system() != "FreeBSD" or platform.machine() not in TARGETS[target][1]:
+        raise ValueError(f"execution requires a native {target} FreeBSD worker; plan works on other hosts")
     if os.geteuid() == 0:
         raise ValueError("use an unprivileged build account")
+    version_text = (SOURCE / "sys/conf/newvers.sh").read_text()
+    revision = re.search(r'^REVISION="([0-9]+\.[0-9]+)"$', version_text, re.M)
+    branch = re.search(r'^BRANCH="([^"]+)"$', version_text, re.M)
+    if revision is None or branch is None or branch[1] != "CURRENT":
+        raise ValueError("source must declare a CURRENT release revision")
+    expected_release = f"{revision[1]}-CURRENT"
+    if platform.release() != expected_release:
+        raise ValueError(f"execution requires a native {expected_release} worker")
     if trace_mode == "filemon":
         minimum_free_gib = max(100, minimum_free_gib)
         if not os.access("/dev/filemon", os.R_OK | os.W_OK):
@@ -178,6 +297,18 @@ def native_preflight(root, jobs, minimum_free_gib, trace_mode="off"):
     if (memory[0] + memory[1]) * memory[2] < max(8, jobs * 2) * 1024**3:
         raise ValueError("insufficient available memory: reserve at least 2 GiB per job and 8 GiB total")
 
+
+
+def next_phase_log(root, phase, recorded_attempts):
+    # A host crash can leave an exclusive log before its result was recorded.
+    # Preserve that evidence, including occupied symlink/directory names, and
+    # keep attempt numbers monotonic across interrupted controllers.
+    attempt = recorded_attempts + 1
+    for path in (root / "logs").glob(f"{phase}-*.log"):
+        match = re.fullmatch(rf"{re.escape(phase)}-([0-9]+)\.log", path.name)
+        if match:
+            attempt = max(attempt, int(match[1]) + 1)
+    return root / "logs" / f"{phase}-{attempt}.log"
 
 def run_command(argv, env, log, timeout):
     with log.open("xb") as stream:
@@ -429,12 +560,12 @@ def run(plan, args):
     else:
         if not root.parent.is_dir():
             raise ValueError("output parent must already exist")
-        native_preflight(root.parent, args.jobs, args.minimum_free_gib, plan.get("trace_mode", "off"))
+        native_preflight(root.parent, args.jobs, args.minimum_free_gib, plan.get("trace_mode", "off"), plan["target"])
         root.mkdir()  # Exclusive; never overwrite or clean an existing build.
         write_json(root / "plan.json", plan)
     with (root / "build.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        native_preflight(root, args.jobs, args.minimum_free_gib, plan.get("trace_mode", "off"))
+        native_preflight(root, args.jobs, args.minimum_free_gib, plan.get("trace_mode", "off"), plan["target"])
         for name in ("obj", "repo", "home", "tmp", "logs"):
             (root / name).mkdir(exist_ok=True)
         state_path = root / "result.json"
@@ -465,9 +596,9 @@ def run(plan, args):
         for phase in PHASES:
             clean_revision(plan["source_revision"])
             if phase not in successful:
-                native_preflight(root, args.jobs, args.minimum_free_gib, plan.get("trace_mode", "off"))
-                attempt = 1 + sum(p["name"] == phase for p in state["phases"])
-                log = root / "logs" / f"{phase}-{attempt}.log"
+                native_preflight(root, args.jobs, args.minimum_free_gib, plan.get("trace_mode", "off"), plan["target"])
+                log = next_phase_log(root, phase,
+                                     sum(p["name"] == phase for p in state["phases"]))
                 state["status"] = "running"
                 state.pop("error", None)
                 state["active_phase"] = phase
@@ -507,10 +638,14 @@ def main():
     parser.add_argument("--output", required=True)
     parser.add_argument("--revision")
     parser.add_argument("--profile", choices=("baseline", "diagnostic"), default="baseline")
+    parser.add_argument("--target", choices=tuple(TARGETS), default="amd64")
     parser.add_argument("--jobs", type=int, default=8)
     parser.add_argument("--trace-mode", choices=("off", "filemon"), default="off")
     parser.add_argument("--through", choices=PHASES, default="sets")
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--snapshot-commit", help="raw git commit object file for the revision (source without .git)")
+    parser.add_argument("--snapshot-upstream-base", help="pinned upstream merge-base commit (source without .git)")
+    parser.add_argument("--snapshot-exclude", action="append", help="non-source path allowed in a snapshot (repeatable)")
     parser.add_argument("--minimum-free-gib", type=int, default=80)
     parser.add_argument("--phase-timeout", type=int, default=21600)
     args = parser.parse_args()
@@ -519,12 +654,15 @@ def main():
     if args.operation in ("plan", "run") and not args.revision:
         parser.error("--revision is required for plan/run")
     try:
+        global SNAPSHOT
+        if args.operation in ("plan", "run"):
+            SNAPSHOT = load_snapshot(args)
         if args.operation == "verify":
             result = verify(Path(args.output))
         elif args.operation == "status":
             result = json.loads((safe_path(args.output) / "result.json").read_text())
         else:
-            plan = make_plan(args.revision, args.output, args.profile, args.jobs, args.trace_mode)
+            plan = make_plan(args.revision, args.output, args.profile, args.jobs, args.trace_mode, args.target)
             result = plan if args.operation == "plan" else run(plan, args)
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0

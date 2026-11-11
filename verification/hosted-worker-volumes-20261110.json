@@ -1,0 +1,179 @@
+{
+  "schema": "daemonarchy/hosted-worker-volumes-observation@1",
+  "run": "https://github.com/jordanhubbard/daemonarchy-src/actions/runs/42837356496",
+  "source_revision": "d2dab2e438f5a138f40ee70eb6fa9eb219e9ac59",
+  "observations": [
+    {
+      "schema": "daemonarchy/hosted-worker-capacity@1",
+      "observed_utc": "2026-11-10T14:47:57.876881+00:00",
+      "source_revision": "d2dab2e438f5a138f40ee70eb6fa9eb219e9ac59",
+      "host": {
+        "os": "Darwin",
+        "architecture": "x86_64",
+        "assigned_cpus": 4,
+        "total_memory_bytes": 15032385536,
+        "available_memory_bytes": 9841491968,
+        "storage_total_bytes": 348622118912,
+        "storage_free_bytes": 112946216960,
+        "hardware_virtualization_supported": true,
+        "hypervisor_execution_tested": false
+      },
+      "proposed_profile": {
+        "jobs": 3,
+        "guest_memory_bytes": 10737418240,
+        "host_memory_reserve_bytes": 2147483648
+      },
+      "required_host_free_bytes": 96636764160,
+      "host_capacity_sufficient": false,
+      "reasons": [
+        "insufficient or unknown available host memory"
+      ],
+      "storage_observations": [
+        {
+          "role": "workspace",
+          "path": "/Users/runner/work/daemonarchy-src/daemonarchy-src",
+          "device_id": 16777222,
+          "total_bytes": 348622118912,
+          "free_bytes": 112946216960,
+          "directly_writable": true,
+          "state": "observed"
+        },
+        {
+          "role": "temporary",
+          "path": "/private/tmp",
+          "device_id": 16777222,
+          "total_bytes": 348622118912,
+          "free_bytes": 112946216960,
+          "directly_writable": true,
+          "state": "observed"
+        },
+        {
+          "role": "runner-temporary",
+          "path": "/Users/runner/work/_temp",
+          "device_id": 16777222,
+          "total_bytes": 348622118912,
+          "free_bytes": 112946216960,
+          "directly_writable": true,
+          "state": "observed"
+        }
+      ],
+      "multi_volume_profile_admitted": false,
+      "cleanup_candidates": [],
+      "deletion_performed": false,
+      "qualification": {
+        "native_freebsd_execution": false,
+        "aggregate_build": false,
+        "sdk": false,
+        "performance": false,
+        "release": false
+      }
+    },
+    {
+      "schema": "daemonarchy/hosted-worker-capacity@1",
+      "observed_utc": "2026-11-10T14:47:05.900873+00:00",
+      "source_revision": "d2dab2e438f5a138f40ee70eb6fa9eb219e9ac59",
+      "host": {
+        "os": "Linux",
+        "architecture": "x86_64",
+        "assigned_cpus": 4,
+        "total_memory_bytes": 16760344576,
+        "available_memory_bytes": 15492153344,
+        "storage_total_bytes": 154894188544,
+        "storage_free_bytes": 89878970368,
+        "hardware_virtualization_supported": true,
+        "hypervisor_execution_tested": false
+      },
+      "proposed_profile": {
+        "jobs": 4,
+        "guest_memory_bytes": 12884901888,
+        "host_memory_reserve_bytes": 2147483648
+      },
+      "required_host_free_bytes": 96636764160,
+      "host_capacity_sufficient": false,
+      "reasons": [
+        "less than 80 GiB native workspace plus 10 GiB bootstrap reserve"
+      ],
+      "storage_observations": [
+        {
+          "role": "workspace",
+          "path": "/home/runner/work/daemonarchy-src/daemonarchy-src",
+          "device_id": 66305,
+          "total_bytes": 154894188544,
+          "free_bytes": 89878970368,
+          "directly_writable": true,
+          "state": "observed",
+          "mount": "ext4   /dev/nvme0n1p1 259:1"
+        },
+        {
+          "role": "temporary",
+          "path": "/tmp",
+          "device_id": 66305,
+          "total_bytes": 154894188544,
+          "free_bytes": 89878970368,
+          "directly_writable": true,
+          "state": "observed",
+          "mount": "ext4   /dev/nvme0n1p1 259:1"
+        },
+        {
+          "role": "runner-temporary",
+          "path": "/home/runner/work/_temp",
+          "device_id": 66305,
+          "total_bytes": 154894188544,
+          "free_bytes": 89878970368,
+          "directly_writable": true,
+          "state": "observed",
+          "mount": "ext4   /dev/nvme0n1p1 259:1"
+        },
+        {
+          "role": "ephemeral-mount",
+          "path": "/mnt",
+          "device_id": 66305,
+          "total_bytes": 154894188544,
+          "free_bytes": 89878970368,
+          "directly_writable": false,
+          "state": "observed",
+          "mount": "ext4   /dev/nvme0n1p1 259:1"
+        }
+      ],
+      "multi_volume_profile_admitted": false,
+      "cleanup_candidates": [
+        {
+          "path": "/usr/local/lib/android",
+          "state": "unknown",
+          "bytes": null
+        },
+        {
+          "path": "/usr/share/dotnet",
+          "state": "unknown",
+          "bytes": null
+        },
+        {
+          "path": "/opt/ghc",
+          "state": "absent"
+        },
+        {
+          "path": "/opt/hostedtoolcache",
+          "state": "unknown",
+          "bytes": null
+        }
+      ],
+      "deletion_performed": false,
+      "qualification": {
+        "native_freebsd_execution": false,
+        "aggregate_build": false,
+        "sdk": false,
+        "performance": false,
+        "release": false
+      }
+    }
+  ],
+  "decision": "No separate bootstrap filesystem was found. Preserve the complete native workspace and bootstrap reserve; neither instance admits the proposed native build.",
+  "qualification": {
+    "capacity_inspection": true,
+    "multi_volume_profile_admitted": false,
+    "native_freebsd_execution": false,
+    "aggregate_build": false,
+    "sdk": false,
+    "release": false
+  }
+}

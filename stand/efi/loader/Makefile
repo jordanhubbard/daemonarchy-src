@@ -37,7 +37,7 @@ SRCS=	autoload.c \
 	8x16.c
 
 SRCS+= acpi_detect.c
-SRCS+= boottrace.c boottrace_blk.c boottrace_acpi.c netconsole_report.c
+SRCS+= boottrace.c boottrace_blk.c boottrace_acpi.c boottrace_media.c boottrace_normal.c boottrace_fat.c netconsole_report.c
 .if ${LOADER_NET_SUPPORT} == "yes"
 SRCS+= netconsole_proto.c netconsole.c netconsole_undi.c netconsole_hardware.c
 .endif

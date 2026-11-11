@@ -1,0 +1,395 @@
+{
+  "schema": "daemonarchy/normal-boot-trace-checkpoint@1",
+  "scope": "Automatic loader-ready metadata checkpoint on owned writable EFI media; loader-only ARM64 VM controls, not complete boot/install acceptance",
+  "native_source_base": "0e1ddb782d1e27390cd380b5e3560b794607f78e",
+  "review_base": "9eb753c98a1264c38e0e51a7781994c5ad8811db",
+  "base_difference": "Only sys/arm64/arm64/locore.S; no EFI inputs differ. Kernel repair remains in independent source PR 80.",
+  "source_overlay_sha256": {
+    "stand/efi/loader/Makefile": "ac31dc14ef9874b94a873cc4deabafcaa6e722c4ffdaf927efff3cb1aef5ecf7",
+    "stand/efi/loader/boottrace.c": "1f279ad6fe2309db3a31ce56b6ea772bf8950dd3e16cbc8976742f288df86f7d",
+    "stand/efi/loader/boottrace_normal.c": "2bb4a39ec8561fa3b472bb7a0bf1fd324d9d96b06fe585f18cd86f585c0c6678",
+    "stand/efi/loader/boottrace_normal.h": "e9f2bbc27da458c3fec43b78986f4b3a3dc1d5c04c390e0b3c80593dca57492f",
+    "stand/lua/boottrace.lua": "ee377300bbdf6fa4e9c378ed2fb45ea6513823ebf65434593c70a7218baaa767",
+    "tools/daemonarchy/tests/boottrace-normal.c": "7ab548e3c858d3c668816ad416fcad7ee29be8740abe1ee50e93370239bd116e",
+    "tools/daemonarchy/tests/run-boottrace-normal.sh": "2e007e7dd53d0560226b08f31dac76a26960f7311aed741c920f409a2aca3adc",
+    "tools/daemonarchy/tests/loader-normal-trace.lua": "8c54e1aa29f9e46f88081c8e42c47aa221e343e3dc78eec9d7374e0729459a8a",
+    "stand/efi/loader/boottrace_fat.c": "7e130616e2434fbbbe9aac888a81d44e0f72a98dcbb30f3fd25be464edc6edc2",
+    "stand/efi/loader/boottrace_fat.h": "20c443d0cba34a9505cdc2911e5cace673b9f63d82062773209dfc4b584f27f9",
+    "tools/daemonarchy/tests/boottrace-fat.c": "86acb09ab0b744ab7dec6ef3ea318c6442b638ce547a0ba331089aea7f532928"
+  },
+  "producer_sha256": {
+    "scripts/make-efi-iso.sh": "84c73ffab21f4b2086f683098a1580f514cb06aa69ac99b784c94febc7b9b217",
+    "scripts/make-install-trace.py": "b232321e0fd5cc2defd10be9c98ef41f762d4692b6762cdc99577b9d2f6fb760",
+    "tools/boottrace/stick.py": "f66bd4df6c70170fc394ce3bc3ca48ef762aeba9c15a7fd4d66a8a1a719c38a2"
+  },
+  "native_build": {
+    "system": "FreeBSD 16 AArch64 allocated VM",
+    "compiler": "FreeBSD clang 21.1.8, llvmorg-21.1.8-0-g2078da43e25a, aarch64-unknown-freebsd16.0",
+    "method": "Full native stand build in private source copy and distinct object prefix; original source and live kernel unchanged",
+    "exit_status": 0,
+    "efi_sha256": "42ca0a5ab7dcd425702f0f72fab44e7c61fdc3cbbf07856a060705bafb707793",
+    "efi_identity": "PE32+ EFI application ARM64",
+    "compiler_producer_provenance_qualified": false,
+    "current_overlay_matches_frozen_and_native_source": true
+  },
+  "media": {
+    "native_iso_bytes": 298861056,
+    "native_iso_sha256": "442a8d71cac2a75525ffd3da9cc620865e86a7300edcd12091748fd121969580",
+    "queued_control_sha256": "e66afaffa20198ec9c02b049fdec15a9f4726cb60b5bcb8f569a68023e9ffed0",
+    "queued_control_derivation": "Native pristine ISO plus an explicitly injected sentinel experiment; conflicting legacy autocycle flags deliberately enabled in the loader-only fixture",
+    "input_archive_sha256": "5e3da10d267379a192bbad02a0e718d4d5a10ef21e936c7b6200b43397ca4521",
+    "trace_volume_bytes": 268435456,
+    "mapped_files": 233,
+    "normal_slots": 32,
+    "slot_bytes": 16384,
+    "automatic_capture_before_keyboard_input": true,
+    "minimal_fixture_without_init_or_installer": true,
+    "full_ram_image_qualification_inherited": false
+  },
+  "checks": {
+    "normal_policy_sanitizer_controls_linux_and_native_arm64": 18,
+    "fat_extent_sanitizer_controls_linux_and_native_arm64": 19,
+    "lua_dispatcher_controls_portable_and_native_flua": 4,
+    "main_identity_refusal_controls": 8,
+    "main_normal_decoder_retention_controls": 7,
+    "legacy_boottrace_controls_with_real_utilities": 29,
+    "same_loader_repeat_call_additional_writes": 0,
+    "normal_queue_sentinel_not_applied": true,
+    "production_controller_extraction_of_three_native_records": true,
+    "record_checksum": "FNV-1a corruption detection; not authentication",
+    "write_admission": "Owned GPT sibling; exact identity; clean FAT32 mirror/chain/name/extent checks against raw map; whole-disk flush and fresh readback; no FAT write fallback"
+  },
+  "readback": {
+    "automatic": {
+      "records": {
+        "1": {
+          "record": {
+            "schema": "daemonarchy/normal-boot-trace@1",
+            "image_id": "d4b98614-0c7e-4c4c-950d-bfd0d50b6be1",
+            "archive_sha256": "5e3da10d267379a192bbad02a0e718d4d5a10ef21e936c7b6200b43397ca4521",
+            "trace_partition": "ee0f7cda-dc8a-11f1-1d08-61407e6af4da",
+            "session": "0001",
+            "phase": "loader-ready",
+            "identity": "declared-archive",
+            "early_kernel_backend": "not-enabled"
+          },
+          "sha256": "31c25a69f1a04c260c39624686ab1d5fd3058da1191c63e3a14688cc4450ee85"
+        }
+      },
+      "preserved_nonempty_initial_slots": {},
+      "mapped_files": 233,
+      "legacy_state_unchanged": true,
+      "queued_experiment_unchanged": true,
+      "all_200_legacy_traces_unchanged": true,
+      "only_expected_normal_slots_changed": true,
+      "changed_bytes": 304,
+      "source_backing_unchanged": true,
+      "source_sha256": "e66afaffa20198ec9c02b049fdec15a9f4726cb60b5bcb8f569a68023e9ffed0",
+      "returned_image_sha256": "e98e7939a7adb261d6134193ef3e949838cc8456afb0666dced239dafba1d70f",
+      "fat_check_status": 0,
+      "virtual_device_bytes": 8589934592
+    },
+    "partial_slot": {
+      "records": {
+        "2": {
+          "record": {
+            "schema": "daemonarchy/normal-boot-trace@1",
+            "image_id": "d4b98614-0c7e-4c4c-950d-bfd0d50b6be1",
+            "archive_sha256": "5e3da10d267379a192bbad02a0e718d4d5a10ef21e936c7b6200b43397ca4521",
+            "trace_partition": "ee0f7cda-dc8a-11f1-1d08-61407e6af4da",
+            "session": "0002",
+            "phase": "loader-ready",
+            "identity": "declared-archive",
+            "early_kernel_backend": "not-enabled"
+          },
+          "sha256": "c772e3eb1c61ff6030621d021232d2d9e87251a19f3e99fe63381a6617730ad3"
+        }
+      },
+      "preserved_nonempty_initial_slots": {
+        "1": "55f4e8c6938d713965f3e3c7fe9543e2205772fa983954f9863add92a6dfc1c3"
+      },
+      "mapped_files": 233,
+      "legacy_state_unchanged": true,
+      "queued_experiment_unchanged": true,
+      "all_200_legacy_traces_unchanged": true,
+      "only_expected_normal_slots_changed": true,
+      "changed_bytes": 304,
+      "source_backing_unchanged": true,
+      "source_sha256": "6a29740b95614b22cd7088b65f069e8232140d04b4635c3d7af7ad429306e0e7",
+      "returned_image_sha256": "454d1cc1ae5c9963615ea1a6b4a182c8d05934af804d877a455e2d281a1e5c86",
+      "fat_check_status": 0,
+      "virtual_device_bytes": 8589934592
+    },
+    "fresh_process_restart": {
+      "records": {
+        "1": {
+          "record": {
+            "schema": "daemonarchy/normal-boot-trace@1",
+            "image_id": "d4b98614-0c7e-4c4c-950d-bfd0d50b6be1",
+            "archive_sha256": "5e3da10d267379a192bbad02a0e718d4d5a10ef21e936c7b6200b43397ca4521",
+            "trace_partition": "ee0f7cda-dc8a-11f1-1d08-61407e6af4da",
+            "session": "0001",
+            "phase": "loader-ready",
+            "identity": "declared-archive",
+            "early_kernel_backend": "not-enabled"
+          },
+          "sha256": "31c25a69f1a04c260c39624686ab1d5fd3058da1191c63e3a14688cc4450ee85"
+        },
+        "2": {
+          "record": {
+            "schema": "daemonarchy/normal-boot-trace@1",
+            "image_id": "d4b98614-0c7e-4c4c-950d-bfd0d50b6be1",
+            "archive_sha256": "5e3da10d267379a192bbad02a0e718d4d5a10ef21e936c7b6200b43397ca4521",
+            "trace_partition": "ee0f7cda-dc8a-11f1-1d08-61407e6af4da",
+            "session": "0002",
+            "phase": "loader-ready",
+            "identity": "declared-archive",
+            "early_kernel_backend": "not-enabled"
+          },
+          "sha256": "c772e3eb1c61ff6030621d021232d2d9e87251a19f3e99fe63381a6617730ad3"
+        }
+      },
+      "preserved_nonempty_initial_slots": {},
+      "mapped_files": 233,
+      "legacy_state_unchanged": true,
+      "queued_experiment_unchanged": true,
+      "all_200_legacy_traces_unchanged": true,
+      "only_expected_normal_slots_changed": true,
+      "changed_bytes": 608,
+      "source_backing_unchanged": true,
+      "source_sha256": "e66afaffa20198ec9c02b049fdec15a9f4726cb60b5bcb8f569a68023e9ffed0",
+      "returned_image_sha256": "b81bb591233cbf5d194f8ff6c8950a0dc7d0f402e307ee1e8ad8e2ee4acaf3cf",
+      "fat_check_status": 0,
+      "virtual_device_bytes": 8589934592
+    },
+    "warm_reset": {
+      "records": {
+        "1": {
+          "record": {
+            "schema": "daemonarchy/normal-boot-trace@1",
+            "image_id": "d4b98614-0c7e-4c4c-950d-bfd0d50b6be1",
+            "archive_sha256": "5e3da10d267379a192bbad02a0e718d4d5a10ef21e936c7b6200b43397ca4521",
+            "trace_partition": "ee0f7cda-dc8a-11f1-1d08-61407e6af4da",
+            "session": "0001",
+            "phase": "loader-ready",
+            "identity": "declared-archive",
+            "early_kernel_backend": "not-enabled"
+          },
+          "sha256": "31c25a69f1a04c260c39624686ab1d5fd3058da1191c63e3a14688cc4450ee85"
+        },
+        "2": {
+          "record": {
+            "schema": "daemonarchy/normal-boot-trace@1",
+            "image_id": "d4b98614-0c7e-4c4c-950d-bfd0d50b6be1",
+            "archive_sha256": "5e3da10d267379a192bbad02a0e718d4d5a10ef21e936c7b6200b43397ca4521",
+            "trace_partition": "ee0f7cda-dc8a-11f1-1d08-61407e6af4da",
+            "session": "0002",
+            "phase": "loader-ready",
+            "identity": "declared-archive",
+            "early_kernel_backend": "not-enabled"
+          },
+          "sha256": "c772e3eb1c61ff6030621d021232d2d9e87251a19f3e99fe63381a6617730ad3"
+        },
+        "3": {
+          "record": {
+            "schema": "daemonarchy/normal-boot-trace@1",
+            "image_id": "d4b98614-0c7e-4c4c-950d-bfd0d50b6be1",
+            "archive_sha256": "5e3da10d267379a192bbad02a0e718d4d5a10ef21e936c7b6200b43397ca4521",
+            "trace_partition": "ee0f7cda-dc8a-11f1-1d08-61407e6af4da",
+            "session": "0003",
+            "phase": "loader-ready",
+            "identity": "declared-archive",
+            "early_kernel_backend": "not-enabled"
+          },
+          "sha256": "f548cc4ff183939bdccc05150208cc758db994f152f9b723d3d497c24bb70c18"
+        }
+      },
+      "preserved_nonempty_initial_slots": {},
+      "mapped_files": 233,
+      "legacy_state_unchanged": true,
+      "queued_experiment_unchanged": true,
+      "all_200_legacy_traces_unchanged": true,
+      "only_expected_normal_slots_changed": true,
+      "changed_bytes": 912,
+      "source_backing_unchanged": true,
+      "source_sha256": "e66afaffa20198ec9c02b049fdec15a9f4726cb60b5bcb8f569a68023e9ffed0",
+      "returned_image_sha256": "e2478c57a7b58e625cc2474e98c1e12f183edc31acab3eb9ff7976b7bddacf59",
+      "fat_check_status": 0,
+      "virtual_device_bytes": 8589934592
+    }
+  },
+  "refusal_controls": {
+    "n7-dir-loop": {
+      "capture_status": "slots-invalid",
+      "write_operations": {
+        "stick": 0,
+        "floppy0": 0,
+        "sd0": 0
+      },
+      "ordinary_menu_available": true,
+      "keyboard_input_before_refusal": false,
+      "normal_dispatch_did_not_start_experiments": true
+    },
+    "n7-dirty": {
+      "capture_status": "filesystem-unverified",
+      "write_operations": {
+        "stick": 0,
+        "floppy0": 0,
+        "sd0": 0
+      },
+      "ordinary_menu_available": true,
+      "keyboard_input_before_refusal": false,
+      "normal_dispatch_did_not_start_experiments": true
+    },
+    "n7-duplicate": {
+      "capture_status": "media-unavailable",
+      "write_operations": {
+        "stick": 0,
+        "floppy0": 0,
+        "sd0": 0
+      },
+      "ordinary_menu_available": true,
+      "keyboard_input_before_refusal": false,
+      "normal_dispatch_did_not_start_experiments": true
+    },
+    "n7-full": {
+      "capture_status": "full",
+      "write_operations": {
+        "stick": 0,
+        "floppy0": 0,
+        "sd0": 0
+      },
+      "ordinary_menu_available": true,
+      "keyboard_input_before_refusal": false,
+      "normal_dispatch_did_not_start_experiments": true
+    },
+    "n7-id-bad": {
+      "capture_status": "identity-mismatch",
+      "write_operations": {
+        "stick": 0,
+        "floppy0": 0,
+        "sd0": 0
+      },
+      "ordinary_menu_available": true,
+      "keyboard_input_before_refusal": false,
+      "normal_dispatch_did_not_start_experiments": true
+    },
+    "n7-map-bad": {
+      "capture_status": "map-invalid",
+      "write_operations": {
+        "stick": 0,
+        "floppy0": 0,
+        "sd0": 0
+      },
+      "ordinary_menu_available": true,
+      "keyboard_input_before_refusal": false,
+      "normal_dispatch_did_not_start_experiments": true
+    },
+    "n7-mirror": {
+      "capture_status": "slots-invalid",
+      "write_operations": {
+        "stick": 0,
+        "floppy0": 0,
+        "sd0": 0
+      },
+      "ordinary_menu_available": true,
+      "keyboard_input_before_refusal": false,
+      "normal_dispatch_did_not_start_experiments": true
+    },
+    "n7-no-trace": {
+      "capture_status": "media-unavailable",
+      "write_operations": {
+        "stick": 0,
+        "foreign": 0,
+        "floppy0": 0,
+        "sd0": 0
+      },
+      "ordinary_menu_available": true,
+      "keyboard_input_before_refusal": false,
+      "normal_dispatch_did_not_start_experiments": true
+    },
+    "n7-optical": {
+      "capture_status": "media-unavailable",
+      "write_operations": {
+        "cd": 0,
+        "foreign": 0,
+        "floppy0": 0,
+        "sd0": 0
+      },
+      "ordinary_menu_available": true,
+      "keyboard_input_before_refusal": false,
+      "normal_dispatch_did_not_start_experiments": true
+    },
+    "n7-ro": {
+      "capture_status": "media-unavailable",
+      "write_operations": {
+        "stick": 0,
+        "floppy0": 0,
+        "sd0": 0
+      },
+      "ordinary_menu_available": true,
+      "keyboard_input_before_refusal": false,
+      "normal_dispatch_did_not_start_experiments": true
+    },
+    "n7-slot-ro": {
+      "capture_status": "slot-readonly",
+      "write_operations": {
+        "stick": 0,
+        "floppy0": 0,
+        "sd0": 0
+      },
+      "ordinary_menu_available": true,
+      "keyboard_input_before_refusal": false,
+      "normal_dispatch_did_not_start_experiments": true
+    },
+    "n7-tag-bad": {
+      "capture_status": "media-unavailable",
+      "write_operations": {
+        "stick": 0,
+        "floppy0": 0,
+        "sd0": 0
+      },
+      "ordinary_menu_available": true,
+      "keyboard_input_before_refusal": false,
+      "normal_dispatch_did_not_start_experiments": true
+    },
+    "normal-swap-check-r7": {
+      "capture_status": "slots-invalid",
+      "write_operations": {
+        "stick": 0,
+        "floppy0": 0,
+        "sd0": 0
+      },
+      "ordinary_menu_available": true,
+      "keyboard_input_before_refusal": false,
+      "normal_dispatch_did_not_start_experiments": true
+    }
+  },
+  "restart_limits": [
+    "Fresh QEMU process starts after a flushed record; this is not a physical cold-power test",
+    "Warm QMP reset occurs after a flushed record; this is not interruption during write",
+    "Partial-slot input is synthetic damaged data; it proves preservation and allocation policy, not actual power-loss atomicity"
+  ],
+  "preserved_failures_and_repairs": [
+    "Initial EFI forward-slash slot paths refused map admission with zero writes; corrected EFI backslash paths",
+    "An early controller selected hardcoded menu item 4 after menu changed, invoking the explicit experiment; failed controller run retained and excluded from queue-preservation acceptance",
+    "A validly checksummed swapped-slot map fooled the earlier map-only prototype; actual FAT extent binding now refuses the same fault with zero writes",
+    "Native sanitizer caught intermediate FAT pointer arithmetic undefined behavior; relative offsets corrected before final native build",
+    "The first warm-reset attempt used QEMU -no-reboot and exited instead of resetting; retained as fresh-process restart only; a separate reset-enabled control proves session 3"
+  ],
+  "remaining": [
+    "Pre-exit outcome, selected kernel/module identities and bounded firmware handoff evidence",
+    "Early kernel console/panic, init and installer automatic persistence",
+    "Clone-independent target and cross-stage fresh boot/session identity; archive identity is declared, not runtime measured",
+    "Whole-filesystem alias audit and crash-consistency guarantees beyond relevant FAT file/metadata admission",
+    "Actual interrupted writes, physical reset and cold-power-loss recovery",
+    "Matching new loader in full current 1.6 world/ports/desktop media with exact final boot/install acceptance",
+    "Same-disk raw ISO root userspace mount conflict; no global GEOM override",
+    "AMD64 EFI firmware and BIOS integration; native AMD64 build tracked independently",
+    "All physical ARM roadmap targets and complete desktop/install/recovery scope",
+    "Unchanged compressed release-asset budget failure; no feature cuts or limit increase",
+    "Signed final inputs, lifecycle/lock/receipt and release acceptance"
+  ],
+  "release_qualified": false,
+  "private_evidence": "Frozen source overlays, build logs, serial/QMP records and complete returned QCOW2/raw images retained privately; private worker addresses and keys excluded"
+}

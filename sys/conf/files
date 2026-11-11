@@ -1798,6 +1798,7 @@ dev/gpio/gpioled.c		optional gpioled !fdt
 dev/gpio/gpioled_fdt.c		optional gpioled fdt
 dev/gpio/gpiomdio.c		optional gpiomdio mii_bitbang
 dev/gpio/gpiopower.c		optional gpiopower fdt
+dev/gpio/bcmstb_gpio.c		optional gpio fdt fdt_pinctrl
 dev/gpio/gpioregulator.c	optional gpioregulator fdt
 dev/gpio/gpiospi.c		optional gpiospi
 dev/gpio/gpioths.c		optional gpioths
@@ -2471,6 +2472,7 @@ dev/mii/gentbi.c		optional miibus | gentbi
 dev/mii/icsphy.c		optional miibus | icsphy
 dev/mii/ip1000phy.c		optional miibus | ip1000phy
 dev/mii/jmphy.c			optional miibus | jmphy
+dev/mii/lan867xphy.c		optional miibus | lan867xphy
 dev/mii/lxtphy.c		optional miibus | lxtphy
 dev/mii/mcommphy.c		optional miibus | mcommphy
 dev/mii/micphy.c		optional miibus fdt | micphy fdt
@@ -3182,6 +3184,7 @@ dev/scc/scc_dev_quicc.c		optional scc quicc
 dev/scc/scc_dev_z8530.c		optional scc
 dev/sdhci/sdhci.c		optional sdhci
 dev/sdhci/sdhci_fdt.c		optional sdhci fdt regulator clk
+dev/sdhci/sdhci_fdt_bcm2712.c	optional sdhci fdt regulator clk gpio fdt_pinctrl
 dev/sdhci/sdhci_fdt_gpio.c	optional sdhci fdt gpio
 dev/sdhci/sdhci_fsl_fdt.c	optional sdhci fdt gpio regulator clk
 dev/sdhci/sdhci_if.m		optional sdhci
@@ -3313,6 +3316,7 @@ dev/tcp_log/tcp_log_dev.c	optional tcp_blackbox inet | tcp_blackbox inet6
 dev/tdfx/tdfx_pci.c		optional tdfx pci
 dev/ti/if_ti.c			optional ti pci
 dev/tpm/tpm20.c			optional	tpm
+dev/tpm/tpm_acpi_subr.c		optional tpm acpi
 dev/tpm/tpm_bus.c		optional tpm acpi
 dev/tpm/tpm_if.m		optional tpm
 dev/tpm/tpm_spibus.c		optional tpm spibus fdt
@@ -3992,9 +3996,6 @@ kern/link_elf.c			standard
 kern/linker_if.m		standard
 kern/p1003_1b.c			standard
 kern/posix4_mib.c		standard
-kern/sched_4bsd.c		optional sched_4bsd
-kern/sched_shim.c		standard
-kern/sched_ule.c		optional sched_ule
 kern/serdev_if.m		standard
 kern/stack_protector.c		standard \
 	compile-with "${NORMAL_C:N-fstack-protector*}"
@@ -4717,6 +4718,27 @@ nlm/nlm_prot_server.c		optional nfslockd | nfsd
 nlm/nlm_prot_svc.c		optional nfslockd | nfsd
 nlm/nlm_prot_xdr.c		optional nfslockd | nfsd
 nlm/sm_inter_xdr.c		optional nfslockd | nfsd
+
+# Scheduler
+kern/sched_4bsd.c		optional sched_4bsd
+sched_4bsd_ns.h			optional sched_4bsd \
+	dependency		"$S/kern/sched_ns.h $S/sys/sched.h \
+	$S/tools/sched_impl_ns.awk" \
+	compile-with		"${CPP} ${INCLUDES} -DSCHED_IMPLEMENTATION=4bsd \
+	$S/kern/sched_ns.h | \
+	${AWK} -f $S/tools/sched_impl_ns.awk > ${.TARGET}" \
+	no-obj no-implicit-rule before-depend local \
+	clean			"sched_4bsd_ns.h"
+kern/sched_ule.c		optional sched_ule
+sched_ule_ns.h			optional sched_ule \
+	dependency		"$S/kern/sched_ns.h $S/sys/sched.h \
+	$S/tools/sched_impl_ns.awk" \
+	compile-with		"${CPP} ${INCLUDES} -DSCHED_IMPLEMENTATION=ule \
+	$S/kern/sched_ns.h | \
+	${AWK} -f $S/tools/sched_impl_ns.awk > ${.TARGET}" \
+	no-obj no-implicit-rule before-depend local \
+	clean			"sched_ule_ns.h"
+kern/sched_shim.c		standard
 
 # Linux Kernel Programming Interface
 compat/linuxkpi/common/src/linux_80211.c	optional compat_linuxkpi wlan \

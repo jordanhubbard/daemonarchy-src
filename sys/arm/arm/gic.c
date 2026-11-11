@@ -117,6 +117,7 @@ struct gic_irqsrc {
 					 /* be used for MSI/MSI-X interrupts */
 #define GI_FLAG_MSI_USED	(1 << 2) /* This irq is already allocated */
 					 /* for a MSI/MSI-X interrupt */
+#define GI_FLAG_MSI_CHECKED (1 << 3) /* Checked claim: reject untyped setup. */
 	u_int			gi_flags;
 };
 
@@ -281,6 +282,40 @@ arm_gic_register_isrcs(struct arm_gic_softc *sc, uint32_t num)
 	return (0);
 }
 
+static int
+arm_gic_reserve_msi_range_checked(device_t dev, u_int start, u_int count)
+{
+	struct arm_gic_softc *sc = device_get_softc(dev);
+	struct gic_irqsrc *gi;
+	u_int i;
+
+	if (count == 0 || start < GIC_FIRST_SPI || start >= sc->nirqs ||
+	    count > sc->nirqs - start)
+		return (EINVAL);
+	mtx_lock_spin(&sc->mutex);
+	/* Complete validation before claiming any source. Setup/teardown and
+	 * legacy reservation serialize the same metadata under this lock.
+	 */
+	for (i = start; i < start + count; i++) {
+		gi = &sc->gic_irqs[i];
+		if ((gi->gi_flags & GI_FLAG_MSI) != 0 ||
+		    gi->gi_pol != INTR_POLARITY_CONFORM ||
+		    gi->gi_trig != INTR_TRIGGER_CONFORM ||
+		    gi->gi_isrc.isrc_handlers != 0) {
+			mtx_unlock_spin(&sc->mutex);
+			return (EBUSY);
+		}
+	}
+	for (i = start; i < start + count; i++) {
+		gi = &sc->gic_irqs[i];
+		gi->gi_pol = INTR_POLARITY_HIGH;
+		gi->gi_trig = INTR_TRIGGER_EDGE;
+		gi->gi_flags |= GI_FLAG_MSI | GI_FLAG_MSI_CHECKED;
+	}
+	mtx_unlock_spin(&sc->mutex);
+	return (0);
+}
+
 static void
 arm_gic_reserve_msi_range(device_t dev, u_int start, u_int count)
 {
@@ -289,6 +324,7 @@ arm_gic_reserve_msi_range(device_t dev, u_int start, u_int count)
 
 	sc = device_get_softc(dev);
 
+	mtx_lock_spin(&sc->mutex);
 	KASSERT((start + count) <= sc->nirqs,
 	    ("%s: Trying to allocate too many MSI IRQs: %d + %d > %d", __func__,
 	    start, count, sc->nirqs));
@@ -306,6 +342,7 @@ arm_gic_reserve_msi_range(device_t dev, u_int start, u_int count)
 		sc->gic_irqs[start + i].gi_trig = INTR_TRIGGER_EDGE;
 		sc->gic_irqs[start + i].gi_flags |= GI_FLAG_MSI;
 	}
+	mtx_unlock_spin(&sc->mutex);
 }
 
 int
@@ -799,10 +836,6 @@ gic_map_intr(device_t dev, struct intr_map_data *data, u_int *irqp,
 		if (gic_map_fdt(dev, daf->ncells, daf->cells, &irq, &pol,
 		    &trig) != 0)
 			return (EINVAL);
-		KASSERT(irq >= sc->nirqs ||
-		    (sc->gic_irqs[irq].gi_flags & GI_FLAG_MSI) == 0,
-		    ("%s: Attempting to map a MSI interrupt from FDT",
-		    __func__));
 		break;
 #endif
 #ifdef DEV_ACPI
@@ -825,6 +858,15 @@ gic_map_intr(device_t dev, struct intr_map_data *data, u_int *irqp,
 
 	if (irq >= sc->nirqs)
 		return (EINVAL);
+	/* Both FDT and ACPI resources must fail closed after an MSI claim. */
+	if (data->type != INTR_MAP_DATA_MSI) {
+		mtx_lock_spin(&sc->mutex);
+		if ((sc->gic_irqs[irq].gi_flags & GI_FLAG_MSI) != 0) {
+			mtx_unlock_spin(&sc->mutex);
+			return (EBUSY);
+		}
+		mtx_unlock_spin(&sc->mutex);
+	}
 	if (pol != INTR_POLARITY_CONFORM && pol != INTR_POLARITY_LOW &&
 	    pol != INTR_POLARITY_HIGH)
 		return (EINVAL);
@@ -864,62 +906,66 @@ arm_gic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 	struct gic_irqsrc *gi = (struct gic_irqsrc *)isrc;
 	enum intr_trigger trig;
 	enum intr_polarity pol;
+	u_int irq;
 
-	if ((gi->gi_flags & GI_FLAG_MSI) == GI_FLAG_MSI) {
-		/* GICv2m MSI */
-		pol = gi->gi_pol;
-		trig = gi->gi_trig;
-		KASSERT(pol == INTR_POLARITY_HIGH,
-		    ("%s: MSI interrupts must be active-high", __func__));
-		KASSERT(trig == INTR_TRIGGER_EDGE,
-		    ("%s: MSI interrupts must be edge triggered", __func__));
-	} else if (data != NULL) {
-		u_int irq;
-
-		/* Get config for resource. */
-		if (gic_map_intr(dev, data, &irq, &pol, &trig) ||
+	/* Parse without holding the metadata lock: map may take that lock. */
+	if (data != NULL) {
+		if (gic_map_intr(dev, data, &irq, &pol, &trig) != 0 ||
 		    gi->gi_irq != irq)
 			return (EINVAL);
 	} else {
 		pol = INTR_POLARITY_CONFORM;
 		trig = INTR_TRIGGER_CONFORM;
 	}
-
+	mtx_lock_spin(&sc->mutex);
+	/* Recheck after mapping: a checked claim may have won that interval.
+	 * An old FDT/ACPI resource must never silently become an MSI source.
+	 */
+	if ((gi->gi_flags & GI_FLAG_MSI) != 0) {
+		if ((data == NULL && (gi->gi_flags & GI_FLAG_MSI_CHECKED)) ||
+		    (data != NULL && data->type != INTR_MAP_DATA_MSI)) {
+			mtx_unlock_spin(&sc->mutex);
+			return (EBUSY);
+		}
+		pol = gi->gi_pol;
+		trig = gi->gi_trig;
+		KASSERT(pol == INTR_POLARITY_HIGH, ("MSI polarity"));
+		KASSERT(trig == INTR_TRIGGER_EDGE, ("MSI trigger"));
+	}
 	/* Compare config if this is not first setup. */
 	if (isrc->isrc_handlers != 0) {
 		if ((pol != INTR_POLARITY_CONFORM && pol != gi->gi_pol) ||
-		    (trig != INTR_TRIGGER_CONFORM && trig != gi->gi_trig))
+		    (trig != INTR_TRIGGER_CONFORM && trig != gi->gi_trig)) {
+			mtx_unlock_spin(&sc->mutex);
 			return (EINVAL);
-		else
-			return (0);
+		}
+		mtx_unlock_spin(&sc->mutex);
+		return (0);
 	}
-
-	/* For MSI/MSI-X we should have already configured these */
+	/* For MSI/MSI-X we should have already configured these. */
 	if ((gi->gi_flags & GI_FLAG_MSI) == 0) {
 		if (pol == INTR_POLARITY_CONFORM)
-			pol = INTR_POLARITY_LOW;	/* just pick some */
+			pol = INTR_POLARITY_LOW;
 		if (trig == INTR_TRIGGER_CONFORM)
-			trig = INTR_TRIGGER_EDGE;	/* just pick some */
-
+			trig = INTR_TRIGGER_EDGE;
 		gi->gi_pol = pol;
 		gi->gi_trig = trig;
-
-		/* Edge triggered interrupts need an early EOI sent */
-		if (gi->gi_trig == INTR_TRIGGER_EDGE)
+		if (trig == INTR_TRIGGER_EDGE)
 			gi->gi_flags |= GI_FLAG_EARLY_EOI;
 	}
-
+	pol = gi->gi_pol;
+	trig = gi->gi_trig;
+	mtx_unlock_spin(&sc->mutex);
 	/*
 	 * XXX - In case that per CPU interrupt is going to be enabled in time
-	 *       when SMP is already started, we need some IPI call which
-	 *       enables it on others CPUs. Further, it's more complicated as
-	 *       pic_enable_source() and pic_disable_source() should act on
-	 *       per CPU basis only. Thus, it should be solved here somehow.
+	 * when SMP is already started, we need some IPI call which enables it
+	 * on others CPUs. Also pic_enable_source()/pic_disable_source() should
+	 * act on a per CPU basis only, as in the original setup path.
 	 */
 	if (isrc->isrc_flags & INTR_ISRCF_PPI)
 		CPU_SET(PCPU_GET(cpuid), &isrc->isrc_cpu);
-
-	gic_config(sc, gi->gi_irq, gi->gi_trig, gi->gi_pol);
+	/* gic_config takes the same spinlock; no nested hold here. */
+	gic_config(sc, gi->gi_irq, trig, pol);
 	arm_gic_bind_intr(dev, isrc);
 	return (0);
 }
@@ -928,12 +974,15 @@ static int
 arm_gic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
     struct resource *res, struct intr_map_data *data)
 {
+	struct arm_gic_softc *sc = device_get_softc(dev);
 	struct gic_irqsrc *gi = (struct gic_irqsrc *)isrc;
 
+	mtx_lock_spin(&sc->mutex);
 	if (isrc->isrc_handlers == 0 && (gi->gi_flags & GI_FLAG_MSI) == 0) {
 		gi->gi_pol = INTR_POLARITY_CONFORM;
 		gi->gi_trig = INTR_TRIGGER_CONFORM;
 	}
+	mtx_unlock_spin(&sc->mutex);
 	return (0);
 }
 
@@ -1261,6 +1310,8 @@ static device_method_t arm_gic_methods[] = {
 
 	/* GIC */
 	DEVMETHOD(gic_reserve_msi_range, arm_gic_reserve_msi_range),
+	DEVMETHOD(gic_reserve_msi_range_checked,
+	    arm_gic_reserve_msi_range_checked),
 	DEVMETHOD(gic_alloc_msi,	arm_gic_alloc_msi),
 	DEVMETHOD(gic_release_msi,	arm_gic_release_msi),
 	DEVMETHOD(gic_alloc_msix,	arm_gic_alloc_msix),

@@ -1,0 +1,1310 @@
+{
+  "schema": "private/pi5-independent-policy-vectors/1",
+  "dtb_sha256": "400b2da08abb8fd0ffd65085d1e0e1e6c6d01cadd27385403ea3a3fd5a1537f4",
+  "root_policy": [
+    {
+      "cpu": 133143986176,
+      "device": 0,
+      "length": 4194304,
+      "role": "PEER",
+      "root_index": 0,
+      "child_index": -1
+    },
+    {
+      "cpu": 0,
+      "device": 68719476736,
+      "length": 68719476736,
+      "role": "RAM",
+      "root_index": 1,
+      "child_index": -1
+    }
+  ],
+  "rp1_policy": [
+    {
+      "cpu": 0,
+      "device": 68719476736,
+      "length": 68719476736,
+      "role": "RAM",
+      "root_index": 1,
+      "child_index": 0
+    },
+    {
+      "cpu": 133143986176,
+      "device": 825707462656,
+      "length": 4194304,
+      "role": "PEER",
+      "root_index": 0,
+      "child_index": 1
+    },
+    {
+      "cpu": 0,
+      "device": 0,
+      "length": 68719476736,
+      "role": "RAM",
+      "root_index": 1,
+      "child_index": 2
+    }
+  ],
+  "children": [
+    [
+      68719476736,
+      68719476736,
+      68719476736,
+      1124073472
+    ],
+    [
+      825707462656,
+      0,
+      4259840,
+      33554432
+    ],
+    [
+      0,
+      68719476736,
+      68719476736,
+      33554432
+    ]
+  ],
+  "custom_policies": {
+    "aligned_alias_transition": [
+      {
+        "cpu": 0,
+        "device": 0,
+        "length": 3,
+        "role": "RAM",
+        "root_index": 0,
+        "child_index": -1
+      },
+      {
+        "cpu": 3,
+        "device": 4,
+        "length": 4,
+        "role": "RAM",
+        "root_index": 1,
+        "child_index": -1
+      }
+    ],
+    "whole_span_hole": [
+      {
+        "cpu": 0,
+        "device": 256,
+        "length": 4,
+        "role": "RAM",
+        "root_index": 0,
+        "child_index": -1
+      },
+      {
+        "cpu": 5,
+        "device": 512,
+        "length": 3,
+        "role": "RAM",
+        "root_index": 1,
+        "child_index": -1
+      }
+    ],
+    "alias_boundary": [
+      {
+        "cpu": 0,
+        "device": 256,
+        "length": 16,
+        "role": "RAM",
+        "root_index": 0,
+        "child_index": -1
+      },
+      {
+        "cpu": 16,
+        "device": 272,
+        "length": 16,
+        "role": "RAM",
+        "root_index": 1,
+        "child_index": -1
+      }
+    ],
+    "last_u64_byte": [
+      {
+        "cpu": 18446744073709551615,
+        "device": 18446744073709551615,
+        "length": 1,
+        "role": "RAM",
+        "root_index": 0,
+        "child_index": -1
+      }
+    ],
+    "alignment_preimage": [
+      {
+        "cpu": 7,
+        "device": 0,
+        "length": 16,
+        "role": "RAM",
+        "root_index": 0,
+        "child_index": -1
+      }
+    ],
+    "bounded_greedy_deadend": [
+      {
+        "cpu": 0,
+        "device": 0,
+        "length": 6,
+        "role": "RAM",
+        "root_index": 0,
+        "child_index": -1
+      },
+      {
+        "cpu": 4,
+        "device": 8,
+        "length": 4,
+        "role": "RAM",
+        "root_index": 1,
+        "child_index": -1
+      },
+      {
+        "cpu": 6,
+        "device": 16,
+        "length": 1,
+        "role": "RAM",
+        "root_index": 2,
+        "child_index": -1
+      }
+    ]
+  },
+  "eligible_vectors": {
+    "root32": [],
+    "rp1_ram32": [
+      {
+        "cpu": 0,
+        "device": 0,
+        "length": 4294967296,
+        "role": "RAM",
+        "root_index": 1,
+        "child_index": 2,
+        "alignment_modulus": 1,
+        "cpu_start_remainder": 0
+      }
+    ],
+    "rp1_ram64": [
+      {
+        "cpu": 0,
+        "device": 68719476736,
+        "length": 68719476736,
+        "role": "RAM",
+        "root_index": 1,
+        "child_index": 0,
+        "alignment_modulus": 1,
+        "cpu_start_remainder": 0
+      },
+      {
+        "cpu": 0,
+        "device": 0,
+        "length": 68719476736,
+        "role": "RAM",
+        "root_index": 1,
+        "child_index": 2,
+        "alignment_modulus": 1,
+        "cpu_start_remainder": 0
+      }
+    ],
+    "root_peer32": [
+      {
+        "cpu": 133143986176,
+        "device": 0,
+        "length": 4194304,
+        "role": "PEER",
+        "root_index": 0,
+        "child_index": -1,
+        "alignment_modulus": 1,
+        "cpu_start_remainder": 0
+      }
+    ],
+    "rp1_peer32": [],
+    "congruence4": [
+      {
+        "cpu": 7,
+        "device": 0,
+        "length": 16,
+        "role": "RAM",
+        "root_index": 0,
+        "child_index": -1,
+        "alignment_modulus": 4,
+        "cpu_start_remainder": 3
+      }
+    ]
+  },
+  "raw_msi": {
+    "cpu": 68720721920,
+    "pci": 1099511623680,
+    "length": 4096,
+    "root_index": 2,
+    "flags": 50331648,
+    "ram_translation_forbidden": true,
+    "expected_published_pci_message_addr": 1099511623680
+  },
+  "map_vectors": [
+    {
+      "name": "root64_offset_low_ram",
+      "policy": "root",
+      "spans": [
+        {
+          "cpu_base": 4096,
+          "length": 4096
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": 0,
+        "segments": [
+          {
+            "cpu_base": 4096,
+            "device_base": 68719480832,
+            "length": 4096,
+            "range_index": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "root64_last_byte",
+      "policy": "root",
+      "spans": [
+        {
+          "cpu_base": 68719476735,
+          "length": 1
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": 0,
+        "segments": [
+          {
+            "cpu_base": 68719476735,
+            "device_base": 137438953471,
+            "length": 1,
+            "range_index": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "root64_span_crosses_aperture",
+      "policy": "root",
+      "spans": [
+        {
+          "cpu_base": 68719476728,
+          "length": 16
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": "ENXIO",
+        "outputs_unchanged": true
+      }
+    },
+    {
+      "name": "root64_first_uncovered_byte",
+      "policy": "root",
+      "spans": [
+        {
+          "cpu_base": 68719476736,
+          "length": 1
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": "ENXIO",
+        "outputs_unchanged": true
+      }
+    },
+    {
+      "name": "rp1_64bit_first_declared_alias",
+      "policy": "rp1",
+      "spans": [
+        {
+          "cpu_base": 8192,
+          "length": 4096
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": 0,
+        "segments": [
+          {
+            "cpu_base": 8192,
+            "device_base": 68719484928,
+            "length": 4096,
+            "range_index": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "rp1_32bit_low_alias",
+      "policy": "rp1",
+      "spans": [
+        {
+          "cpu_base": 8192,
+          "length": 4096
+        }
+      ],
+      "constraints": {
+        "device_mask": 4294967295,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": 0,
+        "segments": [
+          {
+            "cpu_base": 8192,
+            "device_base": 8192,
+            "length": 4096,
+            "range_index": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "rp1_32bit_last_reachable_byte",
+      "policy": "rp1",
+      "spans": [
+        {
+          "cpu_base": 4294967295,
+          "length": 1
+        }
+      ],
+      "constraints": {
+        "device_mask": 4294967295,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": 0,
+        "segments": [
+          {
+            "cpu_base": 4294967295,
+            "device_base": 4294967295,
+            "length": 1,
+            "range_index": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "rp1_32bit_span_crosses_mask",
+      "policy": "rp1",
+      "spans": [
+        {
+          "cpu_base": 4294967295,
+          "length": 2
+        }
+      ],
+      "constraints": {
+        "device_mask": 4294967295,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": "EFBIG",
+        "outputs_unchanged": true
+      }
+    },
+    {
+      "name": "rp1_32bit_high_physical_needs_bounce",
+      "policy": "rp1",
+      "spans": [
+        {
+          "cpu_base": 4294967296,
+          "length": 16
+        }
+      ],
+      "constraints": {
+        "device_mask": 4294967295,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": "EFBIG",
+        "outputs_unchanged": true
+      }
+    },
+    {
+      "name": "rp1_32bit_low_physical_bounce_preimage",
+      "policy": "rp1",
+      "spans": [
+        {
+          "cpu_base": 16384,
+          "length": 16
+        }
+      ],
+      "constraints": {
+        "device_mask": 4294967295,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": 0,
+        "segments": [
+          {
+            "cpu_base": 16384,
+            "device_base": 16384,
+            "length": 16,
+            "range_index": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "root_32bit_no_physical_bounce_preimage",
+      "policy": "root",
+      "spans": [
+        {
+          "cpu_base": 0,
+          "length": 1
+        }
+      ],
+      "constraints": {
+        "device_mask": 4294967295,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": "EFBIG",
+        "outputs_unchanged": true
+      }
+    },
+    {
+      "name": "peer_last_16_bytes",
+      "policy": "rp1",
+      "spans": [
+        {
+          "cpu_base": 133148180464,
+          "length": 16
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "PEER"
+      },
+      "expected": {
+        "error": 0,
+        "segments": [
+          {
+            "cpu_base": 133148180464,
+            "device_base": 825711656944,
+            "length": 16,
+            "range_index": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "peer_last_span_crosses_root_clip",
+      "policy": "rp1",
+      "spans": [
+        {
+          "cpu_base": 133148180464,
+          "length": 17
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "PEER"
+      },
+      "expected": {
+        "error": "ENXIO",
+        "outputs_unchanged": true
+      }
+    },
+    {
+      "name": "peer_declared_410000_is_not_dma_cover",
+      "policy": "rp1",
+      "spans": [
+        {
+          "cpu_base": 133143986176,
+          "length": 4259840
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "PEER"
+      },
+      "expected": {
+        "error": "ENXIO",
+        "outputs_unchanged": true
+      }
+    },
+    {
+      "name": "peer_64k_tail_not_dma",
+      "policy": "rp1",
+      "spans": [
+        {
+          "cpu_base": 133148180480,
+          "length": 65536
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "PEER"
+      },
+      "expected": {
+        "error": "ENXIO",
+        "outputs_unchanged": true
+      }
+    },
+    {
+      "name": "peer_is_not_ram",
+      "policy": "rp1",
+      "spans": [
+        {
+          "cpu_base": 133143986176,
+          "length": 1
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": "ENXIO",
+        "outputs_unchanged": true
+      }
+    },
+    {
+      "name": "raw_msi_cpu_not_ram",
+      "policy": "root",
+      "spans": [
+        {
+          "cpu_base": 68720721920,
+          "length": 4
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": "ENXIO",
+        "outputs_unchanged": true
+      }
+    },
+    {
+      "name": "raw_msi_cpu_not_peer",
+      "policy": "root",
+      "spans": [
+        {
+          "cpu_base": 68720721920,
+          "length": 4
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "PEER"
+      },
+      "expected": {
+        "error": "ENXIO",
+        "outputs_unchanged": true
+      }
+    },
+    {
+      "name": "raw_msi_message_not_cpu_ram",
+      "policy": "rp1",
+      "spans": [
+        {
+          "cpu_base": 1099511623680,
+          "length": 4
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": "ENXIO",
+        "outputs_unchanged": true
+      }
+    },
+    {
+      "name": "boundary_splits_without_recoalescing",
+      "policy": "rp1",
+      "spans": [
+        {
+          "cpu_base": 4080,
+          "length": 32
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 16,
+        "boundary": 4096,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": 0,
+        "segments": [
+          {
+            "cpu_base": 4080,
+            "device_base": 68719480816,
+            "length": 16,
+            "range_index": 0
+          },
+          {
+            "cpu_base": 4096,
+            "device_base": 68719480832,
+            "length": 16,
+            "range_index": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "boundary_exceeds_segment_budget",
+      "policy": "rp1",
+      "spans": [
+        {
+          "cpu_base": 4080,
+          "length": 32
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 16,
+        "boundary": 4096,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 1,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": "EFBIG",
+        "outputs_unchanged": true
+      }
+    },
+    {
+      "name": "maxseg_splits_without_recoalescing",
+      "policy": "rp1",
+      "spans": [
+        {
+          "cpu_base": 4096,
+          "length": 32
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 16,
+        "boundary": 0,
+        "max_segment_length": 16,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": 0,
+        "segments": [
+          {
+            "cpu_base": 4096,
+            "device_base": 68719480832,
+            "length": 16,
+            "range_index": 0
+          },
+          {
+            "cpu_base": 4112,
+            "device_base": 68719480848,
+            "length": 16,
+            "range_index": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "zero_individual_span",
+      "policy": "rp1",
+      "spans": [
+        {
+          "cpu_base": 0,
+          "length": 0
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": "EINVAL",
+        "outputs_unchanged": true
+      }
+    },
+    {
+      "name": "wrapping_span",
+      "policy": "rp1",
+      "spans": [
+        {
+          "cpu_base": 18446744073709551615,
+          "length": 2
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": "EINVAL",
+        "outputs_unchanged": true
+      }
+    },
+    {
+      "name": "empty_map_succeeds",
+      "policy": "rp1",
+      "spans": [],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": 0,
+        "segments": []
+      }
+    },
+    {
+      "name": "unaligned_aperture_end_can_start_next_aligned_alias",
+      "policy": "aligned_alias_transition",
+      "spans": [
+        {
+          "cpu_base": 0,
+          "length": 7
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 4,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": 0,
+        "segments": [
+          {
+            "cpu_base": 0,
+            "device_base": 0,
+            "length": 3,
+            "range_index": 0
+          },
+          {
+            "cpu_base": 3,
+            "device_base": 4,
+            "length": 4,
+            "range_index": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "middle_hole_not_hidden_by_covered_endpoints",
+      "policy": "whole_span_hole",
+      "spans": [
+        {
+          "cpu_base": 0,
+          "length": 8
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": "ENXIO",
+        "outputs_unchanged": true
+      }
+    },
+    {
+      "name": "adjacent_aliases_are_not_coalesced",
+      "policy": "alias_boundary",
+      "spans": [
+        {
+          "cpu_base": 0,
+          "length": 32
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": 0,
+        "segments": [
+          {
+            "cpu_base": 0,
+            "device_base": 256,
+            "length": 16,
+            "range_index": 0
+          },
+          {
+            "cpu_base": 16,
+            "device_base": 272,
+            "length": 16,
+            "range_index": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "last_u64_byte_is_valid",
+      "policy": "last_u64_byte",
+      "spans": [
+        {
+          "cpu_base": 18446744073709551615,
+          "length": 1
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": 0,
+        "segments": [
+          {
+            "cpu_base": 18446744073709551615,
+            "device_base": 18446744073709551615,
+            "length": 1,
+            "range_index": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "device_alignment_pulled_back_to_physical_congruence",
+      "policy": "alignment_preimage",
+      "spans": [
+        {
+          "cpu_base": 7,
+          "length": 8
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 4,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": 0,
+        "segments": [
+          {
+            "cpu_base": 7,
+            "device_base": 0,
+            "length": 8,
+            "range_index": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "physical_alignment_not_device_alignment",
+      "policy": "alignment_preimage",
+      "spans": [
+        {
+          "cpu_base": 8,
+          "length": 4
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 4,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": "EFBIG",
+        "outputs_unchanged": true
+      }
+    },
+    {
+      "name": "same_alias_adjacent_input_spans_coalesce",
+      "policy": "rp1",
+      "spans": [
+        {
+          "cpu_base": 4096,
+          "length": 16
+        },
+        {
+          "cpu_base": 4112,
+          "length": 16
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": 0,
+        "segments": [
+          {
+            "cpu_base": 4096,
+            "device_base": 68719480832,
+            "length": 32,
+            "range_index": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "noncontiguous_input_spans_never_coalesce",
+      "policy": "rp1",
+      "spans": [
+        {
+          "cpu_base": 4096,
+          "length": 16
+        },
+        {
+          "cpu_base": 4128,
+          "length": 16
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": 0,
+        "segments": [
+          {
+            "cpu_base": 4096,
+            "device_base": 68719480832,
+            "length": 16,
+            "range_index": 0
+          },
+          {
+            "cpu_base": 4128,
+            "device_base": 68719480864,
+            "length": 16,
+            "range_index": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "bounded_greedy_deadend_is_explicit_admission",
+      "policy": "bounded_greedy_deadend",
+      "spans": [
+        {
+          "cpu_base": 0,
+          "length": 8
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 4,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": "EFBIG",
+        "outputs_unchanged": true
+      }
+    },
+    {
+      "name": "invalid_constraint_alignment",
+      "policy": "rp1",
+      "spans": [
+        {
+          "cpu_base": 0,
+          "length": 1
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 0,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": "EINVAL",
+        "outputs_unchanged": true
+      }
+    },
+    {
+      "name": "invalid_constraint_alignment",
+      "policy": "rp1",
+      "spans": [
+        {
+          "cpu_base": 0,
+          "length": 1
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 3,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": "EINVAL",
+        "outputs_unchanged": true
+      }
+    },
+    {
+      "name": "invalid_constraint_boundary",
+      "policy": "rp1",
+      "spans": [
+        {
+          "cpu_base": 0,
+          "length": 1
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 1,
+        "boundary": 3,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": "EINVAL",
+        "outputs_unchanged": true
+      }
+    },
+    {
+      "name": "invalid_constraint_max_segment_length",
+      "policy": "rp1",
+      "spans": [
+        {
+          "cpu_base": 0,
+          "length": 1
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 0,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": "EINVAL",
+        "outputs_unchanged": true
+      }
+    },
+    {
+      "name": "invalid_constraint_max_segments",
+      "policy": "rp1",
+      "spans": [
+        {
+          "cpu_base": 0,
+          "length": 1
+        }
+      ],
+      "constraints": {
+        "device_mask": 18446744073709551615,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 0,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": "EINVAL",
+        "outputs_unchanged": true
+      }
+    },
+    {
+      "name": "invalid_constraint_device_mask",
+      "policy": "rp1",
+      "spans": [
+        {
+          "cpu_base": 0,
+          "length": 1
+        }
+      ],
+      "constraints": {
+        "device_mask": 5,
+        "alignment": 1,
+        "boundary": 0,
+        "max_segment_length": 18446744073709551615,
+        "max_segments": 64,
+        "role": "RAM"
+      },
+      "expected": {
+        "error": "EINVAL",
+        "outputs_unchanged": true
+      }
+    }
+  ],
+  "bounded_admission_counterexample": {
+    "policy": "bounded_greedy_deadend",
+    "span": [
+      0,
+      8
+    ],
+    "alignment": 4,
+    "legal_cover": [
+      {
+        "cpu_base": 0,
+        "device_base": 0,
+        "length": 4,
+        "range_index": 0
+      },
+      {
+        "cpu_base": 4,
+        "device_base": 8,
+        "length": 4,
+        "range_index": 1
+      }
+    ],
+    "production_admission": "bounded greedy EFBIG is permitted despite this alternate legal cover; not a proof that no possible mapping exists"
+  },
+  "outbound_mmio_vectors": [
+    {
+      "rp1_register": 825707560960,
+      "pci": 98304,
+      "cpu": 133144084480,
+      "peer_dma_covered": true
+    },
+    {
+      "rp1_register": 825711656960,
+      "pci": 4194304,
+      "cpu": 133148180480,
+      "peer_dma_covered": false
+    },
+    {
+      "rp1_register": 825711722495,
+      "pci": 4259839,
+      "cpu": 133148246015,
+      "peer_dma_covered": false
+    }
+  ],
+  "static_memory_node_cells": [
+    0,
+    0,
+    671088640
+  ],
+  "note": "DMA aperture size is not actual RAM inventory; static file memory node is not firmware-fixed runtime memory"
+}

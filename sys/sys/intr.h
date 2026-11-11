@@ -141,6 +141,12 @@ u_int intr_map_clone_irq(u_int );
 
 /* MSI/MSI-X handling */
 int intr_msi_register(device_t, intptr_t);
+/*
+ * Registry snapshot only; no readiness, reference or lifetime guarantee.
+ * EINVAL: NULL device/zero xref; ESRCH: missing MSI xref; ENXIO: wrong device;
+ * EEXIST: duplicate MSI xref.  No vector allocation or private pointer escapes.
+ */
+int intr_msi_validate_provider(device_t, intptr_t);
 int intr_alloc_msi(device_t, device_t, intptr_t, int, int, int *);
 int intr_release_msi(device_t, device_t, intptr_t, int, int *);
 int intr_map_msi(device_t, device_t, intptr_t, int, uint64_t *, uint32_t *);

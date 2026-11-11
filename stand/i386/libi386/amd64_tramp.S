@@ -28,6 +28,8 @@
  * Quick and dirty trampoline to get into 64 bit (long) mode and running
  * with paging enabled so that we enter the kernel at its linked address.
  */
+#include "amd64_bootmap.h"
+
 #define MSR_EFER	0xc0000080
 #define EFER_LME	0x00000100
 #define CR4_PAE		0x00000020
@@ -50,7 +52,7 @@ PT3:
 	.space	0x1000
 	.globl	PT2
 PT2:
-	.space	0x1000
+	.space	(0x1000 * AMD64_BOOTMAP_PT2_PAGES)
 
 gdtdesc:
 	.word	gdtend - gdt

@@ -478,10 +478,22 @@ struct xhci_bos_desc {
 	struct usb_devcap_container_id_descriptor cidd;
 } __packed;
 
+struct xhci_ssp_bos_desc {
+	struct usb_bos_descriptor		bosd;
+	struct usb_devcap_usb2ext_descriptor	usb2extd;
+	struct usb_devcap_ss_descriptor		usbdcd;
+	struct usb_devcap_container_id_descriptor cidd;
+	struct usb_devcap_ss_plus_descriptor_header ssplus;
+	uDWord caps[8];
+} __packed;
+
 union xhci_hub_desc {
 	struct usb_status		stat;
 	struct usb_port_status		ps;
 	struct usb_hub_ss_descriptor	hubd;
+	struct usb_ext_status		ext_ps;
+	struct usb_device_descriptor	devd;
+	struct xhci_ssp_bos_desc	ssp_bos;
 	uint8_t				temp[128];
 };
 
@@ -491,6 +503,9 @@ enum xhci_quirks {
 	XHCI_QUIRK_DISABLE_PORT_PED			= 0x00000001,
 	XHCI_QUIRK_DMA_32B				= 0x00000002,
 };
+
+#define XHCI_INIT_DMA		0x01
+#define XHCI_INIT_CMD_LOCKS	0x02
 
 struct xhci_softc {
 	struct xhci_hw_softc	sc_hw;
@@ -512,6 +527,12 @@ struct xhci_softc {
 	struct resource		*sc_io_res;
 	struct resource		*sc_irq_res;
 	struct resource		*sc_msix_res;
+	/* Optional owned parent tag for firmware-described DMA apertures. */
+	bus_dma_tag_t		sc_owned_dma_tag;
+	device_t		sc_owned_dma_child;
+	int			sc_owned_dma_failed;
+	uint8_t			sc_owned_dma_started;
+	uint8_t			sc_init_flags;
 
 	void			*sc_intr_hdl;
 	bus_size_t		sc_io_size;
@@ -548,6 +569,10 @@ struct xhci_softc {
 	uint8_t			sc_command_ccs;
 	/* number of XHCI device slots */
 	uint8_t			sc_noslot;
+	/* Enhanced SuperSpeed speed IDs of the controller, see XHCI_PSIV_BIT */
+	uint16_t		sc_ss_psiv;
+	/* xHCI interface version, see XHCI_HCIVERSION_* */
+	uint16_t		sc_hcversion;
 	/* number of ports on root HUB */
 	uint8_t			sc_noport;
 	/* root HUB device configuration */

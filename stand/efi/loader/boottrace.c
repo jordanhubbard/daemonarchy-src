@@ -16,11 +16,15 @@
 #include <efilib.h>
 #include <Guid/Acpi.h>
 #include <Protocol/BlockIo.h>
+#include <Protocol/Rng.h>
 #include <Protocol/SimpleFileSystem.h>
 
 #include "bootstrap.h"
 #include "boottrace_blk.h"
 #include "boottrace_acpi.h"
+#include "boottrace_media.h"
+#include "boottrace_normal.h"
+#include "boottrace_fat.h"
 #include "netconsole_report.h"
 
 #define	BT_BUFSIZE	8192
@@ -39,6 +43,18 @@ static size_t bt_report_len;
 
 static int bt_startup(unsigned);
 static int bt_cycle(void);
+static int bt_media_discover(void);
+static int bt_normal_capture(void);
+
+static struct {
+	struct bt_normal_identity id;
+	char partition[37];
+	char boot_nonce[BT_NORMAL_NONCE_SIZE];
+	unsigned slot;
+	bool ready;
+	bool nonce_initialized;
+	bool preexit_completed;
+} bt_normal_session;
 
 static void
 bt_ring_name(char *name, size_t len, unsigned slot)
@@ -377,6 +393,10 @@ command_boottrace(int argc, char *argv[])
 		return (bt_startup(argc == 3 ? strtoul(argv[2], NULL, 10) : 60));
 	if (strcmp(verb, "cycle") == 0)
 		return (bt_cycle());
+	if (strcmp(verb, "media") == 0)
+		return (bt_media_discover());
+	if (strcmp(verb, "observe") == 0)
+		return (bt_normal_capture());
 	if (strcmp(verb, "clear") == 0) {
 		EFI_STATUS status = bt_delvars();
 
@@ -426,7 +446,7 @@ command_boottrace(int argc, char *argv[])
 	bt_print();
 	return (CMD_OK);
 usage:
-	command_errmsg = "usage: boottrace [show|summary|report|save|clear|cycle|startup [SECONDS]]";
+	command_errmsg = "usage: boottrace [show|summary|report|save|clear|cycle|media|observe|startup [SECONDS]]";
 	return (CMD_ERROR);
 }
 COMMAND_SET(boottrace, "boottrace",
@@ -690,6 +710,146 @@ bt_volume(EFI_HANDLE *handlep)
 		free(handles);
 	}
 	return (NULL);
+}
+
+/* Firmware owns the protocol buffer. Bound walking independently of its
+ * advertised node lengths; never follow instances or probe other devices. */
+static int
+bt_media_handle(EFI_HANDLE handle, struct bt_media_path *result)
+{
+	EFI_DEVICE_PATH *path;
+	const unsigned char *p;
+	size_t off = 0, len;
+	unsigned nodes;
+
+	path = efi_lookup_devpath(handle);
+	if (path == NULL)
+		return (-1);
+	p = (const unsigned char *)path;
+	for (nodes = 0; nodes < BT_MEDIA_NODES_MAX; nodes++) {
+		if (off > BT_MEDIA_PATH_MAX - 4)
+			return (-1);
+		len = p[off + 2] | (size_t)p[off + 3] << 8;
+		if (len < 4 || len > BT_MEDIA_PATH_MAX - off)
+			return (-1);
+		if (p[off] == 0x7f)
+			return (bt_media_parse(p, off + len, result));
+		off += len;
+	}
+	return (-1);
+}
+
+/* No writes or ConnectController. A unique writable root remains open for
+ * the caller; every unsuccessful selection closes all opened roots. */
+static EFI_FILE_PROTOCOL *
+bt_media_select(EFI_HANDLE *handlep, bool verbose)
+{
+	EFI_GUID image_guid = LOADED_IMAGE_PROTOCOL;
+	EFI_GUID fs_guid = EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID;
+	EFI_GUID blk_guid = BLOCK_IO_PROTOCOL;
+	EFI_LOADED_IMAGE *image;
+	EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *fs;
+	EFI_BLOCK_IO_PROTOCOL *block;
+	EFI_FILE_PROTOCOL *root, *chosen = NULL;
+	EFI_HANDLE *handles, selected_handle = NULL;
+	struct bt_media_path boot, candidate, selected;
+	UINTN size = 0, i;
+	unsigned count = 0;
+	size_t taglen;
+	bool readonly = false;
+	char uuid[40];
+	const char *status = "unbound";
+
+	unsetenv("daemonarchy.trace.partition");
+	unsetenv("daemonarchy.trace.status");
+	if (BS->HandleProtocol(IH, &image_guid, (void **)&image) !=
+	    EFI_SUCCESS || image == NULL ||
+	    bt_media_handle(image->DeviceHandle, &boot) != 0)
+		goto done;
+	status = "unavailable";
+	if (BS->LocateHandle(ByProtocol, &fs_guid, NULL, &size, NULL) !=
+	    EFI_BUFFER_TOO_SMALL || size == 0 || size > 65536)
+		goto done;
+	handles = malloc(size);
+	if (handles == NULL)
+		goto done;
+	if (BS->LocateHandle(ByProtocol, &fs_guid, NULL, &size, handles) !=
+	    EFI_SUCCESS) {
+		free(handles);
+		goto done;
+	}
+	status = "notfound";
+	for (i = 0; i < size / sizeof(*handles); i++) {
+		if (bt_media_handle(handles[i], &candidate) != 0 ||
+		    !bt_media_sibling(&boot, &candidate) ||
+		    BS->HandleProtocol(handles[i], &blk_guid,
+		    (void **)&block) != EFI_SUCCESS || block == NULL ||
+		    block->Media == NULL || !block->Media->MediaPresent ||
+		    !block->Media->LogicalPartition ||
+		    BS->HandleProtocol(handles[i], &fs_guid,
+		    (void **)&fs) != EFI_SUCCESS || fs == NULL ||
+		    fs->OpenVolume(fs, &root) != EFI_SUCCESS || root == NULL)
+			continue;
+		if (bt_read(root, "\\DATRACE.TAG", &taglen) == EFI_SUCCESS &&
+		    taglen == sizeof(BT_TAG) &&
+		    memcmp(bt_file, BT_TAG "\n", taglen) == 0) {
+			selected = candidate;
+			readonly = block->Media->ReadOnly;
+			count++;
+			if (count == 1) {
+				chosen = root;
+				selected_handle = handles[i];
+				continue;
+			}
+		}
+		(void)root->Close(root);
+	}
+	free(handles);
+	if (count > 1)
+		status = "ambiguous";
+	else if (count == 1 && readonly)
+		status = "readonly";
+	else if (count == 1) {
+		const unsigned char *g = selected.guid;
+
+		snprintf(uuid, sizeof(uuid),
+		    "%02x%02x%02x%02x-%02x%02x-%02x%02x-"
+		    "%02x%02x-%02x%02x%02x%02x%02x%02x",
+		    g[3], g[2], g[1], g[0], g[5], g[4], g[7], g[6],
+		    g[8], g[9], g[10], g[11], g[12], g[13], g[14], g[15]);
+		if (setenv("daemonarchy.trace.partition", uuid, 1) == 0)
+			status = "ready";
+		else
+			status = "unavailable";
+	}
+done:
+	if (setenv("daemonarchy.trace.status", status, 1) != 0) {
+		unsetenv("daemonarchy.trace.partition");
+		status = "unavailable";
+	}
+	if (verbose)
+		printf("Installation trace media: %s%s%s\n", status,
+		    strcmp(status, "ready") == 0 ? " gptid/" : "",
+		    strcmp(status, "ready") == 0 ? uuid : "");
+	if (strcmp(status, "ready") != 0 && chosen != NULL) {
+		(void)chosen->Close(chosen);
+		chosen = NULL;
+	}
+	if (chosen != NULL)
+		*handlep = selected_handle;
+	return (chosen);
+}
+
+static int
+bt_media_discover(void)
+{
+	EFI_HANDLE handle;
+	EFI_FILE_PROTOCOL *root;
+
+	root = bt_media_select(&handle, true);
+	if (root != NULL)
+		(void)root->Close(root);
+	return (CMD_OK);
 }
 
 static unsigned
@@ -997,6 +1157,347 @@ bt_raw_setup(EFI_HANDLE h, EFI_FILE_PROTOCOL *root, size_t slen,
 	return;
 bad:
 	bt_ldr.flags |= DBT_LF_MAPBAD;
+}
+
+/* Read a bounded file through the firmware without opening it for writing.
+ * An extra byte distinguishes an exact-sized file from a truncated prefix. */
+static EFI_STATUS
+bt_normal_read(EFI_FILE_PROTOCOL *root, const char *path, char *data,
+    size_t cap, size_t *length)
+{
+	EFI_FILE_PROTOCOL *file;
+	EFI_STATUS status;
+	UINTN got;
+	size_t used = 0;
+	char extra;
+
+	status = bt_open(root, &file, path, EFI_FILE_MODE_READ, 0);
+	if (status != EFI_SUCCESS)
+		return (status);
+	while (used < cap) {
+		got = cap - used;
+		status = file->Read(file, &got, data + used);
+		if (status != EFI_SUCCESS || got == 0)
+			break;
+		used += got;
+	}
+	if (status == EFI_SUCCESS && used == cap) {
+		got = 1;
+		status = file->Read(file, &got, &extra);
+		if (status == EFI_SUCCESS && got != 0)
+			status = EFI_BAD_BUFFER_SIZE;
+	}
+	(void)file->Close(file);
+	if (status == EFI_SUCCESS)
+		*length = used;
+	return (status);
+}
+
+static int
+bt_normal_sector(void *arg, uint64_t off, void *out, size_t size)
+{
+	struct bt_blk *block = arg;
+	struct bt_map_ent extent = {0};
+	uint64_t bytes = (block->part->Media->LastBlock + 1) *
+	    block->part->Media->BlockSize;
+
+	if (size != 512 || off > bytes || size > bytes - off)
+		return (-1);
+	extent.off = off;
+	extent.size = size;
+	return (bt_blk_read(block, &extent, out, size) == EFI_SUCCESS ? 0 : -1);
+}
+
+/* Every phase renews the owned medium, identity, raw map and FAT extents. */
+static const char *
+bt_normal_admit(EFI_HANDLE handle, EFI_FILE_PROTOCOL *root,
+    const char *identity, size_t length, bool writable[BT_NORMAL_SLOTS])
+{
+	static char fat[BT_NORMAL_SIZE];
+	char state[512], path[32], shortname[12];
+	struct bt_fat filesystem;
+	struct bt_fat_entry actual, normal;
+	struct bt_map_ent identity_extent = {0};
+	const struct bt_map_ent *entry;
+	const char *outcome = "identity-mismatch";
+	size_t got;
+	unsigned slot;
+
+	if (bt_normal_read(root, "\\INSTALL.ID", fat, BT_NORMAL_ID_MAX, &got) !=
+	    EFI_SUCCESS || got != length || memcmp(fat, identity, length) != 0) {
+		outcome = "identity-mismatch";
+		goto done;
+	}
+	outcome = "state-invalid";
+	if (bt_normal_read(root, "\\STATE.TXT", state, sizeof(state), &got) !=
+	    EFI_SUCCESS || got != sizeof(state))
+		goto done;
+	bt_raw_setup(handle, root, got, state);
+	outcome = "map-invalid";
+	entry = bt_raw ? bt_map_find(&bt_mapv, "STATE.TXT") : NULL;
+	if (entry == NULL || entry->size != sizeof(state))
+		goto done;
+	if (bt_blkv.disk == NULL || bt_blkv.disk->Media == NULL ||
+	    bt_blkv.disk->Media->ReadOnly) {
+		outcome = "backend-unavailable";
+		goto done;
+	}
+	/* Normal tracing never inherits the experiment fault-injection switch. */
+	bt_blkv.drop = 0;
+	outcome = "filesystem-unverified";
+	if (bt_fat_open(&filesystem, bt_normal_sector, &bt_blkv,
+	    (bt_blkv.part->Media->LastBlock + 1) *
+	    bt_blkv.part->Media->BlockSize) != 0)
+		goto done;
+	outcome = "map-invalid";
+	if (filesystem.data_off != bt_mapv.data_off ||
+	    bt_fat_file(&filesystem, 0, "STATE   TXT", &actual) != 0 ||
+	    actual.off != entry->off || actual.size != entry->size)
+		goto done;
+	outcome = "identity-mismatch";
+	if (bt_fat_file(&filesystem, 0, "INSTALL ID ", &actual) != 0 ||
+	    actual.size != length)
+		goto done;
+	identity_extent.off = actual.off;
+	identity_extent.size = actual.size;
+	if (bt_blk_read(&bt_blkv, &identity_extent, fat, actual.size) != EFI_SUCCESS ||
+	    memcmp(fat, identity, length) != 0)
+		goto done;
+	outcome = "slots-invalid";
+	if (bt_fat_find(&filesystem, 0, "NORMAL     ", &normal) != 0 ||
+	    (normal.attributes & 0xd1) != 0x10)
+		goto done;
+	for (slot = 1; slot <= BT_NORMAL_SLOTS; slot++) {
+		snprintf(path, sizeof(path), "\\NORMAL\\%04u.TXT", slot);
+		entry = bt_map_find(&bt_mapv, path);
+		snprintf(shortname, sizeof(shortname), "%04u    TXT", slot);
+		if (entry == NULL || entry->size != BT_NORMAL_SIZE ||
+		    bt_fat_file(&filesystem, normal.first, shortname, &actual) != 0 ||
+		    actual.off != entry->off || actual.size != entry->size)
+			goto done;
+		writable[slot - 1] = (actual.attributes & 1) == 0;
+	}
+	return (NULL);
+done:
+	return (outcome);
+}
+
+/* One bounded RNG request before capture; never fabricate a fallback identity.
+ * This is a correlation nonce, not authentication or RNG provenance admission. */
+static void
+bt_normal_random_nonce(char nonce[BT_NORMAL_NONCE_SIZE])
+{
+	EFI_GUID guid = EFI_RNG_PROTOCOL_GUID;
+	EFI_RNG_PROTOCOL *rng = NULL;
+	uint8_t bytes[BT_NORMAL_NONCE_BYTES];
+
+	strlcpy(nonce, BT_NORMAL_NONCE_UNAVAILABLE, BT_NORMAL_NONCE_SIZE);
+	memset(bytes, 0, sizeof(bytes));
+	if (BS->LocateProtocol(&guid, NULL, (void **)&rng) == EFI_SUCCESS &&
+	    rng != NULL && rng->GetRNG != NULL &&
+	    rng->GetRNG(rng, NULL, sizeof(bytes), bytes) == EFI_SUCCESS)
+		(void)bt_normal_nonce(nonce, BT_NORMAL_NONCE_SIZE, bytes,
+		    sizeof(bytes));
+	memset(bytes, 0, sizeof(bytes));
+}
+
+/* A normal boot reserves its own immutable session slot. No STATE/QUEUE
+ * writes, FAT fallback, NVRAM, tunables, listeners or reboot actions. */
+static int
+bt_normal_capture(void)
+{
+	static bool completed;
+	static char fat[BT_NORMAL_SIZE];
+	struct bt_normal_identity declared;
+	EFI_FILE_PROTOCOL *root = NULL;
+	EFI_HANDLE handle;
+	EFI_STATUS status;
+	const struct bt_map_ent *entry;
+	const char *outcome = "media-unavailable", *partition;
+	char identity[BT_NORMAL_ID_MAX], record[1024];
+	char path[32], session[48], extra;
+	bool writable[BT_NORMAL_SLOTS];
+	size_t length = 0, len;
+	ssize_t n = 0;
+	unsigned slot;
+	int fd;
+
+	if (completed)
+		return (CMD_OK);
+	unsetenv("daemonarchy.trace.session");
+	unsetenv("daemonarchy.trace.capture");
+	unsetenv("daemonarchy.trace.boot_nonce");
+	root = bt_media_select(&handle, false);
+	if (root == NULL)
+		goto done;
+	outcome = "identity-invalid";
+	fd = open("/boot/trace-id", O_RDONLY);
+	if (fd < 0)
+		goto done;
+	while (length < sizeof(identity)) {
+		n = read(fd, identity + length, sizeof(identity) - length);
+		if (n <= 0)
+			break;
+		length += n;
+	}
+	n = n < 0 ? n : read(fd, &extra, 1);
+	(void)close(fd);
+	if (n != 0 || bt_normal_identity(identity, length, &declared) != 0)
+		goto done;
+	outcome = bt_normal_admit(handle, root, identity, length, writable);
+	if (outcome != NULL)
+		goto done;
+
+	for (slot = 1; slot <= BT_NORMAL_SLOTS; slot++) {
+		snprintf(path, sizeof(path), "\\NORMAL\\%04u.TXT", slot);
+		entry = bt_map_find(&bt_mapv, path);
+		outcome = "slot-read-failed";
+		/* FAT metadata proves the filename's extent. Read its contents
+		 * fresh through the whole disk, not a stale firmware file cache. */
+		if (bt_blk_read(&bt_blkv, entry, fat, sizeof(fat)) != EFI_SUCCESS)
+			goto done;
+		if (bt_normal_empty(fat, sizeof(fat))) {
+			if (!writable[slot - 1]) {
+				outcome = "slot-readonly";
+				goto done;
+			}
+			break;
+		}
+	}
+	if (slot > BT_NORMAL_SLOTS) {
+		outcome = "full";
+		goto done;
+	}
+	partition = getenv("daemonarchy.trace.partition");
+	if (!bt_normal_session.nonce_initialized) {
+		bt_normal_random_nonce(bt_normal_session.boot_nonce);
+		bt_normal_session.nonce_initialized = true;
+	}
+	len = bt_normal_session_record(record, sizeof(record), &declared,
+	    partition, slot, BT_NORMAL_STAGE_READY, bt_normal_session.boot_nonce);
+	if (len == 0) {
+		outcome = "metadata-invalid";
+		goto done;
+	}
+	status = bt_blk_write(&bt_blkv, entry, record, len);
+	if (status != EFI_SUCCESS || bt_blkv.verify != DBT_LV_OK ||
+	    !bt_blkv.via_disk) {
+		outcome = "write-unverified";
+		goto done;
+	}
+	bt_normal_session.id = declared;
+	memcpy(bt_normal_session.partition, partition,
+	    sizeof(bt_normal_session.partition));
+	bt_normal_session.slot = slot;
+	bt_normal_session.ready = true;
+	completed = true;
+	snprintf(session, sizeof(session), "%s-%04u", declared.image_id, slot);
+	outcome = setenv("daemonarchy.trace.session", session, 1) == 0 &&
+	    setenv("daemonarchy.trace.boot_nonce", bt_normal_session.boot_nonce,
+	    1) == 0 ?
+	    "saved" : "saved-handoff-unavailable";
+done:
+	if (root != NULL)
+		(void)root->Close(root);
+	(void)setenv("daemonarchy.trace.capture", outcome, 1);
+	printf("Boot diagnostics: %s%s%s\n", outcome,
+	    completed ? " " : "", completed ? path : "");
+	return (CMD_OK);
+}
+
+
+/* Called before memory-map acquisition, never inside the ExitBootServices
+ * retry loop. No stand filesystem is reopened after device cleanup. */
+void
+boottrace_normal_preexit(void)
+{
+	static char data[BT_NORMAL_SIZE];
+	EFI_FILE_PROTOCOL *root = NULL;
+	EFI_HANDLE handle;
+	EFI_STATUS status;
+	const struct bt_map_ent *entry;
+	struct bt_map_ent stage;
+	const char *enable, *partition, *outcome = "media-unavailable";
+	char identity[BT_NORMAL_ID_MAX], record[1024], path[32];
+	bool writable[BT_NORMAL_SLOTS];
+	size_t length, len;
+	int n, state;
+
+	enable = getenv("daemonarchy.trace.enable");
+	if (!bt_normal_session.ready || bt_normal_session.preexit_completed ||
+	    enable == NULL || strcmp(enable, "YES") != 0)
+		return;
+	root = bt_media_select(&handle, false);
+	if (root == NULL)
+		goto done;
+	outcome = "identity-mismatch";
+	partition = getenv("daemonarchy.trace.partition");
+	if (partition == NULL ||
+	    strcmp(partition, bt_normal_session.partition) != 0 ||
+	    bt_normal_session.slot == 0 ||
+	    bt_normal_session.slot > BT_NORMAL_SLOTS)
+		goto done;
+	n = snprintf(identity, sizeof(identity), BT_NORMAL_ID_TAG
+	    "image_id=%s\narchive_sha256=%s\nmode=observe-only\n",
+	    bt_normal_session.id.image_id,
+	    bt_normal_session.id.archive_sha256);
+	if (n < 0 || (size_t)n >= sizeof(identity))
+		goto done;
+	length = (size_t)n;
+	outcome = bt_normal_admit(handle, root, identity, length, writable);
+	if (outcome != NULL)
+		goto done;
+	outcome = "slot-readonly";
+	if (!writable[bt_normal_session.slot - 1])
+		goto done;
+	snprintf(path, sizeof(path), "\\NORMAL\\%04u.TXT",
+	    bt_normal_session.slot);
+	entry = bt_map_find(&bt_mapv, path);
+	outcome = "slot-read-failed";
+	if (entry == NULL || entry->size != sizeof(data) ||
+	    bt_blk_read(&bt_blkv, entry, data, sizeof(data)) != EFI_SUCCESS)
+		goto done;
+	state = bt_normal_session_preexit_state(data, sizeof(data),
+	    &bt_normal_session.id, partition, bt_normal_session.slot,
+	    bt_normal_session.boot_nonce);
+	outcome = "parent-or-later-region-invalid";
+	if (state < 0)
+		goto done;
+	if (state == 1) {
+		bt_normal_session.preexit_completed = true;
+		outcome = "already-saved";
+		goto done;
+	}
+	len = bt_normal_session_record(record, sizeof(record),
+	    &bt_normal_session.id, partition, bt_normal_session.slot,
+	    BT_NORMAL_STAGE_PREEXIT, bt_normal_session.boot_nonce);
+	outcome = "metadata-invalid";
+	if (len == 0)
+		goto done;
+	/* Derive a bounded subextent of the newly admitted contiguous file.
+	 * Only the second bank may change; retain the parent and future banks. */
+	stage = *entry;
+	stage.off += BT_NORMAL_PREEXIT_OFF;
+	stage.size = BT_NORMAL_STAGE_SIZE;
+	status = bt_blk_write(&bt_blkv, &stage, record, len);
+	outcome = "write-unverified";
+	if (status != EFI_SUCCESS || bt_blkv.verify != DBT_LV_OK ||
+	    !bt_blkv.via_disk)
+		goto done;
+	/* Re-read the complete slot to check the parent and reserved bytes too. */
+	if (bt_blk_read(&bt_blkv, entry, data, sizeof(data)) != EFI_SUCCESS ||
+	    bt_normal_session_preexit_state(data, sizeof(data), &bt_normal_session.id,
+	    partition, bt_normal_session.slot, bt_normal_session.boot_nonce) != 1)
+		goto done;
+	bt_normal_session.preexit_completed = true;
+	outcome = "saved";
+done:
+	if (root != NULL)
+		(void)root->Close(root);
+	/* This diagnostic happens before memory-map acquisition. It does not
+	 * claim that ExitBootServices, kernel entry or an installed OS succeeded. */
+	(void)setenv("daemonarchy.trace.preexit", outcome, 1);
+	printf("Boot diagnostics pre-exit: %s\n", outcome);
 }
 
 /* Write a stick file: raw through the map when possible, else FAT. */

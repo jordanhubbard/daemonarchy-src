@@ -42,4 +42,9 @@ SRCS+=	usb_fdt_support.c ofw_bus_if.h
 
 EXPORT_SYMS=	YES
 
+
+.if ${MACHINE_CPUARCH} == "aarch64"
+SRCS+= opt_bcm2711_dma_test.h
+.endif
+
 .include <bsd.kmod.mk>

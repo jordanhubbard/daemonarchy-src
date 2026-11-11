@@ -1,0 +1,75 @@
+{
+ "search": [
+  "/usr/bin",
+  "/bin",
+  "/usr/sbin",
+  "/sbin",
+  "/usr/local/sbin",
+  "/usr/local/bin"
+ ],
+ "tools": [
+  {
+   "name": "git",
+   "path": "/usr/local/bin/git",
+   "role": "toolchain",
+   "why": "tools/daemonarchy/test_build.py runs bare `git -C` in temp repositories; the bootstrap seed has no git (its selection lists no git). build.py itself also runs `git` for its --revision/clean-checkout check"
+  }
+ ],
+ "trees": [],
+ "ambient": [
+  {
+   "name": "make",
+   "path": "/usr/bin/make",
+   "kind": "file",
+   "why": "build.py native_preflight requires /usr/bin/make by absolute path; make drives buildworld/buildkernel"
+  },
+  {
+   "name": "cc",
+   "path": "/usr/bin/cc",
+   "kind": "file",
+   "why": "build.py native_preflight requires /usr/bin/cc; the world build bootstraps from the host compiler"
+  },
+  {
+   "name": "ld.lld",
+   "path": "/usr/bin/ld.lld",
+   "kind": "file",
+   "why": "host linker used with cc"
+  },
+  {
+   "name": "pkg",
+   "path": "/usr/local/sbin/pkg",
+   "kind": "file",
+   "why": "build.py sets PKG_CMD=/usr/local/sbin/pkg and requires it"
+  },
+  {
+   "name": "sysctl",
+   "path": "/sbin/sysctl",
+   "kind": "file",
+   "why": "build.py native_preflight reads hw.physmem with /sbin/sysctl"
+  },
+  {
+   "name": "atf-sh",
+   "path": "/usr/libexec/atf-sh",
+   "kind": "file",
+   "why": "test_report_kyua.py requires /usr/libexec/atf-sh by absolute path or skips"
+  },
+  {
+   "name": "kyua-host",
+   "path": "/usr/bin/kyua",
+   "kind": "file",
+   "why": "host kyua; the seed carries a copy, which must be byte-identical for the seed to describe the host"
+  },
+  {
+   "name": "git-core-libexec",
+   "path": "/usr/local/libexec/git-core",
+   "kind": "tree",
+   "why": "compiled-in git exec path (git --exec-path); the captured git cannot relocate it"
+  },
+  {
+   "name": "git-core-share",
+   "path": "/usr/local/share/git-core",
+   "kind": "tree",
+   "why": "git templates, compiled-in path"
+  }
+ ]
+}

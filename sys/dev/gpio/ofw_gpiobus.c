@@ -82,7 +82,7 @@ gpio_pin_get_by_ofw_propidx(device_t consumer, phandle_t cnode,
 
 	/* Test if GPIO bus already exist. */
 	busdev = GPIO_GET_BUS(pin.dev);
-	if (busdev == NULL) {
+	if (!gpiobus_ready(busdev)) {
 		OF_prop_free(cells);
 		return (ENODEV);
 	}
@@ -284,6 +284,8 @@ ofw_gpiobus_parse_gpios_impl(device_t consumer, phandle_t cnode, char *pname,
 	pcell_t *gpios;
 	phandle_t gpio;
 
+	if (bussc != NULL && !gpiobus_ready(bussc->sc_busdev))
+		return (-1);
 	ncells = OF_getencprop_alloc_multi(cnode, pname, sizeof(*gpios),
             (void **)&gpios);
 	if (ncells == -1) {
@@ -381,6 +383,8 @@ ofw_gpiobus_parse_gpios_impl(device_t consumer, phandle_t cnode, char *pname,
 				    device_get_nameunit((*pins)[j].dev));
 				goto fail;
 			}
+			if (!gpiobus_ready(GPIO_GET_BUS((*pins)[j].dev)))
+				goto fail;
 			bussc = device_get_softc(GPIO_GET_BUS((*pins)[j].dev));
 		}
 		/* Get the GPIO pin number and flags. */
@@ -420,15 +424,21 @@ ofw_gpiobus_probe(device_t dev)
 static int
 ofw_gpiobus_attach(device_t dev)
 {
+	struct gpiobus_softc *sc;
 	int err;
 	phandle_t child;
 
 	err = gpiobus_init_softc(dev);
 	if (err != 0)
-		return (err);
+		return (gpiobus_attach_failed(dev, err));
 	err = gpiobus_add_gpioc(dev);
 	if (err != 0)
-		return (err);
+		return (gpiobus_attach_failed(dev, err));
+	sc = GPIOBUS_SOFTC(dev);
+	if (sc->sc_deferred_provider) {
+		bus_attach_children(dev);
+		return (0);
+	}
 	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
 	/*

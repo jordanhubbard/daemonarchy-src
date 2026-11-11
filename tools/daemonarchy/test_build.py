@@ -29,7 +29,8 @@ class BuildTests(unittest.TestCase):
             "tools/daemonarchy/src.conf": "WITHOUT_LOCAL_MODULES=yes\n",
             "sys/amd64/conf/GENERIC": "ident GENERIC\n",
             "sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC": "include GENERIC\n",
-            "sys/conf/newvers.sh": 'REVISION="16.0"\n',
+            "sys/arm64/conf/GENERIC": "ident GENERIC\n",
+            "sys/conf/newvers.sh": 'REVISION="16.0"\nBRANCH="CURRENT"\n',
         }.items():
             path = self.source / name
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -52,7 +53,7 @@ class BuildTests(unittest.TestCase):
     def plan(self, **kwargs):
         return build.make_plan(kwargs.get("revision", self.revision), kwargs.get("output", str(self.output)),
                                kwargs.get("profile", "baseline"), kwargs.get("jobs", 2),
-                               kwargs.get("trace_mode", "off"))
+                               kwargs.get("trace_mode", "off"), kwargs.get("target", "amd64"))
 
     def built_fixture(self):
         plan = self.plan()
@@ -93,6 +94,99 @@ class BuildTests(unittest.TestCase):
         for revision in (self.revision[:12], "0" * 40, "main"):
             with self.subTest(revision=revision), self.assertRaises(ValueError):
                 self.plan(revision=revision)
+
+    def test_arm_plan_binds_native_target_config_and_every_phase(self):
+        arm = self.plan(target="arm64")
+        amd = self.plan()
+        self.assertEqual(amd, self.plan(target="amd64"))
+        self.assertNotEqual(arm["identity"], amd["identity"])
+        self.assertEqual((arm["target"], arm["target_arch"]), ("arm64", "aarch64"))
+        self.assertIn("sys/arm64/conf/GENERIC", arm["configurations"])
+        self.assertNotIn("sys/amd64/conf/GENERIC", arm["configurations"])
+        for argv in [*arm["commands"].values(), arm["release_directory_query"]]:
+            self.assertIn("TARGET=arm64", argv)
+            self.assertIn("TARGET_ARCH=aarch64", argv)
+            self.assertNotIn("TARGET=amd64", argv)
+            self.assertIn("NO_ROOT=yes", argv)
+        self.assertFalse(self.output.exists())
+
+    def test_unsupported_target_or_missing_arm_profile_cannot_fall_back(self):
+        with self.assertRaisesRegex(ValueError, "unsupported native target"):
+            self.plan(target="riscv64")
+        with self.assertRaisesRegex(ValueError, "arm64 kernel profile DAEMONARCHY_DIAGNOSTIC"):
+            self.plan(target="arm64", profile="diagnostic")
+
+    def test_native_target_matching_cannot_admit_cross_builds(self):
+        for target, machine, matches in (("amd64", "amd64", True),
+                ("amd64", "x86_64", True), ("amd64", "arm64", False),
+                ("arm64", "arm64", True), ("arm64", "aarch64", True),
+                ("arm64", "amd64", False), ("arm64", "riscv64", False)):
+            with self.subTest(target=target, machine=machine), \
+                    patch.object(build.platform, "system", return_value="FreeBSD"), \
+                    patch.object(build.platform, "machine", return_value=machine), \
+                    patch.object(build.platform, "release", return_value="16.0-CURRENT"), \
+                    patch.object(build.os, "geteuid", return_value=1001), \
+                    patch.object(build.os, "access", return_value=False) as access:
+                message = "required installed tool" if matches else f"native {target} FreeBSD"
+                with self.assertRaisesRegex(ValueError, message):
+                    build.native_preflight(self.parent, 1, 1, target=target)
+                if not matches:
+                    access.assert_not_called()
+
+    def test_native_gate_refuses_wrong_release_before_tools_or_builds(self):
+        for target, machine in (("amd64", "amd64"), ("arm64", "arm64")):
+            for release in ("15.0-RELEASE", "16.0-RELEASE", "16.0-STABLE",
+                            "17.0-CURRENT", "unknown", "16.0-CURRENT-invalid"):
+                with self.subTest(target=target, release=release), \
+                        patch.object(build.platform, "system", return_value="FreeBSD"), \
+                        patch.object(build.platform, "machine", return_value=machine), \
+                        patch.object(build.platform, "release", return_value=release), \
+                        patch.object(build.os, "geteuid", return_value=1001), \
+                        patch.object(build.os, "access") as access, \
+                        patch.object(build.subprocess, "Popen") as execute:
+                    with self.assertRaisesRegex(ValueError, "native 16.0-CURRENT"):
+                        build.native_preflight(self.parent, 1, 80, target=target)
+                    access.assert_not_called()
+                    execute.assert_not_called()
+                    self.assertFalse(self.output.exists())
+
+    def test_matching_current_release_still_checks_all_worker_resources(self):
+        for target, machine in (("amd64", "amd64"), ("arm64", "arm64")):
+            with self.subTest(target=target), \
+                    patch.object(build.platform, "system", return_value="FreeBSD"), \
+                    patch.object(build.platform, "machine", return_value=machine), \
+                    patch.object(build.platform, "release", return_value="16.0-CURRENT"), \
+                    patch.object(build.os, "geteuid", return_value=1001), \
+                    patch.object(build.os, "access", return_value=True) as access, \
+                    patch.object(build.os, "cpu_count", return_value=4), \
+                    patch.object(build.shutil, "disk_usage") as disk, \
+                    patch.object(build.subprocess, "check_output",
+                                 side_effect=["2097152", "0", "4096"]) as probe, \
+                    patch.object(build.subprocess, "Popen") as execute:
+                disk.return_value.free = 100 * 1024**3
+                build.native_preflight(self.parent, 4, 80, target=target)
+                self.assertEqual(access.call_count, 3)
+                self.assertEqual(disk.call_count, 2)
+                self.assertEqual(probe.call_count, 3)
+                execute.assert_not_called()
+                self.assertFalse(self.output.exists())
+
+    def test_noncurrent_source_is_not_admitted_as_current(self):
+        (self.source / "sys/conf/newvers.sh").write_text('REVISION="16.0"\nBRANCH="STABLE"\n')
+        with patch.object(build.platform, "system", return_value="FreeBSD"), \
+                patch.object(build.platform, "machine", return_value="amd64"), \
+                patch.object(build.os, "geteuid", return_value=1001), \
+                patch.object(build.os, "access") as access:
+            with self.assertRaisesRegex(ValueError, "source must declare a CURRENT"):
+                build.native_preflight(self.parent, 1, 80)
+            access.assert_not_called()
+
+    def test_arm_native_gate_keeps_unprivileged_requirement(self):
+        with patch.object(build.platform, "system", return_value="FreeBSD"), \
+                patch.object(build.platform, "machine", return_value="arm64"), \
+                patch.object(build.os, "geteuid", return_value=0):
+            with self.assertRaisesRegex(ValueError, "unprivileged"):
+                build.native_preflight(self.parent, 1, 1, target="arm64")
 
     def test_source_mutation_and_untracked_inputs_refused(self):
         path = self.source / "sys/conf/newvers.sh"
@@ -168,6 +262,49 @@ class BuildTests(unittest.TestCase):
         build.write_json(self.output / "plan.json", plan)
         with self.assertRaisesRegex(ValueError, "identity"):
             build.verify(self.output)
+
+    def test_resume_preserves_unrecorded_crash_logs_and_occupied_names(self):
+        plan, state = self.built_fixture()
+        logs = self.output / "logs"
+        logs.mkdir()
+        previous = []
+        for attempt in (1, 2):
+            path = logs / f"buildworld-{attempt}.log"
+            path.write_text("previous controlled failed attempt\n")
+            previous.append({"name": "buildworld", "exit": 7,
+                             "log": str(path.relative_to(self.output)),
+                             "log_sha256": build.digest(path)})
+        state.update(status="running", active_phase="buildworld", phases=previous)
+        build.write_json(self.output / "result.json", state)
+        orphan = logs / "buildworld-3.log"
+        orphan.write_bytes(b"interrupted phase output\n")
+        missing = self.parent / "missing-log-target"
+        occupied = logs / "buildworld-4.log"
+        occupied.symlink_to(missing)
+        (logs / "buildkernel-99.log").write_text("unrelated phase\n")
+        original_command = build.run_command
+
+        def controlled_command(argv, env, log, timeout):
+            return original_command(
+                [sys.executable, "-c",
+                 "print('synthetic resumed phase'); raise SystemExit(7)"],
+                env, log, timeout)
+
+        args = type("Args", (), {"resume": True, "jobs": 2,
+                                 "minimum_free_gib": 0, "phase_timeout": 10})()
+        with patch.object(build, "native_preflight"), \
+                patch.object(build, "run_command", side_effect=controlled_command):
+            with self.assertRaisesRegex(ValueError, "buildworld failed"):
+                build.run(plan, args)
+        self.assertEqual(orphan.read_bytes(), b"interrupted phase output\n")
+        self.assertTrue(occupied.is_symlink())
+        self.assertFalse(missing.exists())
+        result = json.loads((self.output / "result.json").read_text())
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(result["phases"][-1]["exit"], 7)
+        self.assertEqual(result["phases"][-1]["log"], "logs/buildworld-5.log")
+        self.assertIn("synthetic resumed phase",
+                      (logs / "buildworld-5.log").read_text())
 
     def test_resume_cannot_rebind_an_existing_build(self):
         plan, _ = self.built_fixture()
@@ -325,6 +462,7 @@ class BuildTests(unittest.TestCase):
     def test_trace_preflight_requires_existing_device_without_worker_mutation(self):
         with patch.object(build.platform, "system", return_value="FreeBSD"), \
                 patch.object(build.platform, "machine", return_value="amd64"), \
+                patch.object(build.platform, "release", return_value="16.0-CURRENT"), \
                 patch.object(build.os, "geteuid", return_value=1001), \
                 patch.object(build.os, "access", return_value=False), \
                 patch.object(build.subprocess, "check_output") as process:
@@ -406,6 +544,130 @@ class BuildTests(unittest.TestCase):
                 self.assertNotIn(f"usr/{tree}/external-link/must-not-follow", members)
                 self.assertIn(f"usr/{tree}/real.c", members)
                 self.assertTrue(all(m.uid == 0 and m.gid == 0 for m in members.values()))
+
+
+class SnapshotTests(unittest.TestCase):
+    """Source without .git: identity pinned by the raw commit object, content checked against its tree."""
+
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.parent = Path(self.temporary.name).resolve()
+        repo = self.parent / "repo"
+        repo.mkdir()
+        for name, content in {
+            "tools/daemonarchy/build.py": "# controller\n",
+            "tools/daemonarchy/src.conf": "WITHOUT_LOCAL_MODULES=yes\n",
+            "sys/amd64/conf/GENERIC": "ident GENERIC\n",
+            "sys/conf/newvers.sh": 'REVISION="16.0"\n',
+            "bin/run.sh": "#!/bin/sh\n",
+        }.items():
+            path = repo / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content)
+        (repo / "bin/run.sh").chmod(0o755)
+        (repo / "bin/link").symlink_to("run.sh")
+        (repo / "empty").mkdir()
+        self.git_in = lambda *a: subprocess.check_output(["git", "-C", str(repo), *a], text=True).strip()
+        self.git_in("init", "-q")
+        self.git_in("config", "user.email", "test@example.invalid")
+        self.git_in("config", "user.name", "Test")
+        self.git_in("add", ".")
+        self.git_in("commit", "-qm", "fixture")
+        self.revision = self.git_in("rev-parse", "HEAD")
+        self.commit = self.parent / "commit.obj"
+        self.commit.write_bytes(subprocess.check_output(["git", "-C", str(repo), "cat-file", "commit", "HEAD"]))
+        self.source = self.parent / "snap"
+        subprocess.check_call(["git", "-C", str(repo), "checkout-index", "-a", "--prefix", str(self.source) + "/"])
+        self.output = self.parent / "output"
+        self.upstream = "1" * 40
+        self.args = build.argparse.Namespace(snapshot_commit=str(self.commit),
+                                             snapshot_upstream_base=self.upstream, snapshot_exclude=None)
+        patcher = patch.object(build, "SOURCE", self.source)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.addCleanup(lambda: setattr(build, "SNAPSHOT", None))
+
+    def plan(self, **kwargs):
+        return build.make_plan(kwargs.get("revision", self.revision), str(self.output), "baseline", 2, "off")
+
+    def pin(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self.args, key, value)
+        build.SNAPSHOT = build.load_snapshot(self.args)
+
+    def test_snapshot_plans_with_pinned_identity(self):
+        self.pin()
+        plan = self.plan()
+        self.assertEqual(plan["source_revision"], self.revision)
+        self.assertEqual(plan["source_tree"], self.git_in("rev-parse", "HEAD^{tree}"))
+        self.assertEqual(plan["upstream_base"], self.upstream)
+        self.assertEqual(plan["environment"]["SOURCE_DATE_EPOCH"], self.git_in("show", "-s", "--format=%ct"))
+
+    def test_tree_computation_matches_git(self):
+        self.assertEqual(build.snapshot_tree(self.source, []).hex(), self.git_in("rev-parse", "HEAD^{tree}"))
+
+    def test_wrong_revision_refused(self):
+        self.pin()
+        with self.assertRaisesRegex(ValueError, "does not match"):
+            self.plan(revision="0" * 40)
+
+    def test_modified_added_deleted_or_mode_changed_refused(self):
+        self.pin()
+        target = self.source / "sys/conf/newvers.sh"
+        original = target.read_text()
+        for mutate, restore in (
+            (lambda: target.write_text(original + "#\n"), lambda: target.write_text(original)),
+            (lambda: (self.source / "extra").write_text("x"), lambda: (self.source / "extra").unlink()),
+            (lambda: target.unlink(), lambda: target.write_text(original)),
+            (lambda: (self.source / "bin/run.sh").chmod(0o644), lambda: (self.source / "bin/run.sh").chmod(0o755)),
+        ):
+            mutate()
+            with self.assertRaisesRegex(ValueError, "pinned commit tree"):
+                self.plan()
+            restore()
+        self.plan()
+
+    def test_exclude_allows_declared_extras_only(self):
+        (self.source / "closure").mkdir()
+        (self.source / "closure/lib").write_text("x")
+        self.pin()
+        with self.assertRaisesRegex(ValueError, "pinned commit tree"):
+            self.plan()
+        self.pin(snapshot_exclude=["closure"])
+        self.assertEqual(self.plan()["source_snapshot"]["excludes"], ["closure"])
+        (self.source / "other").write_text("x")
+        with self.assertRaisesRegex(ValueError, "pinned commit tree"):
+            self.plan()
+
+    def test_unsafe_options_refused(self):
+        for exclude in (["tools"], ["tools/daemonarchy/build.py"], ["/abs"], ["../x"], ["a/../b"], ["a/"]):
+            with self.subTest(exclude=exclude), self.assertRaises(ValueError):
+                self.pin(snapshot_exclude=exclude)
+        self.args.snapshot_exclude = None
+        self.pin(snapshot_exclude=None)
+        with self.assertRaises(ValueError):
+            self.pin(snapshot_upstream_base="main")
+        self.args.snapshot_upstream_base = self.upstream
+        bad = self.parent / "bad.obj"
+        bad.write_bytes(b"not a commit")
+        with self.assertRaises(ValueError):
+            self.pin(snapshot_commit=str(bad))
+
+    def test_no_identity_without_git_refused(self):
+        build.SNAPSHOT = None
+        with self.assertRaisesRegex(ValueError, "no .git"):
+            self.plan()
+        self.args.snapshot_commit = None
+        with self.assertRaisesRegex(ValueError, "--snapshot-commit"):
+            build.load_snapshot(self.args)
+
+    def test_snapshot_options_refused_when_git_present(self):
+        (self.source / ".git").mkdir()
+        with self.assertRaisesRegex(ValueError, "without .git"):
+            build.load_snapshot(self.args)
+        self.args.snapshot_commit = self.args.snapshot_upstream_base = None
+        self.assertIsNone(build.load_snapshot(self.args))
 
 
 if __name__ == "__main__":

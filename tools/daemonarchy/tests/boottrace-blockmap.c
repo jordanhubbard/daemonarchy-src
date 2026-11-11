@@ -282,6 +282,40 @@ test_lost_writes(void)
 	puts("ok lost writes");
 }
 
+
+/* A later checkpoint is a subextent of an existing 16 KiB file. Exercise
+ * logical 512/4096-byte media and file offsets on either half of a 4 KiB block. */
+static void
+test_checkpoint_bank(uint32_t bs, uint64_t misalign)
+{
+	struct bt_map m;
+	struct bt_blk b = {0};
+	struct bt_map_ent e = {0};
+	char why[96], before[16384], got[16384];
+	uint64_t at;
+
+	setup(bs, 2048 * 512);
+	load(&m, 2048);
+	b.part = &part; b.disk = &whole;
+	b.disk_lba0 = PART_LBA * 512 / bs;
+	assert(bt_blk_check(&b, &m, why, sizeof(why)) == EFI_SUCCESS);
+	e.off = 65536 + misalign;
+	e.size = sizeof(before);
+	at = PART_LBA * 512 + e.off;
+	memset(disk + at, 'P', sizeof(before));
+	memcpy(before, disk + at, sizeof(before));
+	e.off += 4096; e.size = 4096;
+	assert(bt_blk_write(&b, &e, "pre-exit\n", 9) == EFI_SUCCESS);
+	assert(b.verify == DBT_LV_OK && b.via_disk);
+	assert(memcmp(before, disk + at, 4096) == 0);
+	assert(memcmp(before + 8192, disk + at + 8192, 8192) == 0);
+	assert(disk[at - 1] == '#' && disk[at + sizeof(before)] == '#');
+	assert(bt_blk_read(&b, &e, got, sizeof(got)) == EFI_SUCCESS);
+	assert(memcmp(got, "pre-exit\n", 9) == 0);
+	printf("ok checkpoint bank bs=%u misalign=%ju\n", bs,
+	    (uintmax_t)misalign);
+}
+
 int
 main(void)
 {
@@ -291,6 +325,10 @@ main(void)
 	test_write(512, 0);
 	test_write(4096, 1);
 	test_lost_writes();
+	test_checkpoint_bank(512, 0);
+	test_checkpoint_bank(512, 2048);
+	test_checkpoint_bank(4096, 0);
+	test_checkpoint_bank(4096, 2048);
 	puts("boottrace block map: all checks passed");
 	return (0);
 }

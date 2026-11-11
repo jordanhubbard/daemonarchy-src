@@ -1,0 +1,15 @@
+{
+  "dtb_sha256": "400b2da08abb8fd0ffd65085d1e0e1e6c6d01cadd27385403ea3a3fd5a1537f4",
+  "controller": "/soc@107c000000/gpio@7d517c00",
+  "children": [
+    {
+      "name": "rp1_run_hog",
+      "properties": {
+        "gpio-hog": [],
+        "gpios": [2, 0],
+        "output-high": [],
+        "line-name": "RP1 RUN pin"
+      }
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "schema": "daemonarchy/normal-v4-producer-checkpoint@1",
+  "source_parent": "c2e7df76ece",
+  "source_sha256": {
+    "stand/efi/loader/boottrace.c": "58e893ae9fa19f29be2f9fce69651f105bc0b37f6bcd6f667df568b9b639fbd3",
+    "stand/efi/loader/boottrace_normal.c": "71ecbd7e75388ce5a0cfa176798575d1d495a3a26eef545c3d56395354655d21",
+    "stand/efi/loader/boottrace_normal.h": "e8c59dda7fb7b4bd2d6574f7a789ceefb3366a169f56fb8a4a61851a02cc1738",
+    "tools/daemonarchy/tests/boottrace-normal.c": "c1c8915a47c9505ad708b379717fb0b84ac6096b7625a06672c9e3b0972fa0ec"
+  },
+  "reader": {
+    "product_commit": "06fc2315",
+    "sha256": "fbf42dbfbc45ab08b5dd56b2e6127c2e7774b608a1b5d088d84238d92bb26e82"
+  },
+  "controls": {
+    "linux_asan_ubsan": {
+      "normal_policy": 44,
+      "fat_extents": 19
+    },
+    "native_freebsd_arm64_asan_ubsan": {
+      "normal_policy": 44,
+      "fat_extents": 19,
+      "log_sha256": "9966f902f544915af38a82fb37b2ad3bec119cafdee1bb396049c9db4589b49d"
+    },
+    "cross_language": {
+      "actual_production_c_encoder": true,
+      "linux_and_native_fixture_bytes_equal": true,
+      "slot_sha256": "7b9ebef661538ab3049aafa55241425c508a61713d676017d0dac5560f30aa07",
+      "decoded_schema": "daemonarchy/normal-boot-trace@4",
+      "loader_ready": true,
+      "pre_exit": true,
+      "init": "not-recorded",
+      "installer": "not-recorded"
+    }
+  },
+  "retained_failure": {
+    "first_native_test_refused": "Object directory was inside the exported source; corrected to fresh external objects without weakening the guard.",
+    "log_sha256": "abd13c212b5269bf35a55582ac6c733a1fcf6898ca0465dfe773d55982c7b76c"
+  },
+  "limits": [
+    "Sanitized native policy/format controls do not establish EFI execution.",
+    "The producer still records only loader-ready and pre-exit; init/installer bank writers and safe native medium selection remain open.",
+    "A matching v4 reader is required. Legacy v1/v2/v3 API encoders retain their formats.",
+    "Whole-image boot, kernel/init/installer capture, power-loss and release acceptance remain open."
+  ],
+  "qualification": {
+    "native_c_policy": true,
+    "cross_language_format": true,
+    "efi_execution": false,
+    "automatic_userspace_capture": false,
+    "release": false
+  }
+}
