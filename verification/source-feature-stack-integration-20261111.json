@@ -1,0 +1,61 @@
+{
+  "schema": "daemonarchy/source-feature-stack-integration@1",
+  "observed_utc": "2026-11-11T04:11:38.905638+00:00",
+  "upstream": "2af08ab3f125ce5988a641c32c777afc52f917e1",
+  "integration_parent": "5f4ba1ae2fe071a6a04f663e412e4d548b561a45",
+  "feature_head": "31ec5babf638de96cf6568c9e8e01de4bd64f015",
+  "merge_commit": "d729df961a8f9ab26a9608ac79904382d42c022f",
+  "code_tree": "f24d82ca01ab3991159e9482da2e618a5edf6982",
+  "conflict_resolution": "Retain trace and Pi5 controls, stand hashes and verified AnyVM bootstrap; renew authority review after integration.",
+  "portable_policy_controls": [
+    {
+      "name": "BCM2712 bootstrap CFG and clock policy (not controller acceptance)",
+      "exit": 0
+    },
+    {
+      "name": "Checked FDT pinctrl faults (not native provider acceptance)",
+      "exit": 0
+    },
+    {
+      "name": "BCM2712 GPIO MMIO and provider faults (not hardware acceptance)",
+      "exit": 0
+    },
+    {
+      "name": "BCM STB reset and calibration faults (not hardware acceptance)",
+      "exit": 0
+    },
+    {
+      "name": "BCM2712 MIP and checked GIC ownership (not hardware acceptance)",
+      "exit": 0
+    },
+    {
+      "name": "BCM2712 DMA policy and RAM backend (not native DMA acceptance)",
+      "exit": 0
+    },
+    {
+      "name": "ARM64 direct-map lookup (not native MMU acceptance)",
+      "exit": 0
+    },
+    {
+      "name": "PL011 finite receive overflow (not hardware latency acceptance)",
+      "exit": 0
+    },
+    {
+      "name": "GPIO regulator producer lifetime (not native concurrency acceptance)",
+      "exit": 0
+    },
+    {
+      "name": "ACPI USB DMA aperture and lifetime (not controller acceptance)",
+      "exit": 0
+    }
+  ],
+  "compiler": "Ubuntu clang version 18.1.3 (1ubuntu1)",
+  "controller_groups": 136,
+  "controller_passed": 131,
+  "controller_skipped": 5,
+  "controller_log_sha256": "6bbdea9b41bfb06aa735b1f096f9f49b337bd170afd65cc614bf627eadfefe8e",
+  "initial_compiler_failure": "Local default clang23-trunk emitted a host GCC-search warning under -Werror before compilation; retained logs. The configured stable system clang18 controls pass without suppressing diagnostics.",
+  "native_kernel_rebuilt": false,
+  "hardware_qualified": false,
+  "canonical_lifecycle_receipt": false
+}
