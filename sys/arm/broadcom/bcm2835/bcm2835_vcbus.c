@@ -179,7 +179,7 @@ static struct bcm283x_memory_soc_cfg {
 static struct bcm283x_memory_soc_cfg *booted_soc_memcfg;
 
 static struct bcm283x_memory_soc_cfg *
-bcm283x_get_current_memcfg(void)
+bcm283x_find_current_memcfg(void)
 {
 	phandle_t root;
 	int i;
@@ -193,14 +193,32 @@ bcm283x_get_current_memcfg(void)
 
 	root = OF_finddevice("/");
 	for (i = 0; i < nitems(bcm283x_memory_configs); ++i) {
-		booted_soc_memcfg = &bcm283x_memory_configs[i];
 		if (bootverbose)
 			printf("Checking root against %s\n",
-			    booted_soc_memcfg->soc_compat);
+			    bcm283x_memory_configs[i].soc_compat);
 		if (ofw_bus_node_is_compatible(root,
-		    booted_soc_memcfg->soc_compat))
+		    bcm283x_memory_configs[i].soc_compat)) {
+			booted_soc_memcfg = &bcm283x_memory_configs[i];
 			return (booted_soc_memcfg);
+		}
 	}
+	return (NULL);
+}
+
+bool
+bcm283x_vcbus_is_supported(void)
+{
+	return (bcm283x_find_current_memcfg() != NULL);
+}
+
+static struct bcm283x_memory_soc_cfg *
+bcm283x_get_current_memcfg(void)
+{
+	struct bcm283x_memory_soc_cfg *cfg;
+
+	cfg = bcm283x_find_current_memcfg();
+	if (cfg != NULL)
+		return (cfg);
 
 	/*
 	 * The kernel doesn't fit the board; we can't really make a reasonable

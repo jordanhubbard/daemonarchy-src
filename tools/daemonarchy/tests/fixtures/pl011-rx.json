@@ -1,0 +1,199 @@
+{
+  "scope": "independently presealed finite ring vectors; no physical UART guarantee",
+  "baseline_full_source_sha256": "9942a9bfbf105e844fac0081fdfd0938bc48b2a7798ad1d89cf3962773dfb686",
+  "baseline_fixture_sha256": "6145a3ab839bbc0ef8b422a0c11a13444fdf2fe051f8b45cdb42b37313b69afd",
+  "vectors": [
+    {
+      "name": "empty_ring_burst_0",
+      "ring_size": 384,
+      "initial_get": 0,
+      "initial_put": 0,
+      "initial_queued": 0,
+      "finite_input_bytes": 0,
+      "expected_queued_after": 0,
+      "expected_new_prefix_indices": [
+        0,
+        0
+      ],
+      "expected_discarded": 0,
+      "expected_hardware_fifo_empty": true,
+      "expected_rx_irq_quiescent": true,
+      "expected_driver_return": 0,
+      "expected_put": 0,
+      "overrun_sentinel_write": false,
+      "scope": "FIFOrefillsfromfinitehostbacklogwhileDRread; noSWIconsumptionduringhardfilter"
+    },
+    {
+      "name": "empty_ring_burst_1",
+      "ring_size": 384,
+      "initial_get": 0,
+      "initial_put": 0,
+      "initial_queued": 0,
+      "finite_input_bytes": 1,
+      "expected_queued_after": 1,
+      "expected_new_prefix_indices": [
+        0,
+        1
+      ],
+      "expected_discarded": 0,
+      "expected_hardware_fifo_empty": true,
+      "expected_rx_irq_quiescent": true,
+      "expected_driver_return": 0,
+      "expected_put": 1,
+      "overrun_sentinel_write": false,
+      "scope": "FIFOrefillsfromfinitehostbacklogwhileDRread; noSWIconsumptionduringhardfilter"
+    },
+    {
+      "name": "empty_ring_burst_382",
+      "ring_size": 384,
+      "initial_get": 0,
+      "initial_put": 0,
+      "initial_queued": 0,
+      "finite_input_bytes": 382,
+      "expected_queued_after": 382,
+      "expected_new_prefix_indices": [
+        0,
+        382
+      ],
+      "expected_discarded": 0,
+      "expected_hardware_fifo_empty": true,
+      "expected_rx_irq_quiescent": true,
+      "expected_driver_return": 0,
+      "expected_put": 382,
+      "overrun_sentinel_write": false,
+      "scope": "FIFOrefillsfromfinitehostbacklogwhileDRread; noSWIconsumptionduringhardfilter"
+    },
+    {
+      "name": "empty_ring_burst_383",
+      "ring_size": 384,
+      "initial_get": 0,
+      "initial_put": 0,
+      "initial_queued": 0,
+      "finite_input_bytes": 383,
+      "expected_queued_after": 383,
+      "expected_new_prefix_indices": [
+        0,
+        383
+      ],
+      "expected_discarded": 0,
+      "expected_hardware_fifo_empty": true,
+      "expected_rx_irq_quiescent": true,
+      "expected_driver_return": 0,
+      "expected_put": 383,
+      "overrun_sentinel_write": false,
+      "scope": "FIFOrefillsfromfinitehostbacklogwhileDRread; noSWIconsumptionduringhardfilter"
+    },
+    {
+      "name": "empty_ring_burst_384",
+      "ring_size": 384,
+      "initial_get": 0,
+      "initial_put": 0,
+      "initial_queued": 0,
+      "finite_input_bytes": 384,
+      "expected_queued_after": 383,
+      "expected_new_prefix_indices": [
+        0,
+        383
+      ],
+      "expected_discarded": 1,
+      "expected_hardware_fifo_empty": true,
+      "expected_rx_irq_quiescent": true,
+      "expected_driver_return": 0,
+      "expected_put": 383,
+      "overrun_sentinel_write": true,
+      "scope": "FIFOrefillsfromfinitehostbacklogwhileDRread; noSWIconsumptionduringhardfilter"
+    },
+    {
+      "name": "empty_ring_burst_450",
+      "ring_size": 384,
+      "initial_get": 0,
+      "initial_put": 0,
+      "initial_queued": 0,
+      "finite_input_bytes": 450,
+      "expected_queued_after": 383,
+      "expected_new_prefix_indices": [
+        0,
+        383
+      ],
+      "expected_discarded": 67,
+      "expected_hardware_fifo_empty": true,
+      "expected_rx_irq_quiescent": true,
+      "expected_driver_return": 0,
+      "expected_put": 383,
+      "overrun_sentinel_write": true,
+      "scope": "FIFOrefillsfromfinitehostbacklogwhileDRread; noSWIconsumptionduringhardfilter"
+    },
+    {
+      "name": "empty_ring_burst_4096",
+      "ring_size": 384,
+      "initial_get": 0,
+      "initial_put": 0,
+      "initial_queued": 0,
+      "finite_input_bytes": 4096,
+      "expected_queued_after": 383,
+      "expected_new_prefix_indices": [
+        0,
+        383
+      ],
+      "expected_discarded": 3713,
+      "expected_hardware_fifo_empty": true,
+      "expected_rx_irq_quiescent": true,
+      "expected_driver_return": 0,
+      "expected_put": 383,
+      "overrun_sentinel_write": true,
+      "scope": "FIFOrefillsfromfinitehostbacklogwhileDRread; noSWIconsumptionduringhardfilter"
+    },
+    {
+      "name": "already_full",
+      "ring_size": 384,
+      "initial_get": 0,
+      "initial_put": 383,
+      "initial_queued": 383,
+      "finite_input_bytes": 67,
+      "expected_queued_after": 383,
+      "expected_put": 383,
+      "expected_discarded": 67,
+      "expected_hardware_fifo_empty": true,
+      "expected_rx_irq_quiescent": true,
+      "expected_queued_prefix_unchanged": true,
+      "overrun_sentinel_write": true
+    },
+    {
+      "name": "rotated_ring_wrap",
+      "ring_size": 8,
+      "initial_get": 6,
+      "initial_put": 0,
+      "initial_queued": 2,
+      "finite_input_bytes": 6,
+      "expected_queued_after": 7,
+      "expected_put": 5,
+      "expected_discarded": 1,
+      "expected_order": [
+        "old0",
+        "old1",
+        "new0",
+        "new1",
+        "new2",
+        "new3",
+        "new4"
+      ],
+      "expected_hardware_fifo_empty": true,
+      "expected_rx_irq_quiescent": true,
+      "overrun_sentinel_write": true
+    },
+    {
+      "name": "small_ring",
+      "ring_size": 4,
+      "initial_get": 0,
+      "initial_put": 0,
+      "initial_queued": 0,
+      "finite_input_bytes": 5,
+      "expected_queued_after": 3,
+      "expected_put": 3,
+      "expected_discarded": 2,
+      "expected_hardware_fifo_empty": true,
+      "expected_rx_irq_quiescent": true,
+      "overrun_sentinel_write": true
+    }
+  ]
+}

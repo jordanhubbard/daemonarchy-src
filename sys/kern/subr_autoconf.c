@@ -44,6 +44,7 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/systm.h>
+#include <sys/daemonarchy_boottrace.h>
 
 /*
  * Autoconfiguration subroutines.
@@ -137,6 +138,7 @@ run_interrupt_driven_config_hooks(void)
 		next_to_notify = STAILQ_NEXT(hook_entry, ich_links);
 		hook_entry->ich_state = ICHS_RUNNING;
 		mtx_unlock(&intr_config_hook_lock);
+		DBT_HOOK((void *)hook_entry->ich_func);
 		(*hook_entry->ich_func)(hook_entry->ich_arg);
 		mtx_lock(&intr_config_hook_lock);
 	}

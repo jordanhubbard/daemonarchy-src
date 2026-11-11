@@ -5,7 +5,7 @@ set -eu
 test "$(uname -s)" = FreeBSD
 test "$(uname -m)" = amd64
 out=$PWD/_build/earlynet-native
-mkdir -p "$out/lua"
+mkdir -p "$out/lua" "$out/bios"
 uname -a > "$out/worker.txt"
 test -s "$out/source-commit.txt"
 test -s "$out/source-tree.txt"
@@ -15,6 +15,17 @@ done < "$out/feature-inputs.sha256"
 df -k . /var/tmp
 sysctl hw.physmem
 test "$(df -k /var/tmp | awk 'NR==2 {print $4}')" -ge 4194304
+sh tools/daemonarchy/tests/run-boottrace-media.sh "$PWD" \
+    "$(mktemp -d /var/tmp/trace-media-parser.XXXXXXXX)" > "$out/trace-media.stdout"
+sh tools/daemonarchy/tests/run-boottrace-normal.sh "$PWD" \
+    "$(mktemp -d /var/tmp/normal-trace-policy.XXXXXXXX)" > "$out/normal-trace.stdout"
+# Exercise the production EFI handoff before building the standalone loader.
+# The callback must run once before the memory-map/ExitBootServices window.
+sh tools/daemonarchy/tests/run-efi-bootinfo.sh "$PWD" \
+    "$(mktemp -d /var/tmp/preexit-bootinfo.XXXXXXXX)" > "$out/bootinfo.stdout"
+sh tools/daemonarchy/tests/run-efi-bootinfo.sh "$PWD" \
+    "$(mktemp -d /var/tmp/preexit-bootinfo-sanitize.XXXXXXXX)" sanitize \
+    > "$out/bootinfo-sanitize.stdout"
 cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
     -fno-omit-frame-pointer -Istand/efi/loader \
     stand/efi/loader/netconsole_undi.c tools/daemonarchy/tests/netconsole-undi.c \
@@ -32,15 +43,46 @@ ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 \
     UBSAN_OPTIONS=halt_on_error=1 /var/tmp/earlynet-usb-report > "$out/report.stdout"
 /usr/libexec/flua tools/daemonarchy/tests/loader-debug-setup.lua "$PWD" \
     > "$out/setup.stdout"
+/usr/libexec/flua tools/daemonarchy/tests/loader-staged-lua.lua "$PWD" \
+    > "$out/staged-lua.stdout"
+/usr/libexec/flua tools/daemonarchy/tests/loader-normal-trace.lua "$PWD" \
+    > "$out/normal-trace-lua.stdout"
+# The early kernel transport builds as a module with the same sources the
+# DAEMONARCHY_DIAGNOSTIC kernel compiles; this is a compile check, not a boot.
+module_objects=$(mktemp -d /var/tmp/earlynet-module-objects.XXXXXXXX)
+if MAKEOBJDIRPREFIX=$module_objects make -C sys/modules/daemonarchy_earlynet \
+    SYSDIR="$PWD/sys" obj all > "$out/module.log" 2>&1; then
+    module_obj=$(MAKEOBJDIRPREFIX=$module_objects make -C sys/modules/daemonarchy_earlynet \
+        SYSDIR="$PWD/sys" -V .OBJDIR)
+    sha256 "$module_obj/daemonarchy_earlynet.ko" > "$out/module.sha256"
+else
+    tail -80 "$out/module.log"
+    exit 1
+fi
+# Keep feature selection local to each native Makefile. EFI and BIOS loaders
+# default to network support; a global override also enables it in boot blocks
+# whose libsa consumers deliberately lack the full network implementation.
 MAKEOBJDIRPREFIX=$(mktemp -d /var/tmp/earlynet-loader-objects.XXXXXXXX)
 export MAKEOBJDIRPREFIX
-make -C stand -j2 NO_ROOT=yes WITHOUT_LOADER_BIOS=yes LOADER_NET_SUPPORT=yes obj \
+make -C stand -j2 NO_ROOT=yes WITH_LOADER_BIOS=yes __MAKE_CONF=/dev/null SRCCONF=/dev/null obj \
     > "$out/obj.log" 2>&1
-if make -C stand -j2 NO_ROOT=yes WITHOUT_LOADER_BIOS=yes LOADER_NET_SUPPORT=yes all \
+if make -C stand -j2 NO_ROOT=yes WITH_LOADER_BIOS=yes __MAKE_CONF=/dev/null SRCCONF=/dev/null all \
     > "$out/build.log" 2>&1; then
-    loader_obj=$(make -C stand/efi/loader_lua -V .OBJDIR)
+    loader_obj=$(make -C stand/efi/loader_lua __MAKE_CONF=/dev/null SRCCONF=/dev/null -V .OBJDIR)
     cp "$loader_obj/loader_lua.efi" "$out/loader.efi"
     cp stand/lua/*.lua "$out/lua/"
+    # Retain all legacy BIOS entry points from the same native stand build.
+    # These are compile products; a firmware boot must qualify them separately.
+    for pair in loader_lua:loader cdboot:cdboot isoboot:isoboot pmbr:pmbr; do
+        directory=${pair%%:*}
+        destination=${pair#*:}
+        bios_obj=$(make -C "stand/i386/$directory" __MAKE_CONF=/dev/null SRCCONF=/dev/null -V .OBJDIR)
+        input=$directory
+        test -s "$bios_obj/$input"
+        cp "$bios_obj/$input" "$out/bios/$destination"
+    done
+    file "$out/bios/"* > "$out/bios/FILE"
+    sha256 "$out/bios/loader" "$out/bios/cdboot" "$out/bios/isoboot" "$out/bios/pmbr" > "$out/bios/SHA256"
     sha256 "$out/loader.efi" "$out"/lua/*.lua > "$out/SHA256"
     # A separate bring-up medium exposes firmware capability without
     # requiring the failing kernel to start or altering the 1.3 installer.

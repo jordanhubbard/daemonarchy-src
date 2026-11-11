@@ -1,0 +1,12 @@
+{
+  "status": "requested-not-active",
+  "reason": "Installed ProjectDefinition schema does not expose scale_limits; apply only through a validated framework contract, not an ignored project field.",
+  "requested_limits": {
+    "schema": "literate-ai/project-scale-limits@1",
+    "pinned_input_files": 500000,
+    "pinned_input_total_bytes": 4294967296,
+    "catalog_files": 250000,
+    "catalog_entries": 1000000,
+    "catalog_total_bytes": 4294967296
+  }
+}

@@ -28,7 +28,7 @@ static struct preloaded_file kernel;
 static struct { struct file_metadata header; uint8_t space[16]; } end_metadata;
 static uint8_t map_buffer[EFI_PAGE_SIZE * 4] __aligned(16);
 static unsigned map_calls, exit_calls, alloc_calls, free_calls, module_calls;
-static unsigned metadata_calls, map_metadata, vmap_calls;
+static unsigned metadata_calls, map_metadata, vmap_calls, preexit_calls;
 static bool critical_window, allocation_live, want_exit, quiescence_failure;
 enum scenario { QUERY_FAIL, ALLOC_FAIL, MAP_FAIL, EXIT_FAIL, RETRY_OK, OK };
 static enum scenario scenario;
@@ -54,6 +54,14 @@ int boot_parse_cmdline(char *args) { (void)args; return (0); }
 int boot_env_to_howto(void) { return (0); }
 int efinet_console_handoff_check(void) { return (quiescence_failure ? EIO : 0); }
 void netconsole_handoff(void) { assert(!critical_window); }
+
+void
+boottrace_normal_preexit(void)
+{
+	/* The production caller must finish any capture before its first map. */
+	assert(boot_services_active && !critical_window && map_calls == 0);
+	preexit_calls++;
+}
 static int
 getdev(void **out, const char *name, const char **path)
 {
@@ -169,7 +177,7 @@ reset(enum scenario selected, bool exit_bs)
 	memset(&runtime, 0, sizeof(runtime)); runtime.SetVirtualAddressMap = set_virtual_map;
 	archsw.arch_getdev = getdev; kernel.f_addr = 4096; kernel.f_size = 4096;
 	map_calls = exit_calls = alloc_calls = free_calls = module_calls = 0;
-	metadata_calls = map_metadata = vmap_calls = 0; critical_window = allocation_live = false;
+	metadata_calls = map_metadata = vmap_calls = preexit_calls = 0; critical_window = allocation_live = false;
 	quiescence_failure = false; scenario = selected; want_exit = exit_bs;
 	boot_services_active = true;
 	unsetenv("console"); setenv("efi_disable_vmap", "YES", 1);
@@ -184,6 +192,7 @@ test_failure(enum scenario selected, int expected, unsigned maps,
 	assert(bi_load(NULL, &module, &end, true) == expected);
 	assert(end == 0xdeadbeef && module_calls == 0 && map_metadata == 0);
 	assert(map_calls == maps && alloc_calls == allocations);
+	assert(preexit_calls == 1);
 	assert(free_calls == frees && exit_calls == exits);
 	assert(boot_services_active && !allocation_live && !critical_window);
 }
@@ -202,6 +211,7 @@ test_success(enum scenario selected, bool exit_bs, bool vmap)
 	assert(exit_calls == (exit_bs ? (selected == RETRY_OK ? 2 : 1) : 0));
 	assert(map_calls == (selected == RETRY_OK ? 3 : 2));
 	assert(vmap_calls == (vmap ? 1 : 0));
+	assert(preexit_calls == (exit_bs ? 1U : 0U));
 }
 
 int
@@ -222,6 +232,7 @@ main(void)
 	vm_offset_t module = 0, end = 0xdeadbeef;
 	assert(bi_load(NULL, &module, &end, true) == EIO);
 	assert(module == 0 && end == 0xdeadbeef && metadata_calls == 0 && map_calls == 0);
+	assert(preexit_calls == 0);
 	fault_printf("PASS unquiesced NIC refuses before metadata and memory-map calls\n");
 	return (0);
 }

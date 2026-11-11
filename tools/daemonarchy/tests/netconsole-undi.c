@@ -90,6 +90,11 @@ main(void)
 	rom[9] = 2;
 	checksum();
 	assert(inspect(0x1000, 0) == NC_UNDI_VERSION);
+	/* UNDI 3.1 ROMs report PXE_ROMID_MINORVER_31 (0x10), e.g. RTL8125. */
+	reset();
+	rom[9] = 0x10;
+	checksum();
+	assert(inspect(0x1000, 0) == NC_UNDI_CANDIDATE);
 	reset();
 	rom[15] |= 0x80;
 	checksum();

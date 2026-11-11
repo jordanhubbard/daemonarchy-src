@@ -29,7 +29,8 @@ class BuildTests(unittest.TestCase):
             "tools/daemonarchy/src.conf": "WITHOUT_LOCAL_MODULES=yes\n",
             "sys/amd64/conf/GENERIC": "ident GENERIC\n",
             "sys/amd64/conf/DAEMONARCHY_DIAGNOSTIC": "include GENERIC\n",
-            "sys/conf/newvers.sh": 'REVISION="16.0"\n',
+            "sys/arm64/conf/GENERIC": "ident GENERIC\n",
+            "sys/conf/newvers.sh": 'REVISION="16.0"\nBRANCH="CURRENT"\n',
         }.items():
             path = self.source / name
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -52,7 +53,7 @@ class BuildTests(unittest.TestCase):
     def plan(self, **kwargs):
         return build.make_plan(kwargs.get("revision", self.revision), kwargs.get("output", str(self.output)),
                                kwargs.get("profile", "baseline"), kwargs.get("jobs", 2),
-                               kwargs.get("trace_mode", "off"))
+                               kwargs.get("trace_mode", "off"), kwargs.get("target", "amd64"))
 
     def built_fixture(self):
         plan = self.plan()
@@ -93,6 +94,99 @@ class BuildTests(unittest.TestCase):
         for revision in (self.revision[:12], "0" * 40, "main"):
             with self.subTest(revision=revision), self.assertRaises(ValueError):
                 self.plan(revision=revision)
+
+    def test_arm_plan_binds_native_target_config_and_every_phase(self):
+        arm = self.plan(target="arm64")
+        amd = self.plan()
+        self.assertEqual(amd, self.plan(target="amd64"))
+        self.assertNotEqual(arm["identity"], amd["identity"])
+        self.assertEqual((arm["target"], arm["target_arch"]), ("arm64", "aarch64"))
+        self.assertIn("sys/arm64/conf/GENERIC", arm["configurations"])
+        self.assertNotIn("sys/amd64/conf/GENERIC", arm["configurations"])
+        for argv in [*arm["commands"].values(), arm["release_directory_query"]]:
+            self.assertIn("TARGET=arm64", argv)
+            self.assertIn("TARGET_ARCH=aarch64", argv)
+            self.assertNotIn("TARGET=amd64", argv)
+            self.assertIn("NO_ROOT=yes", argv)
+        self.assertFalse(self.output.exists())
+
+    def test_unsupported_target_or_missing_arm_profile_cannot_fall_back(self):
+        with self.assertRaisesRegex(ValueError, "unsupported native target"):
+            self.plan(target="riscv64")
+        with self.assertRaisesRegex(ValueError, "arm64 kernel profile DAEMONARCHY_DIAGNOSTIC"):
+            self.plan(target="arm64", profile="diagnostic")
+
+    def test_native_target_matching_cannot_admit_cross_builds(self):
+        for target, machine, matches in (("amd64", "amd64", True),
+                ("amd64", "x86_64", True), ("amd64", "arm64", False),
+                ("arm64", "arm64", True), ("arm64", "aarch64", True),
+                ("arm64", "amd64", False), ("arm64", "riscv64", False)):
+            with self.subTest(target=target, machine=machine), \
+                    patch.object(build.platform, "system", return_value="FreeBSD"), \
+                    patch.object(build.platform, "machine", return_value=machine), \
+                    patch.object(build.platform, "release", return_value="16.0-CURRENT"), \
+                    patch.object(build.os, "geteuid", return_value=1001), \
+                    patch.object(build.os, "access", return_value=False) as access:
+                message = "required installed tool" if matches else f"native {target} FreeBSD"
+                with self.assertRaisesRegex(ValueError, message):
+                    build.native_preflight(self.parent, 1, 1, target=target)
+                if not matches:
+                    access.assert_not_called()
+
+    def test_native_gate_refuses_wrong_release_before_tools_or_builds(self):
+        for target, machine in (("amd64", "amd64"), ("arm64", "arm64")):
+            for release in ("15.0-RELEASE", "16.0-RELEASE", "16.0-STABLE",
+                            "17.0-CURRENT", "unknown", "16.0-CURRENT-invalid"):
+                with self.subTest(target=target, release=release), \
+                        patch.object(build.platform, "system", return_value="FreeBSD"), \
+                        patch.object(build.platform, "machine", return_value=machine), \
+                        patch.object(build.platform, "release", return_value=release), \
+                        patch.object(build.os, "geteuid", return_value=1001), \
+                        patch.object(build.os, "access") as access, \
+                        patch.object(build.subprocess, "Popen") as execute:
+                    with self.assertRaisesRegex(ValueError, "native 16.0-CURRENT"):
+                        build.native_preflight(self.parent, 1, 80, target=target)
+                    access.assert_not_called()
+                    execute.assert_not_called()
+                    self.assertFalse(self.output.exists())
+
+    def test_matching_current_release_still_checks_all_worker_resources(self):
+        for target, machine in (("amd64", "amd64"), ("arm64", "arm64")):
+            with self.subTest(target=target), \
+                    patch.object(build.platform, "system", return_value="FreeBSD"), \
+                    patch.object(build.platform, "machine", return_value=machine), \
+                    patch.object(build.platform, "release", return_value="16.0-CURRENT"), \
+                    patch.object(build.os, "geteuid", return_value=1001), \
+                    patch.object(build.os, "access", return_value=True) as access, \
+                    patch.object(build.os, "cpu_count", return_value=4), \
+                    patch.object(build.shutil, "disk_usage") as disk, \
+                    patch.object(build.subprocess, "check_output",
+                                 side_effect=["2097152", "0", "4096"]) as probe, \
+                    patch.object(build.subprocess, "Popen") as execute:
+                disk.return_value.free = 100 * 1024**3
+                build.native_preflight(self.parent, 4, 80, target=target)
+                self.assertEqual(access.call_count, 3)
+                self.assertEqual(disk.call_count, 2)
+                self.assertEqual(probe.call_count, 3)
+                execute.assert_not_called()
+                self.assertFalse(self.output.exists())
+
+    def test_noncurrent_source_is_not_admitted_as_current(self):
+        (self.source / "sys/conf/newvers.sh").write_text('REVISION="16.0"\nBRANCH="STABLE"\n')
+        with patch.object(build.platform, "system", return_value="FreeBSD"), \
+                patch.object(build.platform, "machine", return_value="amd64"), \
+                patch.object(build.os, "geteuid", return_value=1001), \
+                patch.object(build.os, "access") as access:
+            with self.assertRaisesRegex(ValueError, "source must declare a CURRENT"):
+                build.native_preflight(self.parent, 1, 80)
+            access.assert_not_called()
+
+    def test_arm_native_gate_keeps_unprivileged_requirement(self):
+        with patch.object(build.platform, "system", return_value="FreeBSD"), \
+                patch.object(build.platform, "machine", return_value="arm64"), \
+                patch.object(build.os, "geteuid", return_value=0):
+            with self.assertRaisesRegex(ValueError, "unprivileged"):
+                build.native_preflight(self.parent, 1, 1, target="arm64")
 
     def test_source_mutation_and_untracked_inputs_refused(self):
         path = self.source / "sys/conf/newvers.sh"
@@ -168,6 +262,49 @@ class BuildTests(unittest.TestCase):
         build.write_json(self.output / "plan.json", plan)
         with self.assertRaisesRegex(ValueError, "identity"):
             build.verify(self.output)
+
+    def test_resume_preserves_unrecorded_crash_logs_and_occupied_names(self):
+        plan, state = self.built_fixture()
+        logs = self.output / "logs"
+        logs.mkdir()
+        previous = []
+        for attempt in (1, 2):
+            path = logs / f"buildworld-{attempt}.log"
+            path.write_text("previous controlled failed attempt\n")
+            previous.append({"name": "buildworld", "exit": 7,
+                             "log": str(path.relative_to(self.output)),
+                             "log_sha256": build.digest(path)})
+        state.update(status="running", active_phase="buildworld", phases=previous)
+        build.write_json(self.output / "result.json", state)
+        orphan = logs / "buildworld-3.log"
+        orphan.write_bytes(b"interrupted phase output\n")
+        missing = self.parent / "missing-log-target"
+        occupied = logs / "buildworld-4.log"
+        occupied.symlink_to(missing)
+        (logs / "buildkernel-99.log").write_text("unrelated phase\n")
+        original_command = build.run_command
+
+        def controlled_command(argv, env, log, timeout):
+            return original_command(
+                [sys.executable, "-c",
+                 "print('synthetic resumed phase'); raise SystemExit(7)"],
+                env, log, timeout)
+
+        args = type("Args", (), {"resume": True, "jobs": 2,
+                                 "minimum_free_gib": 0, "phase_timeout": 10})()
+        with patch.object(build, "native_preflight"), \
+                patch.object(build, "run_command", side_effect=controlled_command):
+            with self.assertRaisesRegex(ValueError, "buildworld failed"):
+                build.run(plan, args)
+        self.assertEqual(orphan.read_bytes(), b"interrupted phase output\n")
+        self.assertTrue(occupied.is_symlink())
+        self.assertFalse(missing.exists())
+        result = json.loads((self.output / "result.json").read_text())
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(result["phases"][-1]["exit"], 7)
+        self.assertEqual(result["phases"][-1]["log"], "logs/buildworld-5.log")
+        self.assertIn("synthetic resumed phase",
+                      (logs / "buildworld-5.log").read_text())
 
     def test_resume_cannot_rebind_an_existing_build(self):
         plan, _ = self.built_fixture()
@@ -325,6 +462,7 @@ class BuildTests(unittest.TestCase):
     def test_trace_preflight_requires_existing_device_without_worker_mutation(self):
         with patch.object(build.platform, "system", return_value="FreeBSD"), \
                 patch.object(build.platform, "machine", return_value="amd64"), \
+                patch.object(build.platform, "release", return_value="16.0-CURRENT"), \
                 patch.object(build.os, "geteuid", return_value=1001), \
                 patch.object(build.os, "access", return_value=False), \
                 patch.object(build.subprocess, "check_output") as process:

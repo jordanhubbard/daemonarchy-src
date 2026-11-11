@@ -33,6 +33,7 @@
 
 #include <sys/param.h>
 #include <sys/conf.h>
+#include <sys/daemonarchy_boottrace.h>
 #include <sys/domainset.h>
 #include <sys/eventhandler.h>
 #include <sys/jail.h>
@@ -1729,6 +1730,8 @@ device_probe_child(device_t dev, device_t child)
 			resource_int_value(dl->driver->name, child->unit,
 			    "flags", &child->devflags);
 
+			DBT_DEVICE(DBT_KIND_PROBE | (hasclass ? 0x100 : 0),
+			    child, dl->driver);
 			result = DEVICE_PROBE(child);
 
 			/*
@@ -2640,6 +2643,7 @@ device_attach(device_t dev)
 		device_print_child(dev->parent, dev);
 	attachtime = get_cyclecount();
 	dev->state = DS_ATTACHING;
+	DBT_DEVICE(DBT_KIND_ATTACH, dev, dev->driver);
 	if ((error = DEVICE_ATTACH(dev)) != 0) {
 		printf("device_attach: %s%d attach returned %d\n",
 		    dev->driver->name, dev->unit, error);

@@ -1,0 +1,36 @@
+# hwtrace queue 6a for the NVIDIA RTX Spark: hands-off, diagnostics kernel
+# (daemonarchy-src draft "arm64: AP start diagnostics and stop-on-failure",
+# stacked on PR #53). Power on from this stick and leave it.
+# New kernel behaviour: each CPU's start is timed ("checked in after N ms"),
+# a CPU that does not check in is reported with its early stage (1 reached
+# mpentry, 2 reached the kernel EL, 0 never ran), its last kernel stage (3-5)
+# and the firmware's PSCI AFFINITY_INFO (0 ON, 1 OFF, 2 ON_PENDING); by
+# default no further CPUs are started (hw.mp.stop_on_failure=1) so the boot
+# reaches init on the CPUs that came up and saves dmesg/acpidump/pciconf to
+# DUMPS/<n>. The loop stops after the first boot that reaches init. A kernel
+# panic during CPU start cannot be written to NVRAM (EFI runtime is not up
+# yet): kern.panic_reboot_wait_time=60 keeps the panic on screen for 60 s so
+# it can be photographed (the whole screen, including the first lines).
+
+[diag-stop-20s]
+boot_verbose=YES
+hw.mp.ap_timeout_ms=20000
+hwtrace.hold=120
+kern.panic_reboot_wait_time=60
+debug.trace_on_panic=1
+
+# Runs only if the entry above hung or panicked.
+[diag-skip-400]
+boot_verbose=YES
+hw.mp.skip_mpidr=400
+hw.mp.ap_timeout_ms=20000
+hwtrace.hold=120
+kern.panic_reboot_wait_time=60
+debug.trace_on_panic=1
+
+# Known to reach init (queue 4, trace 0002): guarantees an inventory dump.
+[ncpu-4]
+boot_verbose=YES
+hw.ncpu=4
+hwtrace.hold=120
+kern.panic_reboot_wait_time=60

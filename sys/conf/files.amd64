@@ -117,6 +117,9 @@ dev/apple_bce/apple_bce_mailbox.c	optional	apple_bce pci
 dev/apple_bce/apple_bce_queue.c	optional	apple_bce pci
 dev/apple_bce/apple_bce_vhci.c	optional	apple_bce pci usb
 dev/asmc/asmc.c			optional	asmc isa
+dev/asmc/asmc_debug.c		optional	asmc isa asmc_debug
+dev/asmc/asmc_pio.c		optional	asmc isa
+dev/asmc/asmc_sysctl.c		optional	asmc isa
 dev/asmc/asmcmmio.c		optional	asmc isa
 dev/axgbe/if_axgbe_pci.c	optional	axp
 dev/axgbe/xgbe-desc.c		optional	axp
@@ -470,3 +473,7 @@ subr_clockcalib.o		standard				\
 	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} -mmmx -msse -msse2 ${.IMPSRC}" \
 	no-implicit-rule						\
 	clean		"subr_clockcalib.o"
+dev/daemonarchy/earlynet/earlynet_core.c	optional daemonarchy_earlynet pci
+dev/daemonarchy/earlynet/earlynet_em.c	optional daemonarchy_earlynet pci
+dev/daemonarchy/earlynet/earlynet_vtnet.c	optional daemonarchy_earlynet pci
+dev/daemonarchy/earlynet/earlynet_kern.c	optional daemonarchy_earlynet pci inet

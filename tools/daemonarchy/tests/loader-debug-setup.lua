@@ -16,7 +16,9 @@ loader = {
 	command = function(...)
 		local args = {...}
 		calls[#calls + 1] = args
-		if args[2] == "start" then return start_result end
+		if args[2] == "start" or args[2] == "start-plain" then
+			return start_result
+		end
 		return 0
 	end,
 }
@@ -39,7 +41,9 @@ end
 local function starts()
 	local found = {}
 	for _, call in ipairs(calls) do
-		if call[2] == "start" then found[#found + 1] = call end
+		if call[2] == "start" or call[2] == "start-plain" then
+			found[#found + 1] = call
+		end
 	end
 	return found
 end
@@ -52,7 +56,17 @@ local call = assert(starts()[1])
 assert(#call == 6 and call[3] == "0" and call[4] == "192.0.2.10")
 assert(call[5] == "192.0.2.20" and call[6] == "/boot/debug.key")
 assert(env.autoboot_delay == "NO" and env["netdebug.peer"] == "192.0.2.20")
-assert(contains("ends at kernel handoff") and contains("automatic boot is paused"))
+assert(contains("Kernel continuation requires") and
+    contains("automatic boot is paused"))
+
+-- Explicit plain mode has no key prompt or key-file argument.
+reset("\r192.0.2.10\r192.0.2.20\r")
+env["netdebug.plain"] = "1"
+assert(cli.netdebug("netdebug", "setup") == 0)
+call = assert(starts()[1])
+assert(call[2] == "start-plain" and #call == 5)
+assert(call[3] == "0" and call[4] == "192.0.2.10")
+assert(call[5] == "192.0.2.20" and contains("Plain mode is enabled"))
 
 -- Unsupported loaders and BIOS leave boot settings untouched.
 for _, mode in ipairs({"unsupported", "bios"}) do

@@ -15,7 +15,9 @@ boundaries. Native controller procedures remain in
 The original FreeBSD implementation remains authoritative. Keep `/usr/src`
 editable and preserve source locations, native Makefiles, tests and licensing.
 Use review branches targeting the owned `daemonarchy` integration branch;
-keep upstream `main` synchronized separately. Use an explicit owned repository
+keep pristine upstream history in
+`freebsd/main`. Per operator direction on 2026-11-11, synchronize owned `main`
+with reviewed `daemonarchy` integration and feature histories. Use an explicit owned repository
 for forge commands, as described in the documentation index.
 Do not quarantine, delete or regenerate original source during adoption.
 

@@ -515,6 +515,14 @@ vtnet_attach(device_t dev)
 	mtx_init(&sc->vtnet_hdr_mtx, device_get_nameunit(dev),
 	    "VirtIO Net header lock", MTX_DEF);
 
+	/*
+	 * The 2-byte alignment lets this tag bounce, so its first
+	 * bus_dmamap_create() would set up a bounce zone.  Control commands
+	 * create their maps with the core lock held, and setting up a zone
+	 * allocates with M_WAITOK, takes the sysctl lock and may start the
+	 * busdma thread.  BUS_DMA_ALLOCNOW does that here, where sleeping is
+	 * allowed.
+	 */
 	error = bus_dma_tag_create(
 	    bus_get_dma_tag(dev),		/* parent */
 	    sizeof(uint16_t),			/* alignment */
@@ -525,7 +533,7 @@ vtnet_attach(device_t dev)
 	    PAGE_SIZE,				/* max request size */
 	    1,					/* max # segments */
 	    PAGE_SIZE,				/* maxsegsize */
-	    BUS_DMA_COHERENT,			/* flags */
+	    BUS_DMA_COHERENT | BUS_DMA_ALLOCNOW,	/* flags */
 	    busdma_lock_mutex,			/* lockfunc */
 	    &sc->vtnet_hdr_mtx,			/* lockarg */
 	    &sc->vtnet_hdr_dmat);
@@ -1314,6 +1322,8 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 	}
 
 	ether_ifattach(ifp, sc->vtnet_hwaddr);
+	if (if_getmtu(ifp) > sc->vtnet_max_mtu)
+		if_setmtu(ifp, sc->vtnet_max_mtu);
 
 	/* Tell the upper layer(s) we support long frames. */
 	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
@@ -4917,17 +4927,28 @@ vtnet_debugnet_transmit(if_t ifp, struct mbuf *m)
 {
 	struct vtnet_softc *sc;
 	struct vtnet_txq *txq;
+	bool locked;
 	int error;
 
 	sc = if_getsoftc(ifp);
 	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING)
+	    IFF_DRV_RUNNING) {
+		m_freem(m);
 		return (EBUSY);
+	}
 
 	txq = &sc->vtnet_txqs[0];
+	/* A panic caller must never sleep behind a queue owned by another CPU. */
+	locked = !mtx_owned(&txq->vtntx_mtx);
+	if (locked && !VTNET_TXQ_TRYLOCK(txq)) {
+		m_freem(m);
+		return (EBUSY);
+	}
 	error = vtnet_txq_encap(txq, &m, M_NOWAIT | M_USE_RESERVE);
 	if (error == 0)
 		(void)vtnet_txq_notify(txq);
+	if (locked)
+		VTNET_TXQ_UNLOCK(txq);
 	return (error);
 }
 
@@ -4935,6 +4956,9 @@ static int
 vtnet_debugnet_poll(if_t ifp, int count)
 {
 	struct vtnet_softc *sc;
+	struct vtnet_txq *txq;
+	struct vtnet_rxq *rxq;
+	bool locked;
 	int i;
 
 	sc = if_getsoftc(ifp);
@@ -4942,9 +4966,22 @@ vtnet_debugnet_poll(if_t ifp, int count)
 	    IFF_DRV_RUNNING)
 		return (EBUSY);
 
-	(void)vtnet_txq_eof(&sc->vtnet_txqs[0]);
-	for (i = 0; i < sc->vtnet_act_vq_pairs; i++)
-		(void)vtnet_rxq_eof(&sc->vtnet_rxqs[i]);
+	txq = &sc->vtnet_txqs[0];
+	locked = !mtx_owned(&txq->vtntx_mtx);
+	if (locked && !VTNET_TXQ_TRYLOCK(txq))
+		return (EBUSY);
+	(void)vtnet_txq_eof(txq);
+	if (locked)
+		VTNET_TXQ_UNLOCK(txq);
+	for (i = 0; i < sc->vtnet_act_vq_pairs; i++) {
+		rxq = &sc->vtnet_rxqs[i];
+		locked = !mtx_owned(&rxq->vtnrx_mtx);
+		if (locked && !mtx_trylock(&rxq->vtnrx_mtx))
+			return (EBUSY);
+		(void)vtnet_rxq_eof(rxq);
+		if (locked)
+			VTNET_RXQ_UNLOCK(rxq);
+	}
 	return (0);
 }
 #endif /* DEBUGNET */

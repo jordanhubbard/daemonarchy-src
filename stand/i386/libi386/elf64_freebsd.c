@@ -39,6 +39,7 @@
 #include "bootstrap.h"
 #include "libi386.h"
 #include "btxv86.h"
+#include "amd64_bootmap.h"
 
 static int	elf64_exec(struct preloaded_file *amp);
 static int	elf64_obj_exec(struct preloaded_file *amp);
@@ -68,6 +69,35 @@ uint32_t entry_lo;
 extern void amd64_tramp();
 
 /*
+ * The kernel adds KERNBASE to physical preload addresses before replacing
+ * these tables. Map the full 2 GiB kernel window, including metadata after
+ * a large md_image; repeating only its first GiB aliases that metadata into
+ * unrelated memory. Alternating both PT2 pages also preserves the low
+ * identity mapping used by the trampoline. Keep 2 MiB pages so CPUs need
+ * not support 1 GiB pages.
+ */
+static int
+amd64_bootmap_init(vm_offset_t modulep, vm_offset_t kernend)
+{
+    int i;
+
+    if (modulep >= kernend || kernend > AMD64_BOOTMAP_LIMIT)
+        return (EFBIG);
+
+    bzero(PT4, PAGE_SIZE);
+    bzero(PT3, PAGE_SIZE);
+    bzero(PT2, PAGE_SIZE * AMD64_BOOTMAP_PT2_PAGES);
+    for (i = 0; i < 512; i++) {
+        PT4[i] = (pml4_entry_t)VTOP((uintptr_t)&PT3[0]) | PG_V | PG_RW;
+        PT3[i] = (pdpt_entry_t)VTOP((uintptr_t)&PT2[(i & 1) * 512]) |
+            PG_V | PG_RW;
+    }
+    for (i = 0; i < AMD64_BOOTMAP_PT2_ENTRIES; i++)
+        PT2[i] = (pd_entry_t)i * (2 * 1024 * 1024) | PG_V | PG_RW | PG_PS;
+    return (0);
+}
+
+/*
  * There is an ELF kernel and one or more ELF modules loaded.  
  * We wish to start executing the kernel image, so make such 
  * preparations as are required, and do so.
@@ -79,7 +109,6 @@ elf64_exec(struct preloaded_file *fp)
     Elf_Ehdr 			*ehdr;
     vm_offset_t			modulep, kernend;
     int				err;
-    int				i;
 
     if ((md = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL)
 	return(EFTYPE);
@@ -89,26 +118,10 @@ elf64_exec(struct preloaded_file *fp)
     if (err != 0)
 	return(err);
 
-    bzero(PT4, PAGE_SIZE);
-    bzero(PT3, PAGE_SIZE);
-    bzero(PT2, PAGE_SIZE);
-
-    /*
-     * This is kinda brutal, but every single 1GB VM memory segment points to
-     * the same first 1GB of physical memory.  But it is more than adequate.
-     */
-    for (i = 0; i < 512; i++) {
-	/* Each slot of the level 4 pages points to the same level 3 page */
-	PT4[i] = (pml4_entry_t)VTOP((uintptr_t)&PT3[0]);
-	PT4[i] |= PG_V | PG_RW;
-
-	/* Each slot of the level 3 pages points to the same level 2 page */
-	PT3[i] = (pdpt_entry_t)VTOP((uintptr_t)&PT2[0]);
-	PT3[i] |= PG_V | PG_RW;
-
-	/* The level 2 page slots are mapped with 2MB pages for 1GB. */
-	PT2[i] = i * (2 * 1024 * 1024);
-	PT2[i] |= PG_V | PG_RW | PG_PS;
+    err = amd64_bootmap_init(modulep, kernend);
+    if (err != 0) {
+        printf("Preloaded data exceeds the 2 GiB BIOS kernel window\n");
+        return (err);
     }
 
     entry_lo = ehdr->e_entry & 0xffffffff;

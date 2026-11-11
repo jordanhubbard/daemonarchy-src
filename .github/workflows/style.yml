@@ -16,21 +16,24 @@ jobs:
     name: Style Checker
     runs-on: ubuntu-latest
     steps:
-      # Unfortunately there doesn't seem to be a way to
-      # do this without an extra step.
-      - name: Get depth
-        run: |
-          echo "DEPTH=$(( ${{ github.event.pull_request.commits }} + 1 ))" >> $GITHUB_ENV
+      # A PR commit count includes merged side branches. HEAD~count walks
+      # only first parents and can select an unrelated, much older baseline.
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
-          fetch-depth: ${{ env.DEPTH }}
+          fetch-depth: 0
+          filter: blob:none
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Install packages
         run: |
           sudo apt-get update --quiet || true
           sudo apt-get -yq --no-install-suggests --no-install-recommends install perl
       - name: Run checker
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
-          sha=$(git rev-parse HEAD~${{ github.event.pull_request.commits }})
-          tools/build/checkstyle9.pl --github ${sha}..${{ github.event.pull_request.head.sha }}
+          git cat-file -e "${PR_BASE}^{commit}"
+          git cat-file -e "${PR_HEAD}^{commit}"
+          echo "Checking PR commit range $PR_BASE..$PR_HEAD"
+          tools/build/checkstyle9.pl --github "$PR_BASE..$PR_HEAD"

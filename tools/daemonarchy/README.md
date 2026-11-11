@@ -5,7 +5,8 @@ identical to the selected upstream tip. Work on review branches; record each
 upstream base and submit generally applicable changes to FreeBSD separately.
 The build controller lives here to remain versioned with the source it builds.
 
-The initial target is native FreeBSD amd64. Linux/macOS can run controller tests
+The controller selects native FreeBSD amd64 (the default) or arm64 explicitly.
+Each target requires its matching native worker for execution. Linux/macOS can run controller tests
 and inspect plans; upstream cross-build support does not qualify native pkgbase,
 installer sets, VM boot or hardware acceptance. These commands do not invoke a
 Literate AI lifecycle or issue its acceptance receipt. Daemonarchy's retained
@@ -82,6 +83,11 @@ through its reviewed plan/apply transaction when the next candidate is qualified
 Use a dedicated unprivileged FreeBSD-CURRENT build account with installed Git,
 Python 3.12+ and pkg (`/usr/local/sbin/pkg`), the native base toolchain, at least
 80 GiB free on the output volume, and 2 GiB available RAM per job (8 GiB minimum).
+The runtime preflight requires the worker kernel release to equal the source
+`REVISION` plus `-CURRENT` (currently `16.0-CURRENT`), as well as the
+matching architecture. FreeBSD 15, RELEASE/STABLE and another CURRENT revision are refused
+before tool/resource probes or build dispatch; controller tests and plans on
+other hosts retain their existing scope.
 Allow additional space for retained builds; a full first world/kernel build can
 take hours. Use the existing single-slot worker allocation. The protected signer
 and physical acceptance machines are not build workers.
@@ -107,6 +113,19 @@ and resumed runs. Do not use a moving branch name as a source selection. Every
 source change, kernel profile or build-option change needs a new build directory.
 Do not run baseline and diagnostic builds concurrently on a single-slot worker.
 
+## Hosted worker capacity
+
+The [2026-11-10 capacity observations](../../verification/hosted-worker-capacity-20261110.json)
+measure standard Linux and Intel macOS hosted runners before attempting a native
+CURRENT guest. Neither instance admits the proposed profile: Linux has 83.7 GiB
+free against the 90 GiB host requirement (80 GiB native output plus bootstrap
+reserve); Intel macOS has 9.4 GiB available RAM against a 10 GiB guest plus
+2 GiB host reserve. The capacity jobs pass because inspection completed. They
+have not booted FreeBSD or completed an aggregate build, SDK or release gate.
+Keep existing native builds and frozen inputs; do not lower the output reserve,
+substitute an older FreeBSD release or treat unknown cleanup sizes as space.
+A later allocation must be measured again before dispatch.
+
 ## Plan and build
 
 Use the same arguments for planning, running and resuming. Substitute an actual
@@ -122,6 +141,27 @@ python3.12 tools/daemonarchy/build.py run \
   --output "$HOME/daemonarchy-builds/baseline-<commit>" --jobs 8
 ```
 
+For an allocated ARM64 worker, select the FreeBSD target explicitly on both
+plan and run (and every resume):
+
+```sh
+python3.12 tools/daemonarchy/build.py plan --target arm64 \
+  --revision <full-reviewed-source-commit> \
+  --output "$HOME/daemonarchy-builds/arm64-<commit>" --jobs 4
+python3.12 tools/daemonarchy/build.py run --target arm64 \
+  --revision <full-reviewed-source-commit> \
+  --output "$HOME/daemonarchy-builds/arm64-<commit>" --jobs 4
+```
+
+This binds `TARGET=arm64`, `TARGET_ARCH=aarch64` and the ARM64 kernel configuration
+into the plan and every phase. An amd64 host cannot execute an ARM plan, or vice
+versa. Existing amd64 plan identities retain their default target. The baseline
+ARM64 profile is GENERIC; a missing architecture-specific diagnostic configuration
+is refused before execution, without substituting another profile. Keep the
+complete world and installer sets, including upstream's clang ARM32 compatibility
+libraries; architecture selection does not authorize trimming them. Controller
+support alone does not establish a completed native build or release acceptance.
+
 The phases are `buildworld`, `buildkernel`, `packages`, `release-obj`, `sets`.
 The native upstream `make packages` builds pkgbase packages for world, kernel and
 source; `packageworld`/`packagekernel` have different meanings and create release
@@ -134,7 +174,9 @@ Each phase has a six-hour default deadline (`--phase-timeout` changes it).
 Interrupts and deadlines terminate only that phase's process group. Logs and
 failed state remain. An existing output directory is refused unless `--resume`
 is given and its retained plan matches exactly. Successful phases are skipped
-only when their retained logs still match. A failed phase reruns incrementally;
+only when their retained logs still match. After a host/controller crash,
+resume preserves unrecorded phase logs and chooses a new monotonically numbered
+exclusive log rather than overwriting an interrupted attempt. A failed phase reruns incrementally;
 use a fresh output directory if clean rebuild evidence is required.
 
 `--through buildkernel` permits stopping after compilation for inspection.
@@ -345,6 +387,18 @@ These tests use small synthetic fixtures to exercise refusals, byte verification
 and actual subprocess timeout/failure behavior. They do not stand in for native
 FreeBSD compilation or package acceptance.
 
+The [translated RAM backend](../../docs/pi5-translated-ram-busdma.md) has
+separate production-function host controls:
+
+```sh
+python3 tools/daemonarchy/tests/bcm2712-busdma-controls.py --cc gcc --out /path/to/new/gcc-proof
+python3 tools/daemonarchy/tests/bcm2712-busdma-controls.py --cc clang --out /path/to/new/clang-proof
+```
+
+They inject VM/scheduler primitives and do not establish native busdma or device
+DMA. A fresh native kernel, actual nonzero-offset DMA, and existing Pi4 controls
+remain separate gates; run aggregate builds only on allocated aligned workers.
+
 ### Qualified framework renewal
 
 The controller review now binds framework `d6070ba5`, whose complete local
@@ -424,3 +478,108 @@ uses fake zone objects to check absent/partial pools, refused-start retry and fu
 restoration. It does not compile the complete kernel or establish real driver
 readiness. The native [development evidence](../../verification/debugnet-pool-readiness-development.json)
 retains the baseline failure separately from changed-kernel build/runtime gates.
+
+
+## Following the loader console into a kernel session
+
+The controller's opt-in `--follow-kernel` keeps its private output and event
+captures open after the firmware transport closes. It requests a fresh kernel
+session using the existing phase protocol and admits only a kernel response
+with the same boot identity and a new session identity. The target must actually
+implement that kernel transport; this controller option supplies no NIC backend
+or early-kernel coverage by itself.
+
+For the existing authenticated compatibility mode:
+
+```sh
+python3 tools/daemonarchy/loader-console.py TARGET --key-file PRIVATE_KEY \
+  --command boot --follow-kernel --timeout 120 \
+  --output NEW_OUTPUT_FILE --events NEW_EVENTS_FILE
+```
+
+The explicit plain diagnostic mode remains a separate implementation milestone;
+this compatibility example does not impose a key on that approved workflow.
+After kernel admission, keyboard lines go directly to the kernel console without
+loader `echo` completion commands. Empty lines are valid, including the blank
+line used by `mountroot>` to list devices. Input acknowledgement proves admission,
+not command completion. End-of-file stops keyboard input while capture continues.
+Ctrl-C closes the controller and its captures with exit 130.
+
+`--timeout` bounds each operation and, with `--follow-kernel`, the interval without
+accepted traffic or keyboard input. A missing kernel response or expired idle
+deadline exits 1, retaining received output and recording the last observed phase.
+Silence does not establish a reboot or explain a panic. Kernel transport closure
+returns 0 after the admitted kernel session; the default firmware-only flow still
+returns 3 at firmware closure. Capture paths must be new and are created private.
+These captures contain arbitrary target output and should remain private.
+
+Portable controller verification:
+
+```sh
+python3 -m unittest tools/daemonarchy/test_loader_console_cli.py \
+  tools/daemonarchy/test_loader_kernel_handoff.py -v
+```
+
+The CLI checks run the production program as a subprocess against loopback UDP
+peers, covering phase continuation, blank input, command admission, EOF capture,
+wrong-boot refusal, missing-peer and idle deadlines, and default exit behavior.
+These peers supply controller regression evidence, not native kernel transport,
+physical NIC, panic or release acceptance.
+
+## Checked MSI provider publication
+
+`intr_msi_validate_provider(expected, xref)` checks the allocation registry under
+its list mutex without allocating vectors or returning a private pointer. It
+requires a non-NULL device and nonzero xref (`EINVAL`), rejects a missing exact
+MSI xref (`ESRCH`), a different device (`ENXIO`) or any duplicate exact MSI xref
+(`EEXIST`). Device-only wildcard registrations do not satisfy the xref lookup.
+Existing registration and allocation behavior remains unchanged.
+
+```sh
+python3 tools/daemonarchy/tests/msi-provider-query-controls.py --cc clang
+```
+
+The host control extracts the production registry structure, lookup, creation,
+registration and query functions. Injected mutex/allocation primitives check
+cold/missing, wrong-type/device, wildcard and duplicate states, idempotent
+registration, failed registration and publication immediately before lock
+acquisition. Each query must leave the registry and allocation count unchanged.
+Success is a registry snapshot with exact identity, not hardware readiness or a
+lifetime token. Selected MIP readiness additionally relies on its audited
+ready-before-register invariant and correct OFW device publication. Native
+interrupt delivery and physical PCIe/MSI acceptance remain separate gates.
+
+## Debugnet receive-buffer class fixture
+
+Check that reserved receive buffers keep their ordinary allocation class
+([#18](https://github.com/jordanhubbard/daemonarchy-src/issues/18)):
+
+```sh
+python3 tools/daemonarchy/tests/run-debugnet-rx-class.py \
+  --output-directory /var/tmp/debugnet-rx-class-check
+```
+
+The fixture extracts the current `m_getzone`, the complete debugnet reserve
+block of `kern_mbuf.c`, debugnet reserve sizing and the iflib debugnet
+init/event and free-list cleanup functions. Fake UMA zones record the origin
+of every ordinary buffer and abort when one is freed through another zone.
+Cases cover a matching 2048-byte reserve, a 9216-byte reserve beside a
+2048-byte ring, mixed 2048/9216-byte sessions and repeated sessions after a
+refused start. UMA, DMA and ring refill are fixture objects; this is not a
+linked kernel, live driver or jumbo-NIC qualification.
+
+
+## Diagnostic console listener readiness
+
+`debugnet-console.py` reports `Listening for kernel on ADDRESS:PORT` to stderr
+only after its UDP socket binds successfully. Controller tests wait for that
+notification before sending the first datagram. A fixed process-start delay
+cannot establish listener readiness on a loaded worker. Capture stdout and the
+wire protocol retain their previous semantics; failed startup still exits
+without reporting a listener. This explicit diagnostic tool is not started by
+normal installation tracing.
+
+The [readiness checkpoint](../../verification/console-readiness-20261109.json)
+records eleven real UDP/subprocess cases on Linux and native FreeBSD ARM64,
+plus the 128-case Linux controller suite with five explicit native-only skips.
+It retains the earlier CI timeout and the corrected negative-startup fixture.

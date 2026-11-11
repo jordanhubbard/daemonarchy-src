@@ -2238,7 +2238,7 @@ create-source-src-package: _pkgbootstrap .PHONY
 	@cd ${SRCDIR}; \
 		( echo "@override_prefix /usr/src" ;  \
 		${GOT_CMD} tree -R | \
-		    awk '/^sys\// { next } { sub(/ -> .*/, "") } /\/$/ { next } { sub(/[*@$]$/, "") } { print }' | \
+		    awk '/^sys\// { next } { sub(/ -> .*/, "") } /\/$$/ { next } { sub(/[*@$$]$$/, "") } { print }' | \
 		    sort ) \
 		> ${SSTAGEDIR}/src.plist
 .endif
@@ -2274,7 +2274,7 @@ create-source-src-sys-package: _pkgbootstrap .PHONY
 	@cd ${SRCDIR}; \
 		( echo "@override_prefix /usr/src" ;  \
 		${GOT_CMD} tree -R | \
-		    awk '!/^sys\// { next } { sub(/ -> .*/, "") } /\/$/ { next } { sub(/[*@$]$/, "") } { print }' | \
+		    awk '!/^sys\// { next } { sub(/ -> .*/, "") } /\/$$/ { next } { sub(/[*@$$]$$/, "") } { print }' | \
 		    sort ) \
 		> ${SSTAGEDIR}/src-sys.plist
 .endif
@@ -2978,6 +2978,11 @@ bootstrap-tools: ${_bt}-${_tool}
 ${_bt}-usr.bin/sort: ${_bt}-lib/libmd
 ${_bt}-usr.bin/xinstall: ${_bt}-lib/libmd
 ${_bt}-sbin/md5: ${_bt}-lib/libmd
+.endif
+.if target(${_bt}-lib/libz)
+# If we are bootstrapping libz (e.g. when building on macOS/Linux) add the
+# necessary dependency:
+${_bt}-usr.bin/mandoc: ${_bt}-lib/libz
 .endif
 
 

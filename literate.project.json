@@ -45,7 +45,7 @@
     "framework_distribution_identity": {
       "schema": "urn:literate-ai:schema:v1:content-identity",
       "algorithm": "sha256",
-      "digest": "f9ae1b8a4ce07c73f2ded62b73117f681fa12cfdf95c40cc66f3b727ebda6c2b"
+      "digest": "45a9c62db237a2b5facee35f992b33fde07b8643c44eccf94f6a654debb633e4"
     },
     "policy_identity": {
       "schema": "urn:literate-ai:schema:v1:content-identity",
@@ -61,7 +61,7 @@
     "runner_identity": {
       "schema": "urn:literate-ai:schema:v1:content-identity",
       "algorithm": "sha256",
-      "digest": "bce6051915b832bddee47be0b93483e4af9dc9597314aa6fd18a1e5d7ab2e6ac"
+      "digest": "d53cea771a20bf5b87312a4f4579dc25a9ba2a99ee20ebeedce33903e0adc04b"
     },
     "required_evidence_kinds": [
       "acceptance-result",
@@ -105,13 +105,5 @@
     "patch_authority": "strict",
     "writers": [],
     "branch_gc_minimum_age_days": 7
-  },
-  "scale_limits": {
-    "schema": "literate-ai/project-scale-limits@1",
-    "pinned_input_files": 500000,
-    "pinned_input_total_bytes": 4294967296,
-    "catalog_files": 250000,
-    "catalog_entries": 1000000,
-    "catalog_total_bytes": 4294967296
   }
 }

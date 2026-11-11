@@ -8,6 +8,8 @@
 #define NC_REPORT_SLOTS 999
 
 EFI_STATUS nc_report_write(EFI_FILE_PROTOCOL *, const char *, size_t, unsigned *);
+EFI_STATUS nc_report_write_named(EFI_FILE_PROTOCOL *, const char *,
+    const char *, size_t, unsigned *);
 int netconsole_save_report(void);
 
 #endif

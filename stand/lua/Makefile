@@ -11,10 +11,12 @@ MAN=	loader.conf.lua.5 \
 	loader.lua.8 \
 	menu.lua.8 \
 	password.lua.8 \
-	screen.lua.8
+	screen.lua.8 \
+	splash.lua.8
 
 FILESDIR=	${LUAPATH}
-FILES=	cli.lua \
+FILES=	boottrace.lua \
+	cli.lua \
 	color.lua \
 	config.lua \
 	core.lua \
@@ -30,6 +32,7 @@ FILES=	cli.lua \
 	menu.lua \
 	netdebug.lua \
 	password.lua \
-	screen.lua
+	screen.lua \
+	splash.lua
 
 .include <bsd.prog.mk>

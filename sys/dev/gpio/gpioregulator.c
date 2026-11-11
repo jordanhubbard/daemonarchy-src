@@ -33,6 +33,7 @@
 #include <sys/rman.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/limits.h>
 #include <sys/gpio.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -54,6 +55,7 @@ struct gpioregulator_init_def {
 	struct gpiobus_pin		*enable_pin;
 	int				enable_pin_valid;
 	int				startup_delay_us;
+	int				settling_time_us;
 	int				nstates;
 	struct gpioregulator_state	*states;
 	int				npins;
@@ -103,6 +105,7 @@ gpioregulator_regnode_enable(struct regnode *regnode, bool enable, int *udelay)
 	bool active;
 	int error;
 
+	*udelay = 0;
 	sc = regnode_get_softc(regnode);
 
 	if (sc->def->enable_pin_valid == 1) {
@@ -127,6 +130,7 @@ gpioregulator_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
 	const struct gpioregulator_state *state;
 	int error, n;
 
+	*udelay = 0;
 	sc = regnode_get_softc(regnode);
 	state = NULL;
 
@@ -147,7 +151,11 @@ gpioregulator_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
 			return (error);
 	}
 
-	*udelay = sc->def->startup_delay_us;
+	/*
+	 * Keep the existing startup delay floor for compatibility. The core
+	 * consumes this returned delay before the next consumer operation.
+	 */
+	*udelay = MAX(sc->def->startup_delay_us, sc->def->settling_time_us);
 
 	return (0);
 }
@@ -192,6 +200,46 @@ DEFINE_CLASS_1(gpioregulator_regnode, gpioregulator_regnode_class,
     gpioregulator_regnode_methods, sizeof(struct gpioregulator_reg_sc),
     regnode_class);
 
+/* Both DT properties are unsigned cells, while the regnode delay is int. */
+static int
+gpioregulator_parse_delay(phandle_t node, const char *name, int *delay)
+{
+	uint32_t value;
+	int len;
+
+	*delay = 0;
+	len = OF_getproplen(node, name);
+	if (len < 0)
+		return (0);
+	if (len != sizeof(value) ||
+	    OF_getencprop(node, name, &value, sizeof(value)) != sizeof(value) ||
+	    value > INT_MAX)
+		return (EINVAL);
+	*delay = value;
+	return (0);
+}
+
+/* These strings came from OF_getprop_alloc, not the regulator malloc pool. */
+static void
+gpioregulator_release_def(struct gpioregulator_init_def *def)
+{
+	int n;
+
+	if (def->enable_pin_valid)
+		gpio_pin_release(def->enable_pin);
+	if (def->pins != NULL) {
+		for (n = 0; n < def->npins; n++) {
+			if (def->pins[n] != NULL)
+				gpio_pin_release(def->pins[n]);
+		}
+	}
+	free(def->states, M_DEVBUF);
+	free(def->pins, M_DEVBUF);
+	OF_prop_free(def->reg_init_def.name);
+	OF_prop_free(def->reg_init_def.parent_name);
+	memset(def, 0, sizeof(*def));
+}
+
 static int
 gpioregulator_parse_fdt(struct gpioregulator_softc *sc)
 {
@@ -226,12 +274,15 @@ gpioregulator_parse_fdt(struct gpioregulator_softc *sc)
 		mask |= sc->init_def.states[n].mask;
 	}
 
-	/* "startup-delay-us" property (optional) */
-	len = OF_getencprop(node, "startup-delay-us",
-	    &sc->init_def.startup_delay_us,
-	    sizeof(sc->init_def.startup_delay_us));
-	if (len <= 0)
-		sc->init_def.startup_delay_us = 0;
+	/* Delay properties are optional; malformed or overflowing cells fail. */
+	error = gpioregulator_parse_delay(node, "startup-delay-us",
+	    &sc->init_def.startup_delay_us);
+	if (error != 0)
+		goto done;
+	error = gpioregulator_parse_delay(node, "regulator-settling-time-us",
+	    &sc->init_def.settling_time_us);
+	if (error != 0)
+		goto done;
 
 	/* "enable-gpio" property (optional) */
 	error = gpio_pin_get_by_ofw_property(sc->dev, node, "enable-gpio",
@@ -253,16 +304,6 @@ gpioregulator_parse_fdt(struct gpioregulator_softc *sc)
 	}
 
 done:
-	if (error != 0) {
-		for (n = 0; n < sc->init_def.npins; n++) {
-			if (sc->init_def.pins[n] != NULL)
-				gpio_pin_release(sc->init_def.pins[n]);
-		}
-
-		free(sc->init_def.states, M_DEVBUF);
-		free(sc->init_def.pins, M_DEVBUF);
-
-	}
 	OF_prop_free(pstates);
 
 	return (error);
@@ -294,8 +335,11 @@ gpioregulator_attach(device_t dev)
 	error = gpioregulator_parse_fdt(sc);
 	if (error != 0) {
 		device_printf(dev, "cannot parse parameters\n");
-		return (ENXIO);
+		gpioregulator_release_def(&sc->init_def);
+		return (error);
 	}
+	/* No SYSCTL may retain this device's softc if REGNODE_INIT fails. */
+	sc->init_def.reg_init_def.flags |= REGULATOR_FLAGS_DEFER_SYSCTL;
 	sc->init_def.reg_init_def.id = 1;
 	sc->init_def.reg_init_def.ofw_node = node;
 
@@ -303,6 +347,7 @@ gpioregulator_attach(device_t dev)
 	    &sc->init_def.reg_init_def);
 	if (regnode == NULL) {
 		device_printf(dev, "cannot create regulator\n");
+		gpioregulator_release_def(&sc->init_def);
 		return (ENXIO);
 	}
 
@@ -312,7 +357,17 @@ gpioregulator_attach(device_t dev)
 	sc->reg_sc->param = regnode_get_stdparam(regnode);
 	sc->reg_sc->def = &sc->init_def;
 
-	regnode_register(regnode);
+	if (regnode_register(regnode) == NULL) {
+		error = regnode_destroy_unpublished(regnode);
+		/* This opt-in node has no published SYSCTL or consumer handles. */
+		KASSERT(error == 0, ("private GPIO regulator discard failed: %d",
+		    error));
+		if (error != 0)
+			return (error);
+		sc->reg_sc = NULL;
+		gpioregulator_release_def(&sc->init_def);
+		return (ENXIO);
+	}
 
 	return (0);
 }

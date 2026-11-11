@@ -36,8 +36,16 @@ test_argv = [
     str(root / "tools/daemonarchy/tests/loader-debug-setup.lua"),
     str(root),
 ]
+staged_argv = [
+    str(out / "lua"),
+    str(root / "tools/daemonarchy/tests/loader-staged-lua.lua"),
+    str(root),
+]
 records = []
-for name, argv in (("compile", compile_argv), ("interactions", test_argv)):
+for name, argv in (("compile", compile_argv), ("interactions", test_argv),
+                   ("staged-lua", staged_argv),
+                   ("normal-trace", [str(out / "lua"),
+                    str(root / "tools/daemonarchy/tests/loader-normal-trace.lua"), str(root)])):
     with (
         (out / (name + ".stdout")).open("xb") as stdout,
         (out / (name + ".stderr")).open("xb") as stderr,

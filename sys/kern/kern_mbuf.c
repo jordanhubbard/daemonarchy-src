@@ -407,17 +407,37 @@ SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbuf_init, NULL);
  * overwritten with those of the cache zones so that drivers may allocate and
  * free mbufs and clusters without attempting to allocate physical memory.
  *
- * We keep mbufs and clusters in a pair of mbuf queues.  In particular, for
- * the purpose of caching clusters, we treat them as mbufs.
+ * We keep mbufs and clusters in mbuf queues.  In particular, for the purpose
+ * of caching clusters, we treat them as mbufs.  Each ordinary cluster size has
+ * a reserve of its own: a buffer handed out by a cache zone always belongs to
+ * the allocation class of the global zone it replaces, so it may be returned
+ * through that zone after the global zone pointers are restored.
  */
-static struct mbufq dn_mbufq =
-    { STAILQ_HEAD_INITIALIZER(dn_mbufq.mq_head), 0, INT_MAX };
-static struct mbufq dn_clustq =
-    { STAILQ_HEAD_INITIALIZER(dn_clustq.mq_head), 0, INT_MAX };
+struct debugnet_pool {
+	struct mbufq	dp_q;
+	uma_zone_t	dp_zone;
+	uma_zone_t	*dp_global;
+	const char	*dp_name;
+	int		dp_size;
+	int		dp_nitems;
+};
 
-static int dn_clsize;
-static uma_zone_t dn_zone_mbuf;
-static uma_zone_t dn_zone_clust;
+#define	DN_POOL(pool, size, global, name) {				\
+	.dp_q = { STAILQ_HEAD_INITIALIZER((pool).dp_q.mq_head), 0, INT_MAX }, \
+	.dp_global = (global),						\
+	.dp_name = "debugnet_" name,					\
+	.dp_size = (size),						\
+}
+
+static struct debugnet_pool dn_mbufs =
+    DN_POOL(dn_mbufs, MSIZE, &zone_mbuf, MBUF_MEM_NAME);
+static struct debugnet_pool dn_clusts[] = {
+	DN_POOL(dn_clusts[0], MCLBYTES, &zone_clust, MBUF_CLUSTER_MEM_NAME),
+	DN_POOL(dn_clusts[1], MJUMPAGESIZE, &zone_jumbop, MBUF_JUMBOP_MEM_NAME),
+	DN_POOL(dn_clusts[2], MJUM9BYTES, &zone_jumbo9, MBUF_JUMBO9_MEM_NAME),
+	DN_POOL(dn_clusts[3], MJUM16BYTES, &zone_jumbo16,
+	    MBUF_JUMBO16_MEM_NAME),
+};
 static uma_zone_t dn_zone_pack;
 
 static struct debugnet_saved_zones {
@@ -430,21 +450,32 @@ static struct debugnet_saved_zones {
 	bool dsz_debugnet_zones_enabled;
 } dn_saved_zones;
 
+static struct debugnet_pool *
+dn_clust_pool(int size)
+{
+	u_int i;
+
+	for (i = 0; i < nitems(dn_clusts); i++)
+		if (dn_clusts[i].dp_size == size)
+			return (&dn_clusts[i]);
+	return (NULL);
+}
+
 static int
 dn_buf_import(void *arg, void **store, int count, int domain __unused,
     int flags)
 {
-	struct mbufq *q;
+	struct debugnet_pool *pool;
 	struct mbuf *m;
 	int i;
 
-	q = arg;
+	pool = arg;
 
 	for (i = 0; i < count; i++) {
-		m = mbufq_dequeue(q);
+		m = mbufq_dequeue(&pool->dp_q);
 		if (m == NULL)
 			break;
-		trash_init(m, q == &dn_mbufq ? MSIZE : dn_clsize, flags);
+		trash_init(m, pool->dp_size, flags);
 		store[i] = m;
 	}
 	KASSERT((flags & M_WAITOK) == 0 || i == count,
@@ -455,15 +486,15 @@ dn_buf_import(void *arg, void **store, int count, int domain __unused,
 static void
 dn_buf_release(void *arg, void **store, int count)
 {
-	struct mbufq *q;
+	struct debugnet_pool *pool;
 	struct mbuf *m;
 	int i;
 
-	q = arg;
+	pool = arg;
 
 	for (i = 0; i < count; i++) {
 		m = store[i];
-		(void)mbufq_enqueue(q, m);
+		(void)mbufq_enqueue(&pool->dp_q, m);
 	}
 }
 
@@ -479,12 +510,12 @@ dn_pack_import(void *arg __unused, void **store, int count, int domain __unused,
 		m = m_get(M_NOWAIT, MT_DATA);
 		if (m == NULL)
 			break;
-		clust = uma_zalloc(dn_zone_clust, M_NOWAIT);
+		clust = uma_zalloc(dn_clust_pool(MCLBYTES)->dp_zone, M_NOWAIT);
 		if (clust == NULL) {
 			m_free(m);
 			break;
 		}
-		mb_ctor_clust(clust, dn_clsize, m, 0);
+		mb_ctor_clust(clust, MCLBYTES, m, 0);
 		store[i] = m;
 	}
 	KASSERT((flags & M_WAITOK) == 0 || i == count,
@@ -502,8 +533,8 @@ dn_pack_release(void *arg __unused, void **store, int count)
 	for (i = 0; i < count; i++) {
 		m = store[i];
 		clust = m->m_ext.ext_buf;
-		uma_zfree(dn_zone_clust, clust);
-		uma_zfree(dn_zone_mbuf, m);
+		uma_zfree(dn_clust_pool(MCLBYTES)->dp_zone, clust);
+		uma_zfree(dn_mbufs.dp_zone, m);
 	}
 }
 
@@ -514,26 +545,34 @@ dn_pack_release(void *arg __unused, void **store, int count)
 void
 debugnet_mbuf_drain(void)
 {
+	struct debugnet_pool *pool;
 	struct mbuf *m;
 	void *item;
+	u_int i;
 
-	if (dn_zone_mbuf != NULL) {
-		uma_zdestroy(dn_zone_mbuf);
-		dn_zone_mbuf = NULL;
+	if (dn_mbufs.dp_zone != NULL) {
+		uma_zdestroy(dn_mbufs.dp_zone);
+		dn_mbufs.dp_zone = NULL;
 	}
-	if (dn_zone_clust != NULL) {
-		uma_zdestroy(dn_zone_clust);
-		dn_zone_clust = NULL;
+	for (i = 0; i < nitems(dn_clusts); i++) {
+		pool = &dn_clusts[i];
+		if (pool->dp_zone != NULL) {
+			uma_zdestroy(pool->dp_zone);
+			pool->dp_zone = NULL;
+		}
 	}
 	if (dn_zone_pack != NULL) {
 		uma_zdestroy(dn_zone_pack);
 		dn_zone_pack = NULL;
 	}
 
-	while ((m = mbufq_dequeue(&dn_mbufq)) != NULL)
+	while ((m = mbufq_dequeue(&dn_mbufs.dp_q)) != NULL)
 		m_free(m);
-	while ((item = mbufq_dequeue(&dn_clustq)) != NULL)
-		uma_zfree(m_getzone(dn_clsize), item);
+	for (i = 0; i < nitems(dn_clusts); i++) {
+		pool = &dn_clusts[i];
+		while ((item = mbufq_dequeue(&pool->dp_q)) != NULL)
+			uma_zfree(m_getzone(pool->dp_size), item);
+	}
 }
 
 /*
@@ -542,13 +581,16 @@ debugnet_mbuf_drain(void)
 int
 debugnet_mbuf_start(void)
 {
+	u_int i;
 
 	MPASS(!dn_saved_zones.dsz_debugnet_zones_enabled);
 
 	/* Refuse early panic use before a driver prepares the pools. */
-	if (dn_zone_mbuf == NULL || dn_zone_clust == NULL ||
-	    dn_zone_pack == NULL)
+	if (dn_mbufs.dp_zone == NULL || dn_zone_pack == NULL)
 		return (ENXIO);
+	for (i = 0; i < nitems(dn_clusts); i++)
+		if (dn_clusts[i].dp_zone == NULL)
+			return (ENXIO);
 
 	/* Save the old zone pointers to restore when debugnet is closed. */
 	dn_saved_zones = (struct debugnet_saved_zones) {
@@ -562,17 +604,16 @@ debugnet_mbuf_start(void)
 	};
 
 	/*
-	 * All cluster zones return buffers of the size requested by the
-	 * drivers.  It's up to the driver to reinitialize the zones if the
-	 * MTU of a debugnet-enabled interface changes.
+	 * Each cluster zone is replaced by the reserve of its own size, which
+	 * is empty unless a debugnet-enabled interface asked for that size.
+	 * It's up to the driver to reinitialize the zones if the MTU of a
+	 * debugnet-enabled interface changes.
 	 */
 	printf("debugnet: overwriting mbuf zone pointers\n");
-	zone_mbuf = dn_zone_mbuf;
-	zone_clust = dn_zone_clust;
+	zone_mbuf = dn_mbufs.dp_zone;
 	zone_pack = dn_zone_pack;
-	zone_jumbop = dn_zone_clust;
-	zone_jumbo9 = dn_zone_clust;
-	zone_jumbo16 = dn_zone_clust;
+	for (i = 0; i < nitems(dn_clusts); i++)
+		*dn_clusts[i].dp_global = dn_clusts[i].dp_zone;
 	return (0);
 }
 
@@ -597,40 +638,56 @@ debugnet_mbuf_finish(void)
 }
 
 /*
- * Reinitialize the debugnet mbuf+cluster pool and cache zones.
+ * Reinitialize the debugnet mbuf+cluster pool and cache zones.  The number of
+ * reserved mbufs is set to nmbuf and the number of reserved clusters of size
+ * clsize to nclust; the reserves of other cluster sizes are retained.
  */
 void
 debugnet_mbuf_reinit(int nmbuf, int nclust, int clsize)
 {
+	struct debugnet_pool *pool;
 	struct mbuf *m;
 	void *item;
+	u_int i;
+	int n;
+
+	pool = dn_clust_pool(clsize);
+	if (pool == NULL)
+		panic("%s: invalid cluster size %d", __func__, clsize);
 
 	debugnet_mbuf_drain();
 
-	dn_clsize = clsize;
+	dn_mbufs.dp_nitems = nmbuf;
+	pool->dp_nitems = nclust;
 
-	dn_zone_mbuf = uma_zcache_create("debugnet_" MBUF_MEM_NAME,
+	dn_mbufs.dp_zone = uma_zcache_create(dn_mbufs.dp_name,
 	    MSIZE, mb_ctor_mbuf, mb_dtor_mbuf, NULL, NULL,
 	    dn_buf_import, dn_buf_release,
-	    &dn_mbufq, UMA_ZONE_NOBUCKET);
+	    &dn_mbufs, UMA_ZONE_NOBUCKET);
 
-	dn_zone_clust = uma_zcache_create("debugnet_" MBUF_CLUSTER_MEM_NAME,
-	    clsize, mb_ctor_clust, NULL, NULL, NULL,
-	    dn_buf_import, dn_buf_release,
-	    &dn_clustq, UMA_ZONE_NOBUCKET);
+	for (i = 0; i < nitems(dn_clusts); i++) {
+		pool = &dn_clusts[i];
+		pool->dp_zone = uma_zcache_create(pool->dp_name,
+		    pool->dp_size, mb_ctor_clust, NULL, NULL, NULL,
+		    dn_buf_import, dn_buf_release,
+		    pool, UMA_ZONE_NOBUCKET);
+	}
 
 	dn_zone_pack = uma_zcache_create("debugnet_" MBUF_PACKET_MEM_NAME,
 	    MCLBYTES, mb_ctor_pack, mb_dtor_pack, NULL, NULL,
 	    dn_pack_import, dn_pack_release,
 	    NULL, UMA_ZONE_NOBUCKET);
 
-	while (nmbuf-- > 0) {
+	for (n = 0; n < dn_mbufs.dp_nitems; n++) {
 		m = m_get(M_WAITOK, MT_DATA);
-		uma_zfree(dn_zone_mbuf, m);
+		uma_zfree(dn_mbufs.dp_zone, m);
 	}
-	while (nclust-- > 0) {
-		item = uma_zalloc(m_getzone(dn_clsize), M_WAITOK);
-		uma_zfree(dn_zone_clust, item);
+	for (i = 0; i < nitems(dn_clusts); i++) {
+		pool = &dn_clusts[i];
+		for (n = 0; n < pool->dp_nitems; n++) {
+			item = uma_zalloc(m_getzone(pool->dp_size), M_WAITOK);
+			uma_zfree(pool->dp_zone, item);
+		}
 	}
 }
 #endif /* DEBUGNET */

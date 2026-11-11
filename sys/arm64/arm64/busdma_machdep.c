@@ -153,6 +153,13 @@ bus_dma_template_clone(bus_dma_template_t *t, bus_dma_tag_t dmat)
 		return;
 
 	common = (struct bus_dma_tag_common *)dmat;
+	/* Cloning must not introduce a borrowed source-tag pointer: the
+	 * source can be destroyed before template_tag.  Until templates
+	 * carry an owned-by-value range policy, reject this operation. */
+	t->arm64_requires_translation = common->impl == &bus_dma_bounce_impl &&
+	    bus_dma_bounce_ram_translated(dmat);
+	if (t->arm64_requires_translation)
+		t->parent = NULL;
 
 	t->alignment = common->alignment;
 	t->boundary = common->boundary;
@@ -181,7 +188,9 @@ bus_dma_tag_set_domain(bus_dma_tag_t dmat, int domain)
 	struct bus_dma_tag_common *tc;
 
 	tc = (struct bus_dma_tag_common *)dmat;
-	domain = vm_phys_domain_match(domain, 0ul, tc->lowaddr);
+	domain = vm_phys_domain_match(domain, 0ul,
+	    tc->impl == &bus_dma_bounce_impl ?
+	    bus_dma_bounce_domain_limit(dmat) : tc->lowaddr);
 	/* Only call the callback if it changes. */
 	if (domain == tc->domain)
 		return (0);

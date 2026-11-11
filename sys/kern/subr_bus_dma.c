@@ -504,6 +504,11 @@ bus_dmamap_load_mem(bus_dma_tag_t dmat, bus_dmamap_t map,
 		error = _bus_dmamap_load_ma(dmat, map, mem->u.md_ma,
 		    mem->md_len, mem->md_offset, flags, NULL, &nsegs);
 		break;
+#ifdef BUS_DMA_MEMDESC_UNSUPPORTED
+	default:
+		error = BUS_DMA_MEMDESC_UNSUPPORTED(dmat);
+		break;
+#endif
 	}
 	nsegs++;
 
@@ -605,6 +610,9 @@ bus_dma_template_init(bus_dma_template_t *t, bus_dma_tag_t parent)
 	if (t == NULL)
 		return;
 
+#ifdef BUS_DMA_TEMPLATE_MD_INIT
+	BUS_DMA_TEMPLATE_MD_INIT(t);
+#endif
 	t->parent = parent;
 	t->alignment = 1;
 	t->boundary = 0;
@@ -623,6 +631,13 @@ bus_dma_template_tag(bus_dma_template_t *t, bus_dma_tag_t *dmat)
 	if (t == NULL || dmat == NULL)
 		return (EINVAL);
 
+#ifdef BUS_DMA_TEMPLATE_MD_CHECK
+	/* No parent pointer is inspected before the MD value-only guard. */
+	if (BUS_DMA_TEMPLATE_MD_CHECK(t)) {
+		*dmat = NULL;
+		return (EOPNOTSUPP);
+	}
+#endif
 	return (bus_dma_tag_create(t->parent, t->alignment, t->boundary,
 	    t->lowaddr, t->highaddr, NULL, NULL, t->maxsize,
 	    t->nsegments, t->maxsegsize, t->flags, t->lockfunc, t->lockfuncarg,

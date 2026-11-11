@@ -122,6 +122,42 @@ uint64_t ap_cpuid;
 void *bootstack;
 static void *bootstacks[MAXCPU];
 
+/*
+ * Breadcrumb for diagnosing an AP that never checks in: the last stage the
+ * most recently started AP reached.  Stages 1 and 2 (entry and MMU enable)
+ * run with the MMU off and are not recorded, as that needs a cache-safe store
+ * that cannot be verified without hardware.  AP_STAGE_VIRTDONE is stored by
+ * mp_virtdone in locore.S and must be kept in sync.
+ */
+#define	AP_STAGE_NONE		0
+#define	AP_STAGE_VIRTDONE	3	/* MMU on, in the kernel's address space */
+#define	AP_STAGE_SECONDARY	4	/* entered init_secondary() */
+#define	AP_STAGE_IDENTIFIED	5	/* identify_cpu() done */
+volatile int ap_stage;
+
+/*
+ * Stages 1 and 2 (entry at mpentry_common, kernel exception level reached)
+ * run with the MMU off.  They are stored by locore.S with Device-nGnRnE
+ * stores into this word, which owns a whole cache line so that no dirty
+ * neighbour of the boot CPU can write the line back over it.  The boot CPU
+ * cleans and invalidates the line before it starts an AP and before it
+ * reads the word.
+ */
+#define	AP_STAGE_ENTRY		1	/* mpentry_common reached, MMU off */
+#define	AP_STAGE_EL1		2	/* at the kernel EL, about to enable the MMU */
+struct ap_stage_early_line {
+	volatile int	stage;
+	char		pad[128 - sizeof(int)];
+} __aligned(128);
+struct ap_stage_early_line ap_stage_early;
+
+/*
+ * Set once the boot CPU stops waiting for CPUs (hw.mp.stop_on_failure).  A
+ * CPU that arrives later parks itself in locore.S before it touches any
+ * shared state.
+ */
+volatile int ap_halted;
+
 /* Count of started APs, used to synchronize access to bootstack. */
 static volatile int aps_started;
 
@@ -224,6 +260,7 @@ init_secondary(uint64_t cpu)
 	pmap_t pmap0;
 	uint64_t mpidr;
 
+	atomic_store_int(&ap_stage, AP_STAGE_SECONDARY);
 	ptrauth_mp_start(cpu);
 
 	/*
@@ -253,6 +290,7 @@ init_secondary(uint64_t cpu)
 	pcpup = cpuid_to_pcpu[cpu];
 	pcpup->pc_midr = get_midr();
 	identify_cpu(cpu);
+	atomic_store_int(&ap_stage, AP_STAGE_IDENTIFIED);
 
 	/* Ensure the stores in identify_cpu have completed */
 	atomic_thread_fence_acq_rel();
@@ -514,6 +552,94 @@ enable_cpu_spin(uint64_t cpu, vm_paddr_t entry, vm_paddr_t release_paddr)
 }
 
 /*
+ * Loader tunables for diagnosing and surviving a CPU that never starts:
+ *
+ *   hw.mp.ap_timeout_ms    how long to wait for one CPU to check in
+ *   hw.mp.stop_on_failure  1 (default): after the first CPU that fails to
+ *                          start, start no more, boot on the
+ *                          CPUs that did start; late arrivals are parked.
+ *                          0: skip the failed CPU and try the rest.
+ *   hw.mp.skip_mpidr       comma-separated hex MPIDR affinities (for example
+ *                          "400,500") that are never started
+ *   hw.mp.fail_mpidr       fault injection: these CPUs are not started but
+ *                          waited for, exactly as if they never checked in
+ */
+#define	AP_START_TIMEOUT_MS	5000
+#define	AP_START_TIMEOUT_MIN_MS	100
+#define	AP_START_TIMEOUT_MAX_MS	120000
+
+static int ap_timeout_ms = AP_START_TIMEOUT_MS;
+static int ap_stop_on_failure = 1;
+static char ap_skip_mpidr[128];
+static char ap_fail_mpidr[128];
+static bool ap_tunables_read;
+static u_int ap_failures;
+
+static void
+ap_read_tunables(void)
+{
+
+	if (ap_tunables_read)
+		return;
+	ap_tunables_read = true;
+	TUNABLE_INT_FETCH("hw.mp.ap_timeout_ms", &ap_timeout_ms);
+	if (ap_timeout_ms < AP_START_TIMEOUT_MIN_MS)
+		ap_timeout_ms = AP_START_TIMEOUT_MIN_MS;
+	if (ap_timeout_ms > AP_START_TIMEOUT_MAX_MS)
+		ap_timeout_ms = AP_START_TIMEOUT_MAX_MS;
+	TUNABLE_INT_FETCH("hw.mp.stop_on_failure", &ap_stop_on_failure);
+	TUNABLE_STR_FETCH("hw.mp.skip_mpidr", ap_skip_mpidr,
+	    sizeof(ap_skip_mpidr));
+	TUNABLE_STR_FETCH("hw.mp.fail_mpidr", ap_fail_mpidr,
+	    sizeof(ap_fail_mpidr));
+}
+
+/* Is this MPIDR affinity on a comma-separated list of hex affinities? */
+static bool
+ap_listed(const char *list, uint64_t target_cpu)
+{
+	const char *p;
+	char *end;
+	u_long v;
+
+	for (p = list; *p != '\0';) {
+		v = strtoul(p, &end, 16);
+		if (end == p) {
+			p++;
+			continue;
+		}
+		if (v == (target_cpu & CPU_AFF_MASK))
+			return (true);
+		p = end;
+	}
+	return (false);
+}
+
+/*
+ * Report a CPU that was started but never checked in.  If PSCI started it,
+ * ask the firmware what it thinks the CPU is doing.
+ */
+static void
+start_cpu_failed(u_int cpuid, uint64_t target_cpu, vm_paddr_t release_addr)
+{
+	int early, stage;
+
+	/* The early word was stored with the MMU off: read it from memory. */
+	cpu_dcache_wbinv_range(&ap_stage_early, sizeof(ap_stage_early));
+	early = atomic_load_int(&ap_stage_early.stage);
+	stage = atomic_load_int(&ap_stage);
+	if (release_addr == 0 && psci_present && psci_callfn != NULL)
+		printf("CPU %u (%lx) failed to start after %d ms (early stage "
+		    "%d, stage %d, PSCI AFFINITY_INFO %d; 0 ON, 1 OFF, 2 "
+		    "ON_PENDING)\n", cpuid, target_cpu, ap_timeout_ms, early,
+		    stage, psci_call(PSCI_FNID_AFFINITY_INFO, target_cpu, 0, 0));
+	else
+		printf("CPU %u (%lx) failed to start after %d ms (early stage "
+		    "%d, stage %d)\n", cpuid, target_cpu, ap_timeout_ms,
+		    early, stage);
+}
+
+/*
  * Starts a given CPU. If the CPU is already running, i.e. it is the boot CPU,
  * do nothing. Returns true if the CPU is present and running.
  */
@@ -523,6 +649,7 @@ start_cpu(u_int cpuid, uint64_t target_cpu, int domain, vm_paddr_t release_addr)
 	struct pcpu *pcpup;
 	vm_size_t size;
 	vm_paddr_t pa;
+	uint64_t deadline, freq, t0;
 	int err, naps;
 
 	/* Check we are able to start this cpu */
@@ -534,6 +661,20 @@ start_cpu(u_int cpuid, uint64_t target_cpu, int domain, vm_paddr_t release_addr)
 		return (true);
 
 	KASSERT(cpuid < MAXCPU, ("Too many CPUs"));
+
+	ap_read_tunables();
+	if (ap_halted != 0) {
+		printf("Not starting CPU (%lx): an earlier CPU failed to start "
+		    "(hw.mp.stop_on_failure)\n", target_cpu);
+		mp_ncpus--;
+		return (false);
+	}
+	if (ap_listed(ap_skip_mpidr, target_cpu)) {
+		printf("Skipping CPU (%lx): listed in hw.mp.skip_mpidr\n",
+		    target_cpu);
+		mp_ncpus--;
+		return (false);
+	}
 
 	size = round_page(sizeof(*pcpup) + DPCPU_SIZE);
 	pcpup = kmem_malloc_domainset(DOMAINSET_PREF(domain), size,
@@ -550,6 +691,9 @@ start_cpu(u_int cpuid, uint64_t target_cpu, int domain, vm_paddr_t release_addr)
 	bootstacks[cpuid] = kmem_malloc_domainset(DOMAINSET_PREF(domain),
 	    MP_BOOTSTACK_SIZE, M_WAITOK | M_ZERO);
 
+	atomic_store_int(&ap_stage, AP_STAGE_NONE);
+	atomic_store_int(&ap_stage_early.stage, AP_STAGE_NONE);
+	cpu_dcache_wbinv_range(&ap_stage_early, sizeof(ap_stage_early));
 	naps = atomic_load_int(&aps_started);
 	bootstack = (char *)bootstacks[cpuid] + MP_BOOTSTACK_SIZE;
 
@@ -561,7 +705,11 @@ start_cpu(u_int cpuid, uint64_t target_cpu, int domain, vm_paddr_t release_addr)
 	 * PSCI branch here.
 	 */
 	MPASS(release_addr == 0 || !psci_present);
-	if (release_addr != 0) {
+	if (ap_listed(ap_fail_mpidr, target_cpu)) {
+		printf("CPU %u (%lx): hw.mp.fail_mpidr, not starting it\n",
+		    cpuid, target_cpu);
+		err = 0;
+	} else if (release_addr != 0) {
 		pa = pmap_extract(kernel_pmap, (vm_offset_t)mpentry_spintable);
 		err = enable_cpu_spin(target_cpu, pa, release_addr);
 	} else {
@@ -579,9 +727,56 @@ start_cpu(u_int cpuid, uint64_t target_cpu, int domain, vm_paddr_t release_addr)
 		return (false);
 	}
 
-	/* Wait for the AP to switch to its boot stack. */
-	while (atomic_load_int(&aps_started) < naps + 1)
+	/*
+	 * Wait for the AP to switch to its boot stack.  Don't wait forever:
+	 * some firmware accepts CPU_ON for a CPU that then never reaches the
+	 * kernel, and hanging here loses the whole machine.
+	 *
+	 * Use the architected counter rather than DELAY(), as the timer
+	 * driver is not attached yet and DELAY() is then uncalibrated.
+	 */
+	freq = READ_SPECIALREG(cntfrq_el0);
+	if (freq == 0)
+		freq = 1000000;
+	t0 = READ_SPECIALREG(cntvct_el0);
+	deadline = t0 + freq * ap_timeout_ms / 1000;
+	while (atomic_load_int(&aps_started) < naps + 1) {
+		if (READ_SPECIALREG(cntvct_el0) > deadline) {
+			start_cpu_failed(cpuid, target_cpu, release_addr);
+			ap_failures++;
+			if (ap_stop_on_failure != 0) {
+				/*
+				 * Start no more CPUs: the boot stack and pcpu
+				 * hand-off is not safe with an AP in an unknown
+				 * state.  Anything that arrives from now on is
+				 * parked in locore.S before it uses them.
+				 */
+				atomic_store_rel_int(&ap_halted, 1);
+			}
+			/*
+			 * The AP may still be alive and could come in late
+			 * using bootstack and the pcpu we gave it, so they are
+			 * deliberately not freed.  pcpu_destroy() unlinks the
+			 * pcpu and clears cpuid_to_pcpu[], so a late AP finds
+			 * no pcpu for its MPIDR and panics in init_secondary()
+			 * before it touches aps_started.  The CPU ID is
+			 * not consumed: callers only advance it on success.
+			 */
+			pcpu_destroy(pcpup);
+			dpcpu[cpuid - 1] = NULL;
+			bootstacks[cpuid] = NULL;
+			mp_ncpus--;
+			if (ap_halted != 0)
+				printf("Not starting any more CPUs "
+				    "(hw.mp.stop_on_failure=1); %d CPUs "
+				    "will run\n", mp_ncpus);
+			return (false);
+		}
 		cpu_spinwait();
+	}
+	if (bootverbose)
+		printf("CPU %u (%lx) checked in after %lu ms\n", cpuid,
+		    target_cpu, (READ_SPECIALREG(cntvct_el0) - t0) * 1000 / freq);
 	CPU_SET(cpuid, &all_cpus);
 
 	return (true);
@@ -782,6 +977,17 @@ cpu_mp_start(void)
 	default:
 		break;
 	}
+
+	/*
+	 * CPUs that failed or were skipped do not consume a CPU ID, so the
+	 * started CPUs are numbered contiguously from 0 and the IDs from
+	 * mp_ncpus up to mp_maxid stay unused.  mp_maxid is deliberately not
+	 * lowered here: UMA's per-CPU zones and other early allocations are
+	 * sized from it, and the kernel already copes with absent CPU IDs.
+	 */
+	if (bootverbose && mp_ncpus <= (int)mp_maxid)
+		printf("CPUs started: %d of %u found\n", CPU_COUNT(&all_cpus),
+		    mp_maxid + 1);
 }
 
 void

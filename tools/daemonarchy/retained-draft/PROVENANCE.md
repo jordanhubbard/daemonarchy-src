@@ -79,3 +79,12 @@ ports runs need root for poudriere; they cannot share an invocation with this on
   `test_report_kyua` privileged/non-privileged cases) would be refused because every
   `skip_reason` in the policy is null.
 - `scale_limits` already declared in `literate.project.json` for this tree (merged in #51).
+
+## Source main reconciliation, 2026-11-11
+
+The active project retains its existing validated framework and receipt-runner
+identities. The older draft rebind remains in Git history and its evidence.
+The installed project schema does not accept the draft scale_limits field;
+its exact requested bounds are retained in project-scale-limits.requested.json.
+Those bounds are not active or admitted. Complete source/catalog scaling and
+canonical native lifecycle acceptance remain open work.

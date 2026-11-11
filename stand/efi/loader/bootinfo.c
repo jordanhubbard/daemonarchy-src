@@ -40,6 +40,7 @@
 #ifdef EFI
 #include <efi.h>
 #include <efilib.h>
+#include "boottrace_normal.h"
 #else
 #include "kboot.h"
 #endif
@@ -256,6 +257,11 @@ bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
 	if (exit_bs)
 		netconsole_handoff();
 #endif
+	/* All capture I/O, cleanup and output precede memory-map acquisition.
+	 * Never add diagnostics inside the GetMemoryMap/ExitBootServices loop. */
+	if (exit_bs)
+		boottrace_normal_preexit();
+
 	sz = 0;
 	status = BS->GetMemoryMap(&sz, NULL, &efi_mapkey, &dsz, &mmver);
 	if (status != EFI_BUFFER_TOO_SMALL) {

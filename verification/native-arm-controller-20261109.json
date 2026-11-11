@@ -1,0 +1,36 @@
+{
+  "schema": "daemonarchy/native-arm-controller-development@1",
+  "scope": "Explicit native ARM64 aggregate-source planning and admission; no aggregate build or release qualification",
+  "source_base": "ca6c32213c25d0950dc4be1a9af3c543bd2a3468",
+  "input_sha256": {
+    "tools/daemonarchy/build.py": "c32bbd0b9bf35b69a403794f9ab4468e2a1484a1844ae4e01ee29697d0f987e7",
+    "tools/daemonarchy/test_build.py": "c74281344ec3a339066a6c649ed712f57d508559367eba34291de5df3ae7b414",
+    "tools/daemonarchy/README.md": "37da2f322cd421c00d8e4bca7597a538c3ce6d116d15fd8d812129b03128a368"
+  },
+  "behavior": [
+    "Explicit --target arm64 binds TARGET=arm64, TARGET_ARCH=aarch64 and ARM64 kernel config in every phase and plan identity",
+    "Default amd64 baseline and diagnostic plan objects match the retained controller exactly on identical inputs",
+    "Execution admits only matching native FreeBSD architectures; rejects cross-build hosts and root",
+    "Available-memory, output-space, job-count, installed-tool, phase supervision, immutable-source and resume checks remain enforced",
+    "All required installer sets and package inventory stay required, including lib32; no payload scope reduction",
+    "Missing ARM diagnostic config refuses without a profile fallback; baseline uses ARM64 GENERIC"
+  ],
+  "controller_tests": {
+    "linux_discovered": 132,
+    "linux_passed": 127,
+    "linux_native_only_skips": 5,
+    "native_freebsd_16_arm64_build_controller_cases": 29,
+    "native_cases_passed": 29,
+    "native_cases_skipped": 0,
+    "native_method": "Exact two changed Python inputs over a separate complete current-source copy, using the retained native FreeBSD 16 Git/Python/tool prefix; original source and live root unchanged",
+    "native_aggregate_build_executed": false
+  },
+  "remaining": [
+    "Native clean pinned CLI plan and actual unprivileged ARM aggregate build",
+    "Aligned allocated worker with at least 8 GiB available memory and 80 GiB free output; existing 8 GiB total VM cannot meet the available-memory floor",
+    "Matched world/kernel/modules/pkgbase/installer sets and complete archive/toolchain evidence",
+    "Both-architecture runtime and all final media/desktop/physical/release acceptance",
+    "Human authority/lifecycle/receipt gates"
+  ],
+  "release_qualified": false
+}

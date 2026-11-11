@@ -1,0 +1,22 @@
+{
+  "schema": "daemonarchy/source-owned-main-reconciliation@1",
+  "observed_utc": "2026-11-11T04:54:37.601448+00:00",
+  "main_parent": "abaa2b874c7e962bcb7cb69eb2ee843bed7a1db6",
+  "integration_parent": "2b05ff9b629ed5a7068336a94e5bfc6719bce59c",
+  "merge_commit": "7d06a91a40c09ebb5dacfb84a27a6f050569f4c2",
+  "history": "Deepened shallow history before reconciliation; merge preserves both parents.",
+  "draft_framework_rebind": "Existing validated framework and receipt-runner identities retained; draft artifacts/history preserved.",
+  "requested_scale_limits": "Preserved as explicitly not active because installed project schema rejects the field; native scaling integration remains open.",
+  "license_texts": "Imported verbatim from owned main; whitespace warnings retained.",
+  "controller": {
+    "run": 144,
+    "passed": 139,
+    "skipped": 5,
+    "exit": 0,
+    "log_sha256": "ec8be29f32a26e8badeac905157c05ee4add32a996ec0d7b78fd9b6de8953f3f"
+  },
+  "authority": "pass",
+  "locks": 5,
+  "lifecycle_receipt": "missing",
+  "native_aggregate_kernel_world": "pending"
+}
