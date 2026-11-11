@@ -546,5 +546,129 @@ class BuildTests(unittest.TestCase):
                 self.assertTrue(all(m.uid == 0 and m.gid == 0 for m in members.values()))
 
 
+class SnapshotTests(unittest.TestCase):
+    """Source without .git: identity pinned by the raw commit object, content checked against its tree."""
+
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.parent = Path(self.temporary.name).resolve()
+        repo = self.parent / "repo"
+        repo.mkdir()
+        for name, content in {
+            "tools/daemonarchy/build.py": "# controller\n",
+            "tools/daemonarchy/src.conf": "WITHOUT_LOCAL_MODULES=yes\n",
+            "sys/amd64/conf/GENERIC": "ident GENERIC\n",
+            "sys/conf/newvers.sh": 'REVISION="16.0"\n',
+            "bin/run.sh": "#!/bin/sh\n",
+        }.items():
+            path = repo / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content)
+        (repo / "bin/run.sh").chmod(0o755)
+        (repo / "bin/link").symlink_to("run.sh")
+        (repo / "empty").mkdir()
+        self.git_in = lambda *a: subprocess.check_output(["git", "-C", str(repo), *a], text=True).strip()
+        self.git_in("init", "-q")
+        self.git_in("config", "user.email", "test@example.invalid")
+        self.git_in("config", "user.name", "Test")
+        self.git_in("add", ".")
+        self.git_in("commit", "-qm", "fixture")
+        self.revision = self.git_in("rev-parse", "HEAD")
+        self.commit = self.parent / "commit.obj"
+        self.commit.write_bytes(subprocess.check_output(["git", "-C", str(repo), "cat-file", "commit", "HEAD"]))
+        self.source = self.parent / "snap"
+        subprocess.check_call(["git", "-C", str(repo), "checkout-index", "-a", "--prefix", str(self.source) + "/"])
+        self.output = self.parent / "output"
+        self.upstream = "1" * 40
+        self.args = build.argparse.Namespace(snapshot_commit=str(self.commit),
+                                             snapshot_upstream_base=self.upstream, snapshot_exclude=None)
+        patcher = patch.object(build, "SOURCE", self.source)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.addCleanup(lambda: setattr(build, "SNAPSHOT", None))
+
+    def plan(self, **kwargs):
+        return build.make_plan(kwargs.get("revision", self.revision), str(self.output), "baseline", 2, "off")
+
+    def pin(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self.args, key, value)
+        build.SNAPSHOT = build.load_snapshot(self.args)
+
+    def test_snapshot_plans_with_pinned_identity(self):
+        self.pin()
+        plan = self.plan()
+        self.assertEqual(plan["source_revision"], self.revision)
+        self.assertEqual(plan["source_tree"], self.git_in("rev-parse", "HEAD^{tree}"))
+        self.assertEqual(plan["upstream_base"], self.upstream)
+        self.assertEqual(plan["environment"]["SOURCE_DATE_EPOCH"], self.git_in("show", "-s", "--format=%ct"))
+
+    def test_tree_computation_matches_git(self):
+        self.assertEqual(build.snapshot_tree(self.source, []).hex(), self.git_in("rev-parse", "HEAD^{tree}"))
+
+    def test_wrong_revision_refused(self):
+        self.pin()
+        with self.assertRaisesRegex(ValueError, "does not match"):
+            self.plan(revision="0" * 40)
+
+    def test_modified_added_deleted_or_mode_changed_refused(self):
+        self.pin()
+        target = self.source / "sys/conf/newvers.sh"
+        original = target.read_text()
+        for mutate, restore in (
+            (lambda: target.write_text(original + "#\n"), lambda: target.write_text(original)),
+            (lambda: (self.source / "extra").write_text("x"), lambda: (self.source / "extra").unlink()),
+            (lambda: target.unlink(), lambda: target.write_text(original)),
+            (lambda: (self.source / "bin/run.sh").chmod(0o644), lambda: (self.source / "bin/run.sh").chmod(0o755)),
+        ):
+            mutate()
+            with self.assertRaisesRegex(ValueError, "pinned commit tree"):
+                self.plan()
+            restore()
+        self.plan()
+
+    def test_exclude_allows_declared_extras_only(self):
+        (self.source / "closure").mkdir()
+        (self.source / "closure/lib").write_text("x")
+        self.pin()
+        with self.assertRaisesRegex(ValueError, "pinned commit tree"):
+            self.plan()
+        self.pin(snapshot_exclude=["closure"])
+        self.assertEqual(self.plan()["source_snapshot"]["excludes"], ["closure"])
+        (self.source / "other").write_text("x")
+        with self.assertRaisesRegex(ValueError, "pinned commit tree"):
+            self.plan()
+
+    def test_unsafe_options_refused(self):
+        for exclude in (["tools"], ["tools/daemonarchy/build.py"], ["/abs"], ["../x"], ["a/../b"], ["a/"]):
+            with self.subTest(exclude=exclude), self.assertRaises(ValueError):
+                self.pin(snapshot_exclude=exclude)
+        self.args.snapshot_exclude = None
+        self.pin(snapshot_exclude=None)
+        with self.assertRaises(ValueError):
+            self.pin(snapshot_upstream_base="main")
+        self.args.snapshot_upstream_base = self.upstream
+        bad = self.parent / "bad.obj"
+        bad.write_bytes(b"not a commit")
+        with self.assertRaises(ValueError):
+            self.pin(snapshot_commit=str(bad))
+
+    def test_no_identity_without_git_refused(self):
+        build.SNAPSHOT = None
+        with self.assertRaisesRegex(ValueError, "no .git"):
+            self.plan()
+        self.args.snapshot_commit = None
+        with self.assertRaisesRegex(ValueError, "--snapshot-commit"):
+            build.load_snapshot(self.args)
+
+    def test_snapshot_options_refused_when_git_present(self):
+        (self.source / ".git").mkdir()
+        with self.assertRaisesRegex(ValueError, "without .git"):
+            build.load_snapshot(self.args)
+        self.args.snapshot_commit = self.args.snapshot_upstream_base = None
+        self.assertIsNone(build.load_snapshot(self.args))
+
+
 if __name__ == "__main__":
     unittest.main()
