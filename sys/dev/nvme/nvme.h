@@ -195,6 +195,16 @@ struct sbuf;
 #define NVME_AQA_REG_ACQS_SHIFT				(16)
 #define NVME_AQA_REG_ACQS_MASK				(0xFFF)
 
+#define NVME_CRTO_REG_CRWMT_SHIFT			(0)
+#define NVME_CRTO_REG_CRWMT_MASK			(0xFFFF)
+#define NVME_CRTO_REG_CRIMT_SHIFT			(16)
+#define NVME_CRTO_REG_CRIMT_MASK			(0xFFFF)
+
+#define NVME_CRTO_CRWMT(x) \
+	NVMEV(NVME_CRTO_REG_CRWMT, x)
+#define NVME_CRTO_CRIMT(x) \
+	NVMEV(NVME_CRTO_REG_CRIMT, x)
+
 #define NVME_PMRCAP_REG_RDS_SHIFT			(3)
 #define NVME_PMRCAP_REG_RDS_MASK			(0x1)
 #define NVME_PMRCAP_REG_WDS_SHIFT			(4)
@@ -940,7 +950,7 @@ struct nvme_dsm_range {
 /* Largest DSM Trim that can be done */
 #define NVME_MAX_DSM_TRIM		4096
 
-_Static_assert(sizeof(struct nvme_dsm_range) == 16, "bad size for nvme_dsm_ranage");
+_Static_assert(sizeof(struct nvme_dsm_range) == 16, "bad size for nvme_dsm_range");
 
 /* status code types */
 enum nvme_status_code_type {
