@@ -1,0 +1,33 @@
+{
+  "schema": "daemonarchy/source-upstream-sync@1",
+  "observed_utc": "2026-11-13T13:10:19.811506+00:00",
+  "owned_parent": "c061ea3a9da41abe6d41ca6600e993ed7a5e96b4",
+  "previous_upstream": "2af08ab3f125ce5988a641c32c777afc52f917e1",
+  "upstream_parent": "fabdac3abcbb06551415ca64b69b0e29946834f9",
+  "merge_commit": "920aa798d2f2d535d33fbf7bf4fd29a99a8f28c4",
+  "merge_tree": "3977eb5db2e5d6150c72bf45d088f715695cf83a",
+  "upstream_commits_added": 622,
+  "imported_diff": "870 files changed, 41709 insertions(+), 16265 deletions(-)",
+  "owned_delta_paths_before": 608,
+  "owned_delta_paths_after": 608,
+  "unexpected_downstream_paths": [],
+  "reviewed_overlap": {
+    "stand/efi/loader/main.c": "Upstream RAM disk disk_devdesc initialization/open/whole-image fallback; owned EFI timer, network and trace changes retained.",
+    "sys/arm64/arm64/pmap.c": "Upstream L1 wired page accounting; owned device/DMA mapping changes retained.",
+    "sys/conf/files": "Upstream OpenZFS anyraid source registration; owned drivers retained.",
+    "sys/dev/regulator/regulator.c": "Upstream delay only on successful voltage change; owned provider behavior retained."
+  },
+  "controller_tests": {
+    "command": "python3 -m unittest discover -s tools/daemonarchy -p 'test_*.py'",
+    "run": 150,
+    "skipped": 5,
+    "result": "passed",
+    "log_sha256": "4c75626c977e011197b614e3b6cae41fb27f1955f42a35fad2c194c8b3152b77"
+  },
+  "qualification": {
+    "native_build": false,
+    "runtime": false,
+    "canonical_sdk_lifecycle_receipt": false,
+    "frozen_native_builds_retargeted": false
+  }
+}
