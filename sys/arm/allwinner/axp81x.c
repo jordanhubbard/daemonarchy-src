@@ -358,6 +358,8 @@ static struct axp8xx_regdef axp813_regdefs[] = {
 		.enable_value = (1 << (_ebit)),				\
 		.voltage_reg = _vreg,					\
 		.voltage_min = _min,					\
+		.voltage_max = (_min) + (_step1) * (_nstep1) +		\
+		    (_step2) * (_nstep2),				\
 		.voltage_step1 = _step1,				\
 		.voltage_nstep1 = _nstep1,				\
 		.voltage_step2 = _step2,				\
@@ -464,7 +466,7 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.voltage_min = 800,
 		.voltage_max = 1840,
 		.voltage_step1 = 10,
-		.voltage_nstep1 = 42,
+		.voltage_nstep1 = 32,
 		.voltage_step2 = 20,
 		.voltage_nstep2 = 36,
 	},
@@ -900,6 +902,9 @@ axp8xx_regnode_enable(struct regnode *regnode, bool enable, int *udelay)
 	sc = regnode_get_softc(regnode);
 	asc = device_get_softc(sc->base_dev);
 
+	/* The consumers wait for the regulator to be ready after enabling it */
+	*udelay = enable ? sc->param->enable_delay : 0;
+
 	if (bootverbose)
 		device_printf(sc->base_dev, "%sable %s (%s)\n",
 		    enable ? "En" : "Dis",
@@ -926,8 +931,6 @@ axp8xx_regnode_enable(struct regnode *regnode, bool enable, int *udelay)
 	sx_xunlock(&asc->reglock);
 	if (error != 0)
 		return (EIO);
-
-	*udelay = 0;
 
 	return (0);
 }
@@ -995,6 +998,8 @@ axp8xx_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
 	struct axp8xx_reg_sc *sc;
 	uint8_t val;
 
+	*udelay = 0;
+
 	sc = regnode_get_softc(regnode);
 
 	if (bootverbose)
@@ -1011,8 +1016,6 @@ axp8xx_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
 
 	if (axp8xx_write(sc->base_dev, sc->def->voltage_reg, val) != 0)
 		return (EIO);
-
-	*udelay = 0;
 
 	return (0);
 }
@@ -1748,7 +1751,8 @@ axp8xx_setup_intr(device_t dev)
 	}
 
 	/* Install interrupt handler */
-	error = bus_setup_intr(dev, sc->res, INTR_TYPE_MISC | INTR_MPSAFE,
+	error = bus_setup_intr(dev, sc->res,
+	    INTR_TYPE_MISC | INTR_MPSAFE | INTR_EXCL | INTR_SLEEPABLE,
 	    NULL, handler, dev, &sc->ih);
 	if (error != 0) {
 		device_printf(dev, "cannot setup interrupt handler\n");
