@@ -99,6 +99,53 @@ def snapshot_tree(directory, excludes, prefix=""):
     return hashlib.sha1(b"tree %d\0" % len(body) + body).digest()
 
 
+def snapshot_package_files():
+    """File names from the verified snapshot, without adding repository metadata."""
+    names = []
+    excludes = SNAPSHOT["excludes"]
+
+    def collect(directory, prefix=""):
+        with os.scandir(directory) as scan:
+            for entry in scan:
+                relative = prefix + entry.name
+                if any(relative == e or relative.startswith(e + "/") for e in excludes):
+                    continue
+                mode = entry.stat(follow_symlinks=False).st_mode
+                if stat.S_ISDIR(mode):
+                    collect(entry.path, relative + "/")
+                elif stat.S_ISREG(mode) or stat.S_ISLNK(mode):
+                    name = os.fsencode(relative)
+                    if b"\n" in name or b"\r" in name:
+                        raise ValueError("snapshot source package path contains a line break")
+                    names.append(name)
+                else:
+                    raise ValueError(f"snapshot contains a non-regular file: {relative}")
+
+    collect(SOURCE)
+    return b"".join(name + b"\n" for name in sorted(names))
+
+
+def materialize_snapshot_package_files(plan):
+    specification = plan.get("source_package_files")
+    if specification is None:
+        return
+    data = snapshot_package_files()
+    if (hashlib.sha256(data).hexdigest() != specification["sha256"]
+            or data.count(b"\n") != specification["count"]):
+        raise ValueError("snapshot source package file list changed")
+    path = Path(specification["path"])
+    if path.parent != Path(plan["output"]) or path.is_symlink():
+        raise ValueError("snapshot source package file list escaped output")
+    if path.exists():
+        if not path.is_file() or path.read_bytes() != data:
+            raise ValueError("retained snapshot source package file list changed")
+    else:
+        with path.open("xb") as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+
+
 def load_snapshot(args):
     """Validate the pinned identity options. Returns None when a checkout (.git) is present."""
     given = (args.snapshot_commit, args.snapshot_upstream_base, args.snapshot_exclude)
@@ -216,6 +263,9 @@ def make_plan(revision, output, profile, jobs, trace_mode="off", target="amd64")
         mode = "meta missing-meta=yes missing-filemon=yes"
         common += ["WITH_META_MODE=yes", "UPDATE_DEPENDFILE=NO",
                    f"META_MODE={mode}", f".MAKE.MODE={mode}"]
+    package_files = snapshot_package_files() if SNAPSHOT else None
+    if package_files is not None:
+        common.append(f"PKG_SOURCE_FILE_LIST={root / 'source-package-files.list'}")
     make = ["/usr/bin/make", "-C", str(SOURCE), *common]
     release = ["/usr/bin/make", "-C", str(SOURCE / "release"), *common,
                f"WORLDDIR={SOURCE}", "NOPORTS=yes", "NOPKGBASE=yes"]
@@ -242,6 +292,11 @@ def make_plan(revision, output, profile, jobs, trace_mode="off", target="amd64")
     }
     if SNAPSHOT:
         plan["source_snapshot"] = {"excludes": SNAPSHOT["excludes"], "upstream_base": "pinned-unverified"}
+        plan["source_package_files"] = {
+            "path": str(root / "source-package-files.list"),
+            "sha256": hashlib.sha256(package_files).hexdigest(),
+            "count": package_files.count(b"\n"),
+        }
     if trace_mode != "off":
         plan["trace_mode"] = trace_mode
     plan["identity"] = hashlib.sha256(canonical(plan)).hexdigest()
@@ -340,6 +395,8 @@ def artifacts(plan):
     if root not in sets.parents:
         raise ValueError("release object directory escaped build output")
     files = packages + [sets / n for n in manifest_references(sets / "MANIFEST")] + [sets / "MANIFEST"]
+    if "source_package_files" in plan:
+        files.append(Path(plan["source_package_files"]["path"]))
     # Retain pkg repository catalogues as well as package bytes.
     files += [p for p in (root / "repo").rglob("*")
               if p.is_file() and not p.is_symlink() and p not in packages]
@@ -536,6 +593,14 @@ def verify(root):
     entries = state.get("artifacts", [])
     require_inventory(entries)
     verify_manifest_closure(root, entries)
+    if "source_package_files" in plan:
+        specification = plan["source_package_files"]
+        path = Path(specification["path"])
+        if (path.parent != root or path.is_symlink() or not path.is_file()
+                or digest(path) != specification["sha256"]
+                or path.read_bytes().count(b"\n") != specification["count"]
+                or str(path.relative_to(root)) not in {item["path"] for item in entries}):
+            raise ValueError("snapshot source package file list changed or missing")
     if plan.get("trace_mode") == "filemon":
         verify_trace_metadata(root, state.get("trace_observations"), list(PHASES))
     for item in entries + [{"path": p["log"], "sha256": p["log_sha256"]} for p in state["phases"]]:
@@ -593,6 +658,7 @@ def run(plan, args):
                 raise ValueError("retained phase log changed")
         if state["status"] == "built":
             return verify(root)
+        materialize_snapshot_package_files(plan)
         for phase in PHASES:
             clean_revision(plan["source_revision"])
             if phase not in successful:
