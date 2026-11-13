@@ -604,6 +604,24 @@ class SnapshotTests(unittest.TestCase):
         self.assertEqual(plan["upstream_base"], self.upstream)
         self.assertEqual(plan["environment"]["SOURCE_DATE_EPOCH"], self.git_in("show", "-s", "--format=%ct"))
 
+    def test_snapshot_packages_bind_complete_file_list_and_refuse_tampering(self):
+        self.pin()
+        plan = self.plan()
+        self.assertFalse(self.output.exists())
+        specification = plan["source_package_files"]
+        expected = self.git_in("ls-files", "-z").encode().split(b"\0")
+        expected = b"".join(name + b"\n" for name in sorted(filter(None, expected)))
+        self.assertEqual(specification["sha256"], build.hashlib.sha256(expected).hexdigest())
+        self.assertEqual(specification["count"], expected.count(b"\n"))
+        self.assertIn("PKG_SOURCE_FILE_LIST=" + specification["path"], plan["commands"]["packages"])
+        self.output.mkdir()
+        build.materialize_snapshot_package_files(plan)
+        manifest = Path(specification["path"])
+        self.assertEqual(manifest.read_bytes(), expected)
+        manifest.write_bytes(b"bin/run.sh\n")
+        with self.assertRaisesRegex(ValueError, "file list changed"):
+            build.materialize_snapshot_package_files(plan)
+
     def test_tree_computation_matches_git(self):
         self.assertEqual(build.snapshot_tree(self.source, []).hex(), self.git_in("rev-parse", "HEAD^{tree}"))
 
@@ -636,6 +654,7 @@ class SnapshotTests(unittest.TestCase):
             self.plan()
         self.pin(snapshot_exclude=["closure"])
         self.assertEqual(self.plan()["source_snapshot"]["excludes"], ["closure"])
+        self.assertNotIn(b"closure/lib\n", build.snapshot_package_files())
         (self.source / "other").write_text("x")
         with self.assertRaisesRegex(ValueError, "pinned commit tree"):
             self.plan()
