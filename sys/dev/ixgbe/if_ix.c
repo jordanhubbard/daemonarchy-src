@@ -2294,7 +2294,6 @@ ixgbe_update_stats_counters(struct ixgbe_softc *sc)
 	 * Aggregate following types of errors as RX errors:
 	 * - CRC error count,
 	 * - illegal byte error count,
-	 * - missed packets count,
 	 * - length error count,
 	 * - undersized packets count,
 	 * - fragmented packets count,
@@ -2302,7 +2301,7 @@ ixgbe_update_stats_counters(struct ixgbe_softc *sc)
 	 * - jabber count.
 	 */
 	IXGBE_SET_IERRORS(sc, stats->crcerrs + stats->illerrc +
-	    stats->mpctotal + stats->rlec + stats->ruc + stats->rfc +
+	    stats->rlec + stats->ruc + stats->rfc +
 	    stats->roc + stats->rjc);
 } /* ixgbe_update_stats_counters */
 
