@@ -40,6 +40,25 @@ validfat32_body() {
 }
 
 
+atf_test_case sector_size
+sector_size_head() {
+	atf_set "descr" "File geometry uses the requested sector size"
+}
+sector_size_body() {
+	local bps sectors
+
+	for bps in 512 1024 2048 4096; do
+		atf_check -s exit:0 -o ignore -e ignore \
+		    newfs_msdos -C 8m -F 12 -c 4 -S ${bps} msdos.img
+		sectors=$(od -An -v -tu1 -j 19 -N 2 msdos.img | \
+		    awk '{ print $1 + 256 * $2 }')
+		atf_check_equal "${sectors}" "$((8 * 1024 * 1024 / bps))"
+		atf_check -s exit:0 -o ignore -e empty \
+		    fsck_msdos -n msdos.img
+	done
+}
+
 atf_init_test_cases() {
 	atf_add_test_case validfat32
+	atf_add_test_case sector_size
 }
