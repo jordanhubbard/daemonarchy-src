@@ -203,8 +203,43 @@ huge_sectors_high_bit_body()
 	    -e not-match:"${UB}" fsck_msdosfs -n ./${IMG}
 }
 
+atf_test_case missing_reserved_entries
+missing_reserved_entries_head()
+{
+	atf_set "descr" "Reject FATs missing one or both reserved cluster entries"
+	atf_set "require.progs" "newfs_msdos fsck_msdosfs truncate"
+}
+missing_reserved_entries_body()
+{
+	local bps spc first entries total missing
+
+	make_image
+	bps=$(bpb_read ${IMG} 11 2)
+	spc=$(bpb_read ${IMG} 13 1)
+	first=$(($(bpb_read ${IMG} 14 2) + \
+	    $(bpb_read ${IMG} 16 1) * $(bpb_read ${IMG} 36 4)))
+	entries=$(($(bpb_read ${IMG} 36 4) * bps / 4))
+
+	# First check the exact capacity, then advertise one and two extra
+	# data clusters without enlarging the FAT.  Neither malformed image
+	# may reach the later FAT traversal or crash the checker.
+	for missing in 0 1 2; do
+		total=$((first + (entries - 2 + missing) * spc))
+		poke32 ${IMG} 32 ${total}
+		truncate -s $((total * bps)) ${IMG}
+		if [ ${missing} -eq 0 ]; then
+			atf_check -s exit:0 -o ignore -e empty \
+			    fsck_msdosfs -n ./${IMG}
+		else
+			atf_check -s exit:8 -o match:'FAT size too small' \
+			    -e empty fsck_msdosfs -n ./${IMG}
+		fi
+	done
+}
+
 atf_init_test_cases()
 {
+	atf_add_test_case missing_reserved_entries
 	atf_add_test_case hidden_secs_high_bit
 	atf_add_test_case fsinfo_free_high_bit
 	atf_add_test_case fsinfo_next_high_bit

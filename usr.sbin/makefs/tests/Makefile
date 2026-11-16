@@ -21,4 +21,7 @@ SCRIPTSNAME_makefs_tests_common.sh=	makefs_tests_common.sh
 TEST_METADATA.$t+=	required_user="root"
 .endfor
 
+# These image-only checks do not require mounts or root privileges.
+ATF_TESTS_SH+=	makefs_msdos_geometry_test
+
 .include <bsd.test.mk>

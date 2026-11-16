@@ -305,9 +305,10 @@ readboot(int dosfs, struct bootblock *boot)
 		break;
 	}
 
-	if (boot->NumFatEntries < boot->NumClusters) {
+	/* The table also needs entries for the two reserved cluster numbers. */
+	if (boot->NumFatEntries < boot->NumClusters + CLUST_FIRST) {
 		pfatal("FAT size too small, %u entries won't fit into %u sectors\n",
-		       boot->NumClusters, boot->FATsecs);
+		       boot->NumClusters + CLUST_FIRST, boot->FATsecs);
 		return FSFATAL;
 	}
 

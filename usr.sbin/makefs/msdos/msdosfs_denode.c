@@ -132,7 +132,8 @@ deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
 			/* de_FileSize will be filled in further down */
 		else {
 			ldep->de_StartCluster = MSDOSFSROOT;
-			ldep->de_FileSize = pmp->pm_rootdirsize * DEV_BSIZE;
+			ldep->de_FileSize = pmp->pm_rootdirsize *
+			    pmp->pm_BytesPerSec;
 		}
 		/*
 		 * fill in time and date so that dos2unixtime() doesn't
