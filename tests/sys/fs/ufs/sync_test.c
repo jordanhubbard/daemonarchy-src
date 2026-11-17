@@ -326,6 +326,241 @@ test_sync(const char *newfs_opts, const struct scenario *sc,
 	ATF_REQUIRE_EQ(0, close(fd));
 }
 
+/*
+ * Retaining a regular file under a new name must not turn deferred disk
+ * link-count bookkeeping into another user-visible ctime change.  Drive
+ * directory dependencies by publishing unrelated inodes, without sleeping.
+ */
+static void
+check_retained_stat(const struct stat *before, const struct stat *after)
+{
+	ATF_REQUIRE_EQ(before->st_dev, after->st_dev);
+	ATF_REQUIRE_EQ(before->st_ino, after->st_ino);
+	ATF_REQUIRE_EQ(before->st_mode, after->st_mode);
+	ATF_REQUIRE_EQ(before->st_nlink, after->st_nlink);
+	ATF_REQUIRE_EQ(before->st_size, after->st_size);
+	ATF_REQUIRE_EQ(before->st_mtim.tv_sec, after->st_mtim.tv_sec);
+	ATF_REQUIRE_EQ(before->st_mtim.tv_nsec, after->st_mtim.tv_nsec);
+	ATF_REQUIRE_EQ_MSG(before->st_ctim.tv_sec, after->st_ctim.tv_sec,
+	    "unrelated publication changed retained inode ctime seconds");
+	ATF_REQUIRE_EQ_MSG(before->st_ctim.tv_nsec, after->st_ctim.tv_nsec,
+	    "unrelated publication changed retained inode ctime nanoseconds");
+}
+
+static void
+test_retained_ctime(const char *newfs_opts, bool hardlink)
+{
+	struct stat before, after;
+	uint8_t content[2000];
+	int fd, dirfd, staged, i;
+	size_t j;
+
+	ufs_setup(newfs_opts);
+	dirfd = open(MNT, O_RDONLY | O_DIRECTORY | O_NOFOLLOW);
+	ATF_REQUIRE(dirfd >= 0);
+	fd = open(TFILE, O_RDWR | O_CREAT | O_EXCL, 0644);
+	ATF_REQUIRE(fd >= 0);
+	fill(fd, 0, sizeof(content));
+	ATF_REQUIRE_EQ(0, fsync(fd));
+	if (hardlink) {
+		ATF_REQUIRE_EQ(0, link(TFILE, MNT "/custody"));
+		ATF_REQUIRE_EQ(0, unlink(TFILE));
+	} else {
+		ATF_REQUIRE_EQ(0, rename(TFILE, MNT "/custody"));
+	}
+	ATF_REQUIRE_EQ(0, fsync(dirfd));
+	ATF_REQUIRE_EQ(0, fsync(fd));
+	ATF_REQUIRE_EQ(0, fstat(fd, &before));
+	ATF_REQUIRE_EQ(1, before.st_nlink);
+	for (i = 0; i < 50; i++) {
+		staged = open(MNT "/new", O_RDWR | O_CREAT | O_EXCL, 0644);
+		ATF_REQUIRE(staged >= 0);
+		fill(staged, 0, sizeof(content));
+		ATF_REQUIRE_EQ(0, fsync(staged));
+		ATF_REQUIRE_EQ(0, close(staged));
+		ATF_REQUIRE_EQ(0, link(MNT "/new", TFILE));
+		ATF_REQUIRE_EQ(0, unlink(MNT "/new"));
+		ATF_REQUIRE_EQ(0, fsync(dirfd));
+		ATF_REQUIRE_EQ(0, fstat(fd, &after));
+		check_retained_stat(&before, &after);
+		ATF_REQUIRE_EQ(sizeof(content), pread(fd, content,
+		    sizeof(content), 0));
+		for (j = 0; j < sizeof(content); j++)
+			ATF_REQUIRE_EQ(PATTERN, content[j]);
+		ATF_REQUIRE_EQ(0, unlink(TFILE));
+		ATF_REQUIRE_EQ(0, fsync(dirfd));
+	}
+	ATF_REQUIRE_EQ(0, close(fd));
+	ATF_REQUIRE_EQ(0, close(dirfd));
+}
+
+static void
+test_mutation_ctime(const char *newfs_opts)
+{
+	struct stat before, after;
+	int fd;
+
+	ufs_setup(newfs_opts);
+	fd = open(TFILE, O_RDWR | O_CREAT | O_EXCL, 0644);
+	ATF_REQUIRE(fd >= 0);
+	fill(fd, 0, 2000);
+	ATF_REQUIRE_EQ(0, fsync(fd));
+	ATF_REQUIRE_EQ(0, fstat(fd, &before));
+	ATF_REQUIRE_EQ(0, fchmod(fd, 0600));
+	ATF_REQUIRE_EQ(0, fstat(fd, &after));
+	ATF_REQUIRE(before.st_ctim.tv_sec != after.st_ctim.tv_sec ||
+	    before.st_ctim.tv_nsec != after.st_ctim.tv_nsec);
+	ATF_REQUIRE_EQ(0600, after.st_mode & 0777);
+	before = after;
+	ATF_REQUIRE_EQ(0, link(TFILE, MNT "/alias"));
+	ATF_REQUIRE_EQ(0, fstat(fd, &after));
+	ATF_REQUIRE_EQ(2, after.st_nlink);
+	ATF_REQUIRE(before.st_ctim.tv_sec != after.st_ctim.tv_sec ||
+	    before.st_ctim.tv_nsec != after.st_ctim.tv_nsec);
+	before = after;
+	ATF_REQUIRE_EQ(0, unlink(MNT "/alias"));
+	ATF_REQUIRE_EQ(0, fstat(fd, &after));
+	ATF_REQUIRE_EQ(1, after.st_nlink);
+	ATF_REQUIRE(before.st_ctim.tv_sec != after.st_ctim.tv_sec ||
+	    before.st_ctim.tv_nsec != after.st_ctim.tv_nsec);
+	ATF_REQUIRE_EQ(0, close(fd));
+}
+
+static void
+ctime_head(atf_tc_t *tc, const char *description)
+{
+	atf_tc_set_md_var(tc, "descr", "%s", description);
+	atf_tc_set_md_var(tc, "require.user", "root");
+	atf_tc_set_md_var(tc, "require.progs",
+	    "mdconfig newfs tunefs mount");
+}
+
+ATF_TC_WITH_CLEANUP(ctime_rename_nosu);
+ATF_TC_HEAD(ctime_rename_nosu, tc)
+{
+	ctime_head(tc, "Retained inode rename, nosu");
+}
+ATF_TC_BODY(ctime_rename_nosu, tc)
+{
+	test_retained_ctime(NULL, false);
+}
+ATF_TC_CLEANUP(ctime_rename_nosu, tc)
+{
+	ufs_cleanup();
+}
+
+ATF_TC_WITH_CLEANUP(ctime_unlink_nosu);
+ATF_TC_HEAD(ctime_unlink_nosu, tc)
+{
+	ctime_head(tc, "Retained inode unlink, nosu");
+}
+ATF_TC_BODY(ctime_unlink_nosu, tc)
+{
+	test_retained_ctime(NULL, true);
+}
+ATF_TC_CLEANUP(ctime_unlink_nosu, tc)
+{
+	ufs_cleanup();
+}
+
+ATF_TC_WITH_CLEANUP(ctime_mutation_nosu);
+ATF_TC_HEAD(ctime_mutation_nosu, tc)
+{
+	ctime_head(tc, "Retained inode mutation, nosu");
+}
+ATF_TC_BODY(ctime_mutation_nosu, tc)
+{
+	test_mutation_ctime(NULL);
+}
+ATF_TC_CLEANUP(ctime_mutation_nosu, tc)
+{
+	ufs_cleanup();
+}
+
+ATF_TC_WITH_CLEANUP(ctime_rename_su);
+ATF_TC_HEAD(ctime_rename_su, tc)
+{
+	ctime_head(tc, "Retained inode rename, su");
+}
+ATF_TC_BODY(ctime_rename_su, tc)
+{
+	test_retained_ctime("-U", false);
+}
+ATF_TC_CLEANUP(ctime_rename_su, tc)
+{
+	ufs_cleanup();
+}
+
+ATF_TC_WITH_CLEANUP(ctime_unlink_su);
+ATF_TC_HEAD(ctime_unlink_su, tc)
+{
+	ctime_head(tc, "Retained inode unlink, su");
+}
+ATF_TC_BODY(ctime_unlink_su, tc)
+{
+	test_retained_ctime("-U", true);
+}
+ATF_TC_CLEANUP(ctime_unlink_su, tc)
+{
+	ufs_cleanup();
+}
+
+ATF_TC_WITH_CLEANUP(ctime_mutation_su);
+ATF_TC_HEAD(ctime_mutation_su, tc)
+{
+	ctime_head(tc, "Retained inode mutation, su");
+}
+ATF_TC_BODY(ctime_mutation_su, tc)
+{
+	test_mutation_ctime("-U");
+}
+ATF_TC_CLEANUP(ctime_mutation_su, tc)
+{
+	ufs_cleanup();
+}
+
+ATF_TC_WITH_CLEANUP(ctime_rename_suj);
+ATF_TC_HEAD(ctime_rename_suj, tc)
+{
+	ctime_head(tc, "Retained inode rename, suj");
+}
+ATF_TC_BODY(ctime_rename_suj, tc)
+{
+	test_retained_ctime("-j", false);
+}
+ATF_TC_CLEANUP(ctime_rename_suj, tc)
+{
+	ufs_cleanup();
+}
+
+ATF_TC_WITH_CLEANUP(ctime_unlink_suj);
+ATF_TC_HEAD(ctime_unlink_suj, tc)
+{
+	ctime_head(tc, "Retained inode unlink, suj");
+}
+ATF_TC_BODY(ctime_unlink_suj, tc)
+{
+	test_retained_ctime("-j", true);
+}
+ATF_TC_CLEANUP(ctime_unlink_suj, tc)
+{
+	ufs_cleanup();
+}
+
+ATF_TC_WITH_CLEANUP(ctime_mutation_suj);
+ATF_TC_HEAD(ctime_mutation_suj, tc)
+{
+	ctime_head(tc, "Retained inode mutation, suj");
+}
+ATF_TC_BODY(ctime_mutation_suj, tc)
+{
+	test_mutation_ctime("-j");
+}
+ATF_TC_CLEANUP(ctime_mutation_suj, tc)
+{
+	ufs_cleanup();
+}
+
 #define	UFS_TC(name, opts, sc, method)					\
 ATF_TC_WITH_CLEANUP(name);						\
 ATF_TC_HEAD(name, tc)							\
@@ -382,5 +617,14 @@ ATF_TP_ADD_TCS(tp)
 	UFS_TCS_ADD(tp, extend_indir);
 	UFS_TCS_ADD(tp, extend_unsynced);
 	UFS_TCS_ADD(tp, extend_newindir_unsynced);
+	ATF_TP_ADD_TC(tp, ctime_rename_nosu);
+	ATF_TP_ADD_TC(tp, ctime_rename_su);
+	ATF_TP_ADD_TC(tp, ctime_rename_suj);
+	ATF_TP_ADD_TC(tp, ctime_unlink_nosu);
+	ATF_TP_ADD_TC(tp, ctime_unlink_su);
+	ATF_TP_ADD_TC(tp, ctime_unlink_suj);
+	ATF_TP_ADD_TC(tp, ctime_mutation_nosu);
+	ATF_TP_ADD_TC(tp, ctime_mutation_su);
+	ATF_TP_ADD_TC(tp, ctime_mutation_suj);
 	return (atf_no_error());
 }

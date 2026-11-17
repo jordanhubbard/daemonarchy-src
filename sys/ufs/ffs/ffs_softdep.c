@@ -10077,7 +10077,12 @@ handle_workitem_remove(struct dirrem *dirrem, int flags)
 		    "%ju negative i_nlink %d", (intmax_t)ip->i_number,
 		    ip->i_nlink));
 		DIP_SET_NLINK(ip, ip->i_nlink);
-		UFS_INODE_SET_FLAG(ip, IN_CHANGE);
+		/*
+		 * The effective link-count change already requested ctime in
+		 * ufs_dirremove() or ufs_dirrewrite().  Persist the deferred
+		 * disk count without timestamping the logical removal again.
+		 */
+		UFS_INODE_SET_FLAG(ip, IN_MODIFIED);
 		if (ip->i_nlink < ip->i_effnlink)
 			panic("handle_workitem_remove: bad file delta");
 		if (ip->i_nlink == 0) 

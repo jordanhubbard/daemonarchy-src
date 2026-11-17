@@ -4,7 +4,7 @@ name: Style Checker
 
 on:
   pull_request: # maybe pull_request_target
-    branches: [ main ]
+    branches: [ main, daemonarchy ]
     types: [ opened, reopened, edited, synchronize ]
     paths: [ '**.S', '**.c', '**.cc', '**.cpp', '**.h', '**.hh', '**.hpp' ]
 
