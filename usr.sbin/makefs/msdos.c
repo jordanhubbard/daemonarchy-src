@@ -174,7 +174,7 @@ msdos_makefs(const char *image, const char *dir, fsnode *root, fsinfo_t *fsopts)
 	printf("Creating `%s'\n", image);
 	TIMER_START(start);
 	if (mkfs_msdos(image, NULL, &msdos_opt->options) == -1)
-		return;
+		errx(1, "Image file `%s' not created.", image);
 	TIMER_RESULTS(start, "mkfs_msdos");
 
 	fsopts->fd = open(image, O_RDWR);

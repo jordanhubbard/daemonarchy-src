@@ -98,7 +98,7 @@ fatblock(struct msdosfsmount *pmp, u_long ofs, u_long *bnp, u_long *sizep,
 
 	bn = ofs / pmp->pm_fatblocksize * pmp->pm_fatblocksec;
 	size = MIN(pmp->pm_fatblocksec, pmp->pm_FATsecs - bn)
-	    * DEV_BSIZE;
+	    * pmp->pm_BytesPerSec;
 	bn += pmp->pm_fatblk + pmp->pm_curfat * pmp->pm_FATsecs;
 
 	if (bnp)

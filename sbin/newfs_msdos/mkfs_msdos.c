@@ -567,7 +567,17 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
 	if (set_spf) {
 	    if (bpb.bpbBigFATsecs == 0)
 		bpb.bpbBigFATsecs = x2;
-	    x1 += (bpb.bpbBigFATsecs - 1) * bpb.bpbFATs;
+	    x1 = bpb.bpbResSectors + rds +
+		bpb.bpbBigFATsecs * bpb.bpbFATs;
+	    /* Include the reserved FAT entries for the actual data area. */
+	    x = (bpb.bpbHugeSectors - x1) / bpb.bpbSecPerClust;
+	    x2 = howmany((RESFTE + MIN(x, maxcls(fat))) * (fat / BPN),
+		bpb.bpbBytesPerSec * NPB);
+	    if (bpb.bpbBigFATsecs < x2) {
+		bpb.bpbBigFATsecs = x2;
+		x1 = bpb.bpbResSectors + rds +
+		    bpb.bpbBigFATsecs * bpb.bpbFATs;
+	    }
 	}
 	if (set_res) {
 	    alignto = bpb.bpbSecPerClust;
@@ -585,10 +595,14 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
 	warnx("warning: Alignment failed.");
 
     cls = (bpb.bpbHugeSectors - x1) / bpb.bpbSecPerClust;
+    x2 = howmany((RESFTE + MIN(cls, maxcls(fat))) * (fat / BPN),
+	bpb.bpbBytesPerSec * NPB);
     x = (u_int64_t)bpb.bpbBigFATsecs * bpb.bpbBytesPerSec * NPB / (fat / BPN) -
 	RESFTE;
-    if (cls > x)
+    if (cls > x) {
 	cls = x;
+	bpb.bpbHugeSectors = x1 + cls * bpb.bpbSecPerClust;
+    }
     if (bpb.bpbBigFATsecs < x2)
 	warnx("warning: sectors/FAT limits file system to %u clusters",
 	      cls);
@@ -902,7 +916,8 @@ getstdfmt(const char *fmt, struct bpb *bpb)
 }
 
 static void
-compute_geometry_from_file(int fd, const char *fname, struct disklabel *lp)
+compute_geometry_from_file(int fd, const char *fname, struct disklabel *lp,
+    u_int bytes_per_sector)
 {
 	struct stat st;
 	off_t ms;
@@ -912,7 +927,7 @@ compute_geometry_from_file(int fd, const char *fname, struct disklabel *lp)
 	if (!S_ISREG(st.st_mode))
 		errx(1, "%s is not a regular file", fname);
 	ms = st.st_size;
-	lp->d_secsize = 512;
+	lp->d_secsize = bytes_per_sector != 0 ? bytes_per_sector : MINBPS;
 	lp->d_nsectors = 63;
 	lp->d_ntracks = 255;
 	lp->d_secperunit = ms / lp->d_secsize;
@@ -942,7 +957,7 @@ getdiskinfo(int fd, const char *fname, const char *dtype, __unused int oflag,
     if (lp == NULL) {
 	if (ioctl(fd, DIOCGMEDIASIZE, &ms) == -1) {
 	    /* create a fake geometry for a file image */
-	    compute_geometry_from_file(fd, fname, &dlp);
+	    compute_geometry_from_file(fd, fname, &dlp, bpb->bpbBytesPerSec);
 	    lp = &dlp;
 	} else if (ioctl(fd, FD_GTYPE, &type) != -1) {
 	    dlp.d_secsize = 128 << type.secsize;
@@ -985,7 +1000,7 @@ getdiskinfo(int fd, const char *fname, const char *dtype, __unused int oflag,
 #else
     (void)dtype;
     /* In the makefs case we only support image files: */
-    compute_geometry_from_file(fd, fname, &dlp);
+    compute_geometry_from_file(fd, fname, &dlp, bpb->bpbBytesPerSec);
     lp = &dlp;
 #endif
 
