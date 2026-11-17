@@ -545,3 +545,32 @@ resume and final source/compiler/product admission remain open.
   - [ ] Provide a kernel-owned early polling transport, authenticated phase transition, startup/probe output and safe native-driver ownership transfer, integrated with guided loader setup.
 - **Evidence:**
   - [ ] Require exact native loader/kernel builds, real post-ExitBootServices pre-driver packets, deliberate VM reset/panic captures, failure/revocation controls and an exact MSI built-in-NIC capture.
+
+### [ ] UFS-CTIME-001 — Preserve retained regular-file ctime during deferred UFS link accounting
+
+**GitHub issue:** [#100](https://github.com/jordanhubbard/daemonarchy-src/issues/100).
+
+- **Priority:** P1
+- **Owner:** Original UFS/FFS implementation and native filesystem tests; SRC-G2/SRC-G5
+- **Direction:** Investigate source issue #100: an unchanged retained inode advances ctime after rename and fsync on soft-updates UFS, causing exact metadata custody to refuse.
+- **Conclusion:** Logical unlink already requests the user-visible timestamp update. Test whether later disk link-count bookkeeping should mark the inode modified without requesting a second timestamp. Preserve genuine mutation timestamps, normal dependency ordering and all consumer custody guards; qualify only on newly built isolated native kernels.
+- **Depends on:** none
+- **Implementation:**
+  - [x] Add native retained-file timestamp regressions for rename and hardlink cleanup across plain UFS, soft updates and journaled soft updates, with genuine metadata mutation controls.
+  - [x] Prepare a narrowly scoped deferred regular-file link-accounting candidate; retain existing directory semantics and disk-update dependencies.
+  - [ ] Build the exact candidate kernel on an allocated worker and boot only a separate diagnostic VM; preserve existing workers and signed artifacts.
+- **Evidence:**
+  - [x] Preserve the portable six-failure soft-updates baseline plus zero-change same-kernel plain-UFS and Linux controls; prove the original native regression fails on the unchanged kernel.
+  - [ ] Require all new timestamp cases and existing original UFS sync cases on the candidate kernel; confirm genuine content, link and mode changes remain observable.
+  - [ ] Require the unmodified public refresh scenario and native installed-wheel gate, independent kernel review and exact-head CI before landing; no release or canonical lifecycle acceptance follows from a subset.
+
+- **Native baseline evidence:** The unchanged kernel runs all 81 selected
+  original UFS sync/timestamp cases: 77 pass, four fail, none skip or break.
+  All 72 existing sync cases, three genuine metadata-change controls and two
+  plain-UFS retained-inode controls pass. Rename and hardlink cleanup each
+  fail with soft updates and journaled soft updates. Independent review checks
+  every case and exact restoration of mounts and memory disks. Binary identity
+  `sha256:8192e86c10d99269e28edec36547d2ae7fb7ea66c0141c7893093a350c16db5f`.
+  The original Makefile uses explicit installed libufs/ATF-C bootstrap linkage
+  for the out-of-tree test build; two earlier unresolved-link refusals remain
+  retained. Candidate kernel build, boot and all repair acceptance remain open.
