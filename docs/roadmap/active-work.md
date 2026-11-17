@@ -590,3 +590,18 @@ resume and final source/compiler/product admission remain open.
   exact-head CI. Renew reliable native observation before canonical action-graph
   admission. Do not normalize corrupt records or infer complete dependencies
   from the earlier aggregate.
+
+
+### Explicit make client for renewed filemon capture
+
+Source PR #103 lands synchronous finalization without replacing installed worker
+tools. The aggregate controller still needs an explicit matching make client:
+`--make` selects a resolved executable and binds its SHA-256, size and mode in
+the plan. All phase and release queries, the filemon provider probe and worker
+version observation use that client. Before/after command checks refuse changed
+bytes or mode; a command's actual zero exit remains recorded if its postcheck
+refuses acceptance. The default installed-make plan retains its prior identity.
+
+This is preparation for renewed native observation. It does not load the changed
+module, qualify an aggregate trace, resolve the canonical action graph or admit
+an SDK. Existing malformed AMD records and their strict refusal remain retained.

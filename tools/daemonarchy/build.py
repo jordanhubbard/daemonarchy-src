@@ -220,7 +220,37 @@ def safe_path(value):
     return path
 
 
-def make_plan(revision, output, profile, jobs, trace_mode="off", target="amd64"):
+def capture_make(path):
+    path = safe_path(path)
+    before = path.stat()
+    if not stat.S_ISREG(before.st_mode) or not os.access(path, os.X_OK):
+        raise ValueError("selected make must be an executable regular file")
+    sha256 = digest(path)
+    after = path.stat()
+    if any(getattr(before, key) != getattr(after, key) for key in
+           ("st_dev", "st_ino", "st_mode", "st_size", "st_mtime_ns", "st_ctime_ns")):
+        raise ValueError("selected make changed during capture")
+    return {"path": str(path), "sha256": sha256,
+            "size": before.st_size, "mode": before.st_mode & 0o7777}
+
+
+def selected_make(plan):
+    selection = plan.get("make_executable")
+    if selection is None:
+        return "/usr/bin/make"
+    if (not isinstance(selection, dict)
+            or set(selection) != {"path", "sha256", "size", "mode"}
+            or not isinstance(selection["path"], str)
+            or capture_make(selection["path"]) != selection):
+        raise ValueError("selected make executable changed or has an invalid binding")
+    make = selection["path"]
+    if any(command[0] != make for command in
+           [*plan["commands"].values(), plan["release_directory_query"]]):
+        raise ValueError("selected make differs from planned commands")
+    return make
+
+
+def make_plan(revision, output, profile, jobs, trace_mode="off", target="amd64", make=None):
     if target not in TARGETS:
         raise ValueError("unsupported native target")
     target_arch = TARGETS[target][0]
@@ -266,8 +296,10 @@ def make_plan(revision, output, profile, jobs, trace_mode="off", target="amd64")
     package_files = snapshot_package_files() if SNAPSHOT else None
     if package_files is not None:
         common.append(f"PKG_SOURCE_FILE_LIST={root / 'source-package-files.list'}")
-    make = ["/usr/bin/make", "-C", str(SOURCE), *common]
-    release = ["/usr/bin/make", "-C", str(SOURCE / "release"), *common,
+    make_executable = capture_make(make) if make is not None else None
+    make_path = make_executable["path"] if make_executable else "/usr/bin/make"
+    make = [make_path, "-C", str(SOURCE), *common]
+    release = [make_path, "-C", str(SOURCE / "release"), *common,
                f"WORLDDIR={SOURCE}", "NOPORTS=yes", "NOPKGBASE=yes"]
     commands = {
         "buildworld": [*make, f"-j{jobs}", "buildworld"],
@@ -290,6 +322,8 @@ def make_plan(revision, output, profile, jobs, trace_mode="off", target="amd64")
         "commands": commands, "release_directory_query": [*release, "-V", ".OBJDIR"],
         "publication": "unsigned-development-only", "acceptance": "not-qualified",
     }
+    if make_executable is not None:
+        plan["make_executable"] = make_executable
     if SNAPSHOT:
         plan["source_snapshot"] = {"excludes": SNAPSHOT["excludes"], "upstream_base": "pinned-unverified"}
         plan["source_package_files"] = {
@@ -313,7 +347,8 @@ def write_json(path, value):
     temporary.replace(path)
 
 
-def native_preflight(root, jobs, minimum_free_gib, trace_mode="off", target="amd64"):
+def native_preflight(root, jobs, minimum_free_gib, trace_mode="off", target="amd64",
+                     make="/usr/bin/make"):
     if target not in TARGETS:
         raise ValueError("unsupported native target")
     if platform.system() != "FreeBSD" or platform.machine() not in TARGETS[target][1]:
@@ -333,12 +368,12 @@ def native_preflight(root, jobs, minimum_free_gib, trace_mode="off", target="amd
         if not os.access("/dev/filemon", os.R_OK | os.W_OK):
             raise ValueError("tracing requires an already configured accessible /dev/filemon")
         provider = subprocess.check_output(
-            ["/usr/bin/make", "-r", "-f", "/dev/null", "-V", ".MAKE.PATH_FILEMON",
+            [make, "-r", "-f", "/dev/null", "-V", ".MAKE.PATH_FILEMON",
              ".MAKE.MODE=meta"], env={"PATH": PATH, "LC_ALL": "C", "TZ": "UTC"},
             text=True, timeout=10).strip()
         if provider != "/dev/filemon":
             raise ValueError("native make does not expose the required filemon provider")
-    for tool in ("/usr/bin/make", "/usr/bin/cc", "/usr/local/sbin/pkg"):
+    for tool in (make, "/usr/bin/cc", "/usr/local/sbin/pkg"):
         if not os.access(tool, os.X_OK):
             raise ValueError(f"required installed tool missing: {tool}")
     if shutil.disk_usage(root).free < minimum_free_gib * 1024**3:
@@ -618,6 +653,7 @@ def interrupted(signum, frame):
 
 
 def run(plan, args):
+    make = selected_make(plan)
     root = Path(plan["output"])
     if args.resume:
         if json.loads((root / "plan.json").read_text()) != plan:
@@ -625,12 +661,14 @@ def run(plan, args):
     else:
         if not root.parent.is_dir():
             raise ValueError("output parent must already exist")
-        native_preflight(root.parent, args.jobs, args.minimum_free_gib, plan.get("trace_mode", "off"), plan["target"])
+        native_preflight(root.parent, args.jobs, args.minimum_free_gib,
+                         plan.get("trace_mode", "off"), plan["target"], make=make)
         root.mkdir()  # Exclusive; never overwrite or clean an existing build.
         write_json(root / "plan.json", plan)
     with (root / "build.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        native_preflight(root, args.jobs, args.minimum_free_gib, plan.get("trace_mode", "off"), plan["target"])
+        native_preflight(root, args.jobs, args.minimum_free_gib,
+                         plan.get("trace_mode", "off"), plan["target"], make=make)
         for name in ("obj", "repo", "home", "tmp", "logs"):
             (root / name).mkdir(exist_ok=True)
         state_path = root / "result.json"
@@ -641,7 +679,7 @@ def run(plan, args):
                        "cpus": os.cpu_count(), "compiler": subprocess.check_output(
                            ["/usr/bin/cc", "--version"], text=True, timeout=30),
                        "make_version": subprocess.check_output(
-                           ["/usr/bin/make", "-V", ".MAKE.VERSION"], text=True, timeout=30).strip(),
+                           [make, "-V", ".MAKE.VERSION"], text=True, timeout=30).strip(),
                        "pkg_version": subprocess.check_output(
                            ["/usr/local/sbin/pkg", "--version"], text=True, timeout=30).strip()},
             "acceptance": "not-qualified", "publication": "unsigned-development-only",
@@ -660,9 +698,11 @@ def run(plan, args):
             return verify(root)
         materialize_snapshot_package_files(plan)
         for phase in PHASES:
+            selected_make(plan)
             clean_revision(plan["source_revision"])
             if phase not in successful:
-                native_preflight(root, args.jobs, args.minimum_free_gib, plan.get("trace_mode", "off"), plan["target"])
+                native_preflight(root, args.jobs, args.minimum_free_gib,
+                                 plan.get("trace_mode", "off"), plan["target"], make=make)
                 log = next_phase_log(root, phase,
                                      sum(p["name"] == phase for p in state["phases"]))
                 state["status"] = "running"
@@ -671,8 +711,10 @@ def run(plan, args):
                 write_json(state_path, state)
                 print(json.dumps({"phase": phase, "log": str(log), "plan_identity": plan["identity"]}), flush=True)
                 started = time.time()
+                command_exit = None
                 try:
-                    status = run_command(plan["commands"][phase], plan["environment"], log, args.phase_timeout)
+                    status = command_exit = run_command(plan["commands"][phase], plan["environment"], log, args.phase_timeout)
+                    selected_make(plan)
                     clean_revision(plan["source_revision"])
                     if status == 0 and plan.get("trace_mode") == "filemon":
                         state.setdefault("trace_observations", []).append(capture_trace_metadata(root, phase))
@@ -681,6 +723,8 @@ def run(plan, args):
                     state["error"] = f"{type(error).__name__}: {error}"
                 state["phases"].append({"name": phase, "exit": status, "log": str(log.relative_to(root)),
                                         "log_sha256": digest(log), "elapsed_seconds": round(time.time() - started, 3)})
+                if "make_executable" in plan:
+                    state["phases"][-1]["command_exit"] = command_exit
                 state["status"] = "incomplete" if status == 0 else "failed"
                 state.pop("active_phase", None)
                 write_json(state_path, state)
@@ -707,6 +751,7 @@ def main():
     parser.add_argument("--target", choices=tuple(TARGETS), default="amd64")
     parser.add_argument("--jobs", type=int, default=8)
     parser.add_argument("--trace-mode", choices=("off", "filemon"), default="off")
+    parser.add_argument("--make", help="explicit make executable; bind its bytes and mode in the plan")
     parser.add_argument("--through", choices=PHASES, default="sets")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--snapshot-commit", help="raw git commit object file for the revision (source without .git)")
@@ -728,7 +773,8 @@ def main():
         elif args.operation == "status":
             result = json.loads((safe_path(args.output) / "result.json").read_text())
         else:
-            plan = make_plan(args.revision, args.output, args.profile, args.jobs, args.trace_mode, args.target)
+            plan = make_plan(args.revision, args.output, args.profile, args.jobs,
+                             args.trace_mode, args.target, args.make)
             result = plan if args.operation == "plan" else run(plan, args)
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0

@@ -258,6 +258,18 @@ accessible `/dev/filemon` and a make binary with filemon support. The controller
 does not load modules or change device permissions. Configure worker features
 through the declared worker bootstrap/alignment procedure before dispatch.
 
+Use `--make /absolute/path/to/make` to select a separately built client without
+replacing the worker's installed make. The plan binds the resolved executable's
+SHA-256, size and mode and uses it for every phase, release-directory query,
+filemon-provider probe and make-version observation. Execution rechecks the binding
+before dispatch and after each phase; a successful command with a changed client
+is recorded but cannot advance the build. Resume requires the same plan and client.
+Omitting the option preserves the installed-make plan and its existing identity.
+The binding identifies executable bytes; it does not admit their source producer,
+runtime libraries or toolchain as an SDK. A client compiled against the new
+`FILEMON_FLUSH_IOCTL` header still needs the matching kernel module and actual
+native trace review before reliable aggregate capture is qualified.
+
 The optional native worker feature bootstrap is `prepare-worker.py`. On an idle,
 dedicated FreeBSD build worker, inspect readiness for its actual unprivileged
 build account (replace `builder` below):
