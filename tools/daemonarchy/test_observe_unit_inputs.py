@@ -220,6 +220,73 @@ class RetainedTraceTests(unittest.TestCase):
         self.assertEqual(report["unresolved_inputs"][0]["reason"],"relative-or-dirfd-native-resolution-required")
         self.assertFalse(report["recursive_closure_complete"])
 
+    def test_openat_annotation_keeps_even_absolute_reported_reads_unresolved(self):
+        data = self.metadata("A 1 header.h\nR 1 /guessed/include/header.h\n")
+        report = observer.parse_meta(data, "compile")
+        self.assertEqual(report["directory_fd_annotations"][0]["relative_operand"], "header.h")
+        self.assertEqual(report["input_accesses"][0]["path"], "/guessed/include/header.h")
+        self.assertEqual(report["unresolved_inputs"][0]["reason"],
+                         "filemon-dirfd-namecache-path-unverified")
+        self.assertFalse(report["input_bytes_captured"])
+        self.assertFalse(report["cache_admission"])
+
+    def test_openat_read_write_pair_and_write_only_access_do_not_add_false_inputs(self):
+        data = self.metadata("A 1 item\nR 1 /guess/item\nW 1 /guess/item\n"
+                             "A 1 output\nW 1 /guess/output\nR 1 /actual/input\n")
+        report = observer.parse_meta(data, "compile")
+        self.assertEqual([row["path"] for row in report["input_accesses"]],
+                         ["/guess/item", "/actual/input"])
+        self.assertEqual(len(report["unresolved_inputs"]), 1)
+        self.assertEqual(len(report["unresolved_mutations"]), 2)
+        self.assertTrue(report["mutations"][0]["possible_read_write_pair"])
+        self.assertFalse(report["mutations"][1]["possible_read_write_pair"])
+        self.assertNotIn("directory_fd_annotation", report["input_accesses"][1])
+
+    def test_openat_annotation_cannot_be_dropped_or_associated_with_another_access(self):
+        for events in ("R 1 /input\nA 1 missing\n",
+                       "A 1 item\nR 2 /guess/item\n",
+                       "A 1 item\nE 1 /bin/tool\n",
+                       "A 1 item\nR 1 /guess/other\n",
+                       "A 1 /absolute\nR 1 /absolute\n"):
+            with self.subTest(events=events), self.assertRaisesRegex(ValueError, "openat"):
+                observer.parse_meta(self.metadata(events), "compile")
+
+    def test_native_quoted_mutations_preserve_spaces_apostrophes_and_backslashes(self):
+        source = "O'Reilly" + chr(92) + "notes with spaces"
+        report = observer.parse_meta(self.metadata(
+            "R 1 /input\nM 1 '" + source + "' '/out/file with spaces'\n"), "generate")
+        mutation = report["mutations"][0]
+        self.assertEqual(mutation["paths"], [source, "/out/file with spaces"])
+        self.assertEqual(mutation["raw_paths"], "'" + source + "' '/out/file with spaces'")
+        self.assertEqual(report["unresolved_mutations"][0]["reason"],
+                         "relative-mutation-native-resolution-required")
+
+    def test_ambiguous_quote_boundaries_and_missing_native_framing_refuse(self):
+        for paths in ("'a' 'b' 'c'", "/src/a /dst/b", "'' '/dst/b'", "'a' 'b"):
+            with self.subTest(paths=paths), self.assertRaisesRegex(ValueError, "ambiguous"):
+                observer.parse_meta(self.metadata("R 1 /input\nL 1 " + paths + "\n"), "generate")
+
+    def test_link_kind_and_target_text_do_not_become_a_guessed_dependency(self):
+        report = observer.parse_meta(self.metadata(
+            "R 1 /input\nL 1 '../target with spaces' '/out/link'\n"), "generate")
+        self.assertEqual(report["mutations"][0]["paths"], ["../target with spaces", "/out/link"])
+        self.assertEqual([row["path"] for row in report["input_accesses"]], ["/input"])
+        self.assertEqual(report["unresolved_mutations"][0]["reason"],
+                         "filemon-link-kind-unrecorded")
+
+    def test_relative_writes_and_deletes_are_not_unresolved_read_inputs(self):
+        report = observer.parse_meta(self.metadata(
+            "R 1 /input\nW 1 output.o\nD 1 temporary.o\n"), "compile")
+        self.assertEqual(report["unresolved_inputs"], [])
+        self.assertEqual([row["operation"] for row in report["unresolved_mutations"]], ["W", "D"])
+
+    def test_path_support_does_not_accept_duplicate_versions_or_late_records(self):
+        for data in (self.metadata("A 1 h\nR 1 /guess/h\nV 5\n"),
+                     self.metadata("A 1 h\nR 1 /guess/h\n") + b"# Bye bye\n",
+                     self.metadata("A 1 h\nR 1 /guess/h\n") + b"X 1 0\n"):
+            with self.subTest(data=data[-60:]), self.assertRaises(ValueError):
+                observer.parse_meta(data, "compile")
+
     def test_trace_cli_uses_existing_immutable_capture_and_preserves_original(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)

@@ -302,6 +302,18 @@ must fail rather than silently falling back to command-only tracing. Allow at
 least 100 GiB free for a traced build. Raw metadata can contain private worker
 paths; keep it outside Git and published assets.
 
+The retained `observe-unit-inputs.py trace` reader keeps FreeBSD V5 `A`
+annotations with the following directory-FD access. A reported absolute path can
+still be a namecache guess and stays in `unresolved_inputs`; it is never opened
+or treated as captured input bytes. Write/delete and link/rename uncertainty is
+reported separately in `unresolved_mutations`. Native framing quotes around
+`L`/`M` operands are removed only when the two operands are unambiguous, with
+spaces, apostrophes and backslashes preserved literally. This is not shell
+unescaping. The `L` record does not distinguish hard links, linkat or symlinks,
+so its operands do not establish a resolved dependency or symbolic-link target
+base. Unpaired annotations, ambiguous framing and records after the closing
+trailer refuse observation. Canonical ownership and admission flags remain false.
+
 These are native observations for later canonical Component/action admission.
 They do not constitute a complete Component graph, receipt, package provenance
 or performance improvement. Compiler bootstrap, shared inputs, variants and
