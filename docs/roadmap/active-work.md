@@ -545,3 +545,48 @@ resume and final source/compiler/product admission remain open.
   - [ ] Provide a kernel-owned early polling transport, authenticated phase transition, startup/probe output and safe native-driver ownership transfer, integrated with guided loader setup.
 - **Evidence:**
   - [ ] Require exact native loader/kernel builds, real post-ExitBootServices pre-driver packets, deliberate VM reset/panic captures, failure/revocation controls and an exact MSI built-in-NIC capture.
+
+
+### [ ] FILEMON-SYNC-001 — Finalize native trace logs before readback
+
+- **GitHub issue:** [#102](https://github.com/jordanhubbard/daemonarchy-src/issues/102), milestone **1.6.0**.
+- **Priority:** P1; original filemon and native source/action observation integrity.
+- **Direction:** Provide synchronous log finalization before a reader rewinds the
+  output file description shared with the kernel writer. Preserve upstream
+  source, existing clients and filemon record format 5.
+- **Baseline:** A pipe-coordinated native probe keeps an inherited device
+  descriptor open after its parent closes. The log lacks its footer until that
+  final reference closes. Rewinding before release lets the late kernel write
+  overwrite the original header. The ordinary-close control remains intact.
+  No sleep, kernel replacement or modification of build products is involved.
+- **Implementation:**
+  - [x] Prepare an additive finalize ioctl using existing process detachment and
+    locked log-close operations, with native regressions for inherited
+    descriptors, rewind safety, repeated finalization and a still-live target.
+  - [x] Build and qualify the actual changed module and matching make client on
+    an isolated, allocated diagnostic VM; retain the failing baseline.
+- **Native controls:** Frozen source `42c936dca810` compiles the original ATF
+  tests, module and matched bmake on FreeBSD amd64 and arm64. Independent
+  post-build checks retain all 115,626 Git entries, modes and 152 literal links
+  on each worker. On the separate amd64 diagnostic VM, the identical test
+  binary yields one legacy pass and three new-case failures with the original
+  module, then four passes without skips with the changed module. A clean
+  reboot separates the modules because filemon explicitly rejects ordinary
+  unload; no forced unload was used. The matched bmake produces 32 real ELF
+  objects with complete raw metadata envelopes, and numeric syscall tracing
+  verifies 32 finalize requests and 32 successful returns. All 14 original
+  bmake metadata-focused unit tests pass. Arm64 runtime with the changed
+  module and renewed full aggregate capture remain unqualified. Original
+  unload and symbolic-trace-observer failures are retained privately.
+- **Evidence boundary:** The source100 amd64 aggregate and original byte verifier
+  pass all five phases. Separate artifact/source/pkg/kernel checks pass, but its
+  independent trace review fails on two malformed non-compilation records among
+  113,241 retained blobs. Those records and the original failure remain retained;
+  aggregate success does not supply a complete dependency graph or SDK admission.
+  The paired arm64 run passes its independent artifact and raw-trace review;
+  canonical unit coverage, SDK/lifecycle and release admission remain separate.
+- **Required renewal:** Require all new native cases without skips, a real make
+  metadata control using the changed API, original caller compatibility and
+  exact-head CI. Renew reliable native observation before canonical action-graph
+  admission. Do not normalize corrupt records or infer complete dependencies
+  from the earlier aggregate.
