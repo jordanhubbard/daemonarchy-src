@@ -605,3 +605,25 @@ refuses acceptance. The default installed-make plan retains its prior identity.
 This is preparation for renewed native observation. It does not load the changed
 module, qualify an aggregate trace, resolve the canonical action graph or admit
 an SDK. Existing malformed AMD records and their strict refusal remain retained.
+
+
+### FILEMON-PATHS-001 — Preserve native trace path semantics
+
+- **Tracker:** [source issue #105](https://github.com/jordanhubbard/daemonarchy-src/issues/105).
+- **Problem:** The retained reader rejects valid V5 directory-FD annotations and
+  includes native link/rename framing quotes in reported filenames. Following
+  `A`, even an absolute namecache path may be inaccurate; `L` leaves the actual
+  link syscall kind unspecified.
+- **Candidate:** Preserve annotations and access association as unresolved facts,
+  decode only unambiguous native quote framing without shell unescaping, and
+  separate unresolved mutations from read-input candidates. Keep the original
+  byte identities and strict truncation/late-record refusals. Do not open recorded
+  paths or infer native SDK, canonical dependency or cache admission.
+- **Retained native replay:** All 64,837 independently reviewed ARM64 buildworld
+  records (1,423,148,147 raw bytes) parse with 1,590 annotations, 9,141,337 read/exec
+  candidates and 170,121 mutations. Every metadata blob is processed with its
+  original bytes unchanged. The resulting 128,615 unresolved inputs and 136,045 unresolved mutations remain
+  explicit; these counts do not qualify a complete action graph or input bytes.
+- **Admission boundary:** Require candidate tests and native/hosted review gates
+  before landing. Reliable renewed full capture, canonical ownership and per-unit
+  packaging/lifecycle remain separate open requirements.
