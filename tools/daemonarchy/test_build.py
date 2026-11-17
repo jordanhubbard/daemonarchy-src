@@ -180,9 +180,9 @@ class BuildTests(unittest.TestCase):
         original_probe = build.subprocess.check_output
 
         def probe(argv, **kwargs):
-            if argv[0] == "git":
-                return original_probe(argv, **kwargs)
-            return "synthetic worker observation"
+            if argv[0] in ("/usr/bin/cc", str(tool), "/usr/local/sbin/pkg"):
+                return "synthetic worker observation"
+            return original_probe(argv, **kwargs)
 
         def controlled_command(argv, env, log, timeout):
             result = original_command([sys.executable, "-c", "print('synthetic phase')"],
