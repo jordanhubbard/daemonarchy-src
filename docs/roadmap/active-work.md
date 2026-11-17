@@ -563,8 +563,21 @@ resume and final source/compiler/product admission remain open.
   - [x] Prepare an additive finalize ioctl using existing process detachment and
     locked log-close operations, with native regressions for inherited
     descriptors, rewind safety, repeated finalization and a still-live target.
-  - [ ] Build and qualify the actual changed module and matching make client on
+  - [x] Build and qualify the actual changed module and matching make client on
     an isolated, allocated diagnostic VM; retain the failing baseline.
+- **Native controls:** Frozen source `42c936dca810` compiles the original ATF
+  tests, module and matched bmake on FreeBSD amd64 and arm64. Independent
+  post-build checks retain all 115,626 Git entries, modes and 152 literal links
+  on each worker. On the separate amd64 diagnostic VM, the identical test
+  binary yields one legacy pass and three new-case failures with the original
+  module, then four passes without skips with the changed module. A clean
+  reboot separates the modules because filemon explicitly rejects ordinary
+  unload; no forced unload was used. The matched bmake produces 32 real ELF
+  objects with complete raw metadata envelopes, and numeric syscall tracing
+  verifies 32 finalize requests and 32 successful returns. All 14 original
+  bmake metadata-focused unit tests pass. Arm64 runtime with the changed
+  module and renewed full aggregate capture remain unqualified. Original
+  unload and symbolic-trace-observer failures are retained privately.
 - **Evidence boundary:** The source100 amd64 aggregate and original byte verifier
   pass all five phases. Separate artifact/source/pkg/kernel checks pass, but its
   independent trace review fails on two malformed non-compilation records among
