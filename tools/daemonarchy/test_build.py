@@ -53,7 +53,8 @@ class BuildTests(unittest.TestCase):
     def plan(self, **kwargs):
         return build.make_plan(kwargs.get("revision", self.revision), kwargs.get("output", str(self.output)),
                                kwargs.get("profile", "baseline"), kwargs.get("jobs", 2),
-                               kwargs.get("trace_mode", "off"), kwargs.get("target", "amd64"))
+                               kwargs.get("trace_mode", "off"), kwargs.get("target", "amd64"),
+                               kwargs.get("make"))
 
     def built_fixture(self):
         plan = self.plan()
@@ -89,6 +90,120 @@ class BuildTests(unittest.TestCase):
         self.assertEqual(baseline["upstream_base"], self.revision)
         self.assertIn("KERNCONF=DAEMONARCHY_DIAGNOSTIC", diagnostic["commands"]["buildkernel"])
         self.assertEqual(baseline["acceptance"], "not-qualified")
+
+    def make_fixture(self):
+        path = self.parent / "selected-make"
+        path.write_bytes(b"#!/bin/sh\nprintf 'fixture-make\\n'\n")
+        path.chmod(0o755)
+        return path
+
+    def test_selected_make_binds_all_phases_queries_bytes_and_mode(self):
+        plain = self.plan()
+        self.assertNotIn("make_executable", plain)
+        self.assertEqual(plain, self.plan(make=None))
+        tool = self.make_fixture()
+        plan = self.plan(make=str(tool))
+        self.assertNotEqual(plain["identity"], plan["identity"])
+        for argv in [*plan["commands"].values(), plan["release_directory_query"]]:
+            self.assertEqual(argv[0], str(tool))
+        self.assertEqual(build.selected_make(plan), str(tool))
+        self.assertFalse(self.output.exists())
+        tool.write_bytes(b"#!/bin/sh\nprintf 'other-make\\n'\n")
+        with self.assertRaisesRegex(ValueError, "selected make executable changed"):
+            build.selected_make(plan)
+        changed = self.plan(make=str(tool))
+        self.assertNotEqual(plan["identity"], changed["identity"])
+        tool.chmod(0o555)
+        with self.assertRaisesRegex(ValueError, "selected make executable changed"):
+            build.selected_make(changed)
+
+    def test_changed_selected_make_refuses_new_run_and_resume_before_output(self):
+        tool = self.make_fixture()
+        plan = self.plan(make=str(tool))
+        tool.write_bytes(b"changed selected executable")
+        for resume in [False, True]:
+            args = type("Args", (), {"resume": resume})()
+            with patch.object(build, "native_preflight") as preflight, \
+                    patch.object(build, "run_command") as execute:
+                with self.assertRaisesRegex(ValueError, "selected make executable changed"):
+                    build.run(plan, args)
+                preflight.assert_not_called()
+                execute.assert_not_called()
+        self.assertFalse(self.output.exists())
+
+    def test_selected_make_command_substitution_and_nonexecutable_refused(self):
+        tool = self.make_fixture()
+        plan = self.plan(make=str(tool))
+        plan["commands"]["sets"][0] = "/usr/bin/make"
+        with self.assertRaisesRegex(ValueError, "differs from planned commands"):
+            build.selected_make(plan)
+        tool.chmod(0o444)
+        with self.assertRaisesRegex(ValueError, "executable regular file"):
+            self.plan(make=str(tool))
+        with self.assertRaisesRegex(ValueError, "absolute"):
+            self.plan(make="selected-make")
+
+    def test_make_replacement_during_capture_cannot_create_a_binding(self):
+        tool = self.make_fixture()
+        original_digest = build.digest
+
+        def changing_digest(path):
+            result = original_digest(path)
+            path.write_bytes(b"replacement while capturing executable")
+            return result
+
+        with patch.object(build, "digest", side_effect=changing_digest):
+            with self.assertRaisesRegex(ValueError, "changed during capture"):
+                self.plan(make=str(tool))
+        self.assertFalse(self.output.exists())
+
+    def test_filemon_preflight_queries_the_selected_client(self):
+        tool = self.make_fixture()
+        with patch.object(build.platform, "system", return_value="FreeBSD"), \
+                patch.object(build.platform, "machine", return_value="amd64"), \
+                patch.object(build.platform, "release", return_value="16.0-CURRENT"), \
+                patch.object(build.os, "geteuid", return_value=1001), \
+                patch.object(build.os, "access", return_value=True), \
+                patch.object(build.os, "cpu_count", return_value=4), \
+                patch.object(build.shutil, "disk_usage") as disk, \
+                patch.object(build.subprocess, "check_output",
+                             side_effect=["/dev/filemon", "2097152", "0", "4096"]) as probe:
+            disk.return_value.free = 150 * 1024**3
+            build.native_preflight(self.parent, 4, 100, "filemon", make=str(tool))
+        self.assertEqual(probe.call_args_list[0].args[0][0], str(tool))
+        self.assertFalse(self.output.exists())
+
+    def test_successful_command_with_changed_make_is_recorded_but_not_accepted(self):
+        tool = self.make_fixture()
+        plan = self.plan(make=str(tool))
+        original_command = build.run_command
+        original_probe = build.subprocess.check_output
+
+        def probe(argv, **kwargs):
+            if argv[0] == "git":
+                return original_probe(argv, **kwargs)
+            return "synthetic worker observation"
+
+        def controlled_command(argv, env, log, timeout):
+            result = original_command([sys.executable, "-c", "print('synthetic phase')"],
+                                      env, log, timeout)
+            tool.write_bytes(b"changed after command completion")
+            return result
+
+        args = type("Args", (), {"resume": False, "jobs": 2, "minimum_free_gib": 1,
+                                 "phase_timeout": 10, "through": "sets"})()
+        with patch.object(build, "native_preflight"), \
+                patch.object(build.subprocess, "check_output", side_effect=probe), \
+                patch.object(build, "run_command", side_effect=controlled_command) as execute:
+            with self.assertRaisesRegex(ValueError, "buildworld failed"):
+                build.run(plan, args)
+        self.assertEqual(execute.call_count, 1)
+        state = json.loads((self.output / "result.json").read_text())
+        self.assertEqual(state["status"], "failed")
+        self.assertEqual(state["phases"][0]["command_exit"], 0)
+        self.assertEqual(state["phases"][0]["exit"], -1)
+        self.assertIn("selected make executable changed", state["error"])
+        self.assertEqual(state["artifacts"], [])
 
     def test_wrong_or_abbreviated_revision_refused(self):
         for revision in (self.revision[:12], "0" * 40, "main"):
