@@ -319,6 +319,12 @@ payloads. It preserves its workspace and logs on failure. This checks install
 recipe metadata; it does not compile the fixture scripts, qualify a compiler,
 or replace a renewed complete native capture and the original source tests.
 
+The hosted metadata probe's `--emit-probe` option also accepts an external
+absolute report directory. Repository-local reports still relocate with the
+guest repository when the generated probe is transported; external reports
+retain their explicit location. Both retain the canonical-path check. This
+allows native test evidence to stay outside an immutable source snapshot.
+
 The retained `observe-unit-inputs.py trace` reader keeps FreeBSD V5 `A`
 annotations with the following directory-FD access. A reported absolute path can
 still be a namecache guess and stays in `unresolved_inputs`; it is never opened

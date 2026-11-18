@@ -612,6 +612,14 @@ before/after hooks and program-to-debug ordering. Renewed complete capture and
 exact-head integration gates remain open. No canonical graph or SDK admission
 is implied.
 
+Full native-suite preparation also exposed a hosted-probe restriction that
+required reports inside source. External absolute reports are now supported
+while preserving guest-relative transport for repository-local reports and the
+canonical-path guard. Three path regressions pass on the controller; complete
+native execution of all 165 existing cases and these three additions remains
+pending. The original preparation refusal remains retained and is not reported
+as a completed test run.
+
 
 ### Explicit make client for renewed filemon capture
 

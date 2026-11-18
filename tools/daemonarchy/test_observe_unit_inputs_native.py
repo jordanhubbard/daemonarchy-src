@@ -20,7 +20,9 @@ import re
 import shlex
 import subprocess
 import sys
+import tempfile
 import unittest
+from unittest import mock
 import uuid
 
 KIND = "source"
@@ -43,6 +45,15 @@ def shell_argument(value):
 
 
 def emit_probe(output):
+    output=output.absolute()
+    try:
+        report_path=output.relative_to(ROOT).as_posix()
+        report_expression="$repo/"+report_path
+    except ValueError:
+        report_path=output.as_posix()
+        report_expression=shlex.quote(report_path)
+    if not re.fullmatch(r"[A-Za-z0-9_./+-]+",report_path) or ".." in Path(report_path).parts:
+        raise ValueError("canonical report path required")
     output.mkdir(parents=True,exist_ok=False)
     private=output/"private"
     private.mkdir(mode=0o700)
@@ -99,7 +110,7 @@ set -eu
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 export PATH
 repo=$PWD
-out=$repo/@@OUTPUT@@
+out=@@OUTPUT@@
 private=$out/private
 mkdir -p "$private"
 chmod 700 "$private"
@@ -185,10 +196,7 @@ else
     exit 1
 fi
 '''
-    relative=output.relative_to(ROOT).as_posix()
-    if not re.fullmatch(r"[A-Za-z0-9_./+-]+",relative) or ".." in Path(relative).parts:
-        raise ValueError("canonical report path required")
-    (output/"probe.sh").write_text(body.replace("@@OUTPUT@@",relative).replace("@@QUERY@@",query))
+    (output/"probe.sh").write_text(body.replace("@@OUTPUT@@",report_expression).replace("@@QUERY@@",query))
     (output/"probe.sh").chmod(0o700)
 
 
@@ -242,6 +250,53 @@ def verify_report(output):
             summary["native_error_excerpt"]=message.replace(root,"@NATIVE_SANDBOX@") if root else "native stderr retained by digest"
     (output/"summary.json").write_text(json.dumps(summary,indent=2,sort_keys=True)+"\n")
     return summary
+
+
+class ProbeLocationTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary=tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.parent=Path(self.temporary.name)
+        self.repository=self.parent/"repository"
+        self.repository.mkdir()
+        (self.repository/"COPYRIGHT").write_text("fixture source input\n")
+        for args in (["init","-q"],["add","COPYRIGHT"],
+                     ["-c","user.name=Fixture","-c","user.email=fixture@example.invalid",
+                      "commit","-qm","fixture"]):
+            subprocess.run(["git","-C",str(self.repository),*args],check=True,
+                           capture_output=True,text=True,timeout=20)
+        self.guest=self.parent/"guest-repository"
+        self.guest.mkdir()
+
+    def run_report_setup(self,output):
+        with mock.patch(__name__+".ROOT",self.repository):
+            emit_probe(output)
+        script=(output/"probe.sh").read_text()
+        subprocess.run(["/bin/sh","-n",str(output/"probe.sh")],check=True,
+                       capture_output=True,text=True,timeout=20)
+        # Execute the emitted path/directory setup before the native OS gate.
+        setup=script.split('uname -s > "$private/system"',1)[0]
+        result=subprocess.run(["/bin/sh","-c",setup+'printf "%s\\n" "$out"\n'],
+                              cwd=self.guest,check=True,capture_output=True,text=True,timeout=20)
+        return Path(result.stdout.strip())
+
+    def test_internal_report_relocates_with_guest_repository(self):
+        output=self.repository/"_build"/"probe"
+        actual=self.run_report_setup(output)
+        self.assertEqual(actual,self.guest/"_build"/"probe")
+        self.assertTrue((actual/"private").is_dir())
+
+    def test_external_report_keeps_explicit_location(self):
+        output=self.parent/"external-report"
+        self.assertEqual(self.run_report_setup(output),output)
+        self.assertFalse((self.repository/"_build").exists())
+        self.assertFalse((self.guest/"_build").exists())
+
+    def test_noncanonical_report_refuses_before_creating_output(self):
+        output=self.parent/"report$injection"
+        with mock.patch(__name__+".ROOT",self.repository),self.assertRaises(ValueError):
+            emit_probe(output)
+        self.assertFalse(output.exists())
 
 
 class NativeProducerSmoke(unittest.TestCase):
