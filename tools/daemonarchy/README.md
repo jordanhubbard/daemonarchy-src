@@ -302,6 +302,23 @@ must fail rather than silently falling back to command-only tracing. Allow at
 least 100 GiB free for a traced build. Raw metadata can contain private worker
 paths; keep it outside Git and published assets.
 
+On an allocated FreeBSD worker with the matching make/filemon pair, run the
+parallel install metadata regression with explicit tool paths and a new private
+workspace outside source:
+
+```sh
+sh tools/daemonarchy/test_install_metadata.sh \
+    /path/to/source /path/to/make /path/to/install /path/to/new-test-workspace
+```
+
+An optional fifth argument selects an overlay directory containing candidate
+`share/mk` files before the original source's make include directory. The test
+installs two script programs and their debug payloads with stripping disabled,
+requires four distinct, complete trace envelopes, and compares all four installed
+payloads. It preserves its workspace and logs on failure. This checks install
+recipe metadata; it does not compile the fixture scripts, qualify a compiler,
+or replace a renewed complete native capture and the original source tests.
+
 The retained `observe-unit-inputs.py trace` reader keeps FreeBSD V5 `A`
 annotations with the following directory-FD access. A reported absolute path can
 still be a namecache guess and stays in `unresolved_inputs`; it is never opened

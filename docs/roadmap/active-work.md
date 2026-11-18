@@ -591,6 +591,27 @@ resume and final source/compiler/product admission remain open.
   admission. Do not normalize corrupt records or infer complete dependencies
   from the earlier aggregate.
 
+The renewed source104 amd64 run completes all five phases and its byte verifier,
+but strict review again refuses two malformed records, among 113,252 retained
+blobs. Separate checks pass all 538 artifacts, 524 package records and their
+dependencies, complete source payloads, and matching kernel/module packages and
+sets. Those successes do not qualify the failed trace set.
+
+The install rules have a separate metadata collision: parallel `PROGS`
+sub-makes share `_proginstall.meta` and `_debuginstall.meta`. On the same native
+make/module pair, barrier-coordinated original install recipes reproduce two
+corrupt shared files. Candidate per-payload recipe targets produce four distinct,
+valid traces and byte-identical installed programs and debug files. The generic
+install entry points remain aliases, and the existing ordering is retained.
+`tools/daemonarchy/test_install_metadata.sh` also fails against the original
+rules and passes with the candidate. Its script payloads test installation and
+metadata; they do not establish compilation or runtime qualification. Four
+additional native cases pass for debug-disabled programs, a single program,
+library installation and direct generic entry points, including instrumented
+before/after hooks and program-to-debug ordering. Renewed complete capture and
+exact-head integration gates remain open. No canonical graph or SDK admission
+is implied.
+
 
 ### Explicit make client for renewed filemon capture
 
