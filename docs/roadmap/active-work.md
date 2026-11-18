@@ -616,9 +616,15 @@ Full native-suite preparation also exposed a hosted-probe restriction that
 required reports inside source. External absolute reports are now supported
 while preserving guest-relative transport for repository-local reports and the
 canonical-path guard. Three path regressions pass on the controller; complete
-native execution of all 165 existing cases and these three additions remains
-pending. The original preparation refusal remains retained and is not reported
-as a completed test run.
+native execution of all 165 existing cases and these three additions on source
+`789350ff4180` yields 166 passes, two fixture failures and no skips. The fake
+guest required an unavailable `python3` alias, and its timeout assertion omitted
+the documented BSD expiration status. The fixture now binds the actual test
+interpreter and requires positive startup, ignored SIGTERM and FIFO EOF within
+the original deadline. Both original bound cases pass natively with the updated
+fixture; the Linux bound-test class also passes. Complete native-suite renewal
+on the combined revision remains required. The original preparation refusal
+and failed full-suite run remain retained.
 
 
 ### Explicit make client for renewed filemon capture
