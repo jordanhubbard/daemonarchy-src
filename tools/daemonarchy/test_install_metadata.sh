@@ -4,7 +4,8 @@
 set -eu
 
 if [ "$#" -lt 4 ] || [ "$#" -gt 5 ]; then
-	echo "usage: $0 source-root make-executable install-executable work-dir [mk-overlay]" >&2
+	echo "usage: $0 source-root make-executable install-executable" \
+	    "work-dir [mk-overlay]" >&2
 	exit 2
 fi
 source_root=$1
@@ -59,7 +60,9 @@ for program in first_program second_program; do
 			exit 1
 		fi
 		awk '
-		/^-- filemon acquired metadata --$/ { blocks++; active = 1; next }
+		/^-- filemon acquired metadata --$/ {
+			blocks++; active = 1; next
+		}
 		active {
 			if (bye) bad = 1
 			if (stop && $0 != "# Bye bye") bad = 1
