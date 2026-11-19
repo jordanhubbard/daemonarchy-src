@@ -8,6 +8,9 @@ ATF_TESTS_C+=	cpuset_test
 ATF_TESTS_C+=	expand_number_test
 ATF_TESTS_C+=	forkpty_test
 ATF_TESTS_C+=	getlocalbase_test
+ATF_TESTS_C+=	openpty_test
+
+LIBADD.openpty_test+=	pthread
 
 WARNS?=		2
 LIBADD+=	util

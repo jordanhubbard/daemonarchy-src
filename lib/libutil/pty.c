@@ -38,6 +38,7 @@
 #include <fcntl.h>
 #include <grp.h>
 #include <libutil.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
@@ -47,7 +48,7 @@ int
 openpty(int *amaster, int *aslave, char *name, struct termios *termp,
     struct winsize *winp)
 {
-	const char *slavename;
+	char slavename[PATH_MAX];
 	int master, slave;
 
 	master = posix_openpt(O_RDWR|O_NOCTTY);
@@ -60,8 +61,7 @@ openpty(int *amaster, int *aslave, char *name, struct termios *termp,
 	if (unlockpt(master) == -1)
 		goto bad;
 
-	slavename = ptsname(master);
-	if (slavename == NULL)
+	if (ptsname_r(master, slavename, sizeof(slavename)) != 0)
 		goto bad;
 
 	slave = open(slavename, O_RDWR);
