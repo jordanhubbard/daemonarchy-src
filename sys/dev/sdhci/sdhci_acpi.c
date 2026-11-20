@@ -332,7 +332,7 @@ static int
 sdhci_acpi_attach(device_t dev)
 {
 	struct sdhci_acpi_softc *sc = device_get_softc(dev);
-	int rid, err;
+	int rid, err, irqflags;
 	u_int quirks;
 	const struct sdhci_acpi_device *acpi_dev;
 
@@ -367,6 +367,10 @@ sdhci_acpi_attach(device_t dev)
 		sc->slot.opt |= SDHCI_MAX_CLK_FIXED;
 	}
 
+	/* BCM2847 and eMMC2 can share the firmware's SD interrupt. */
+	irqflags = RF_ACTIVE;
+	if (sc->bcm_32bit || strcmp(acpi_dev->hid, "BRCME88C") == 0)
+		irqflags |= RF_SHAREABLE;
 	/* Allocate IRQ. */
 	rid = 0;
 	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
