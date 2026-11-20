@@ -113,6 +113,10 @@
 #define   CGEM_NET_STAT_PCS_LINK_STATE		(1 << 0)
 
 #define CGEM_USER_IO			0x00C	/* User I/O */
+#define   CGEM_USER_IO_RGMII		(1U << 0)
+
+#define CGEM_AXI_PIPELINE		0x054	/* AXI pipeline limits */
+#define   CGEM_AXI_AW2B_FILL		(1U << 16)
 
 #define CGEM_DMA_CFG			0x010	/* DMA Config */
 #define   CGEM_DMA_CFG_ADDR_BUS_64		(1 << 30)
