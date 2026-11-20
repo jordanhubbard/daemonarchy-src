@@ -1,0 +1,18 @@
+{
+  "schema": "daemonarchy/pi-io-native-kernel/v1",
+  "revision": "9409d1f15e709de89ef29a75fc14de38cdd7f5fb",
+  "build_exit": 0,
+  "kernel_sha256": "257ee95c38b8a87fb2bacea855ad3e67ec6b945e9d3fbbad596523bcfa37cc92",
+  "selected_symbols": [
+    "ffff000000f29878 D bcm2712_pcie_driver",
+    "ffff000000a35578 t gen_acpi_attach",
+    "ffff000000eeeef0 D gen_acpi_driver",
+    "ffff000000a32368 t gen_attach",
+    "ffff0000002eacf4 t sdhci_acpi_attach",
+    "ffff0000002eb1a0 t sdhci_acpi_read_4"
+  ],
+  "scope": "Native ARM64 GENERIC kernel with combined Pi 4 ACPI GENET and BRCME88C SDHCI candidates. No installation, boot, DMA or physical device I/O. The RP1 candidate was not part of this kernel build.",
+  "finished": "2026-11-20T17:04:05.901866+00:00",
+  "hosted_ci": "disabled per operator direction",
+  "lifecycle_receipt": "missing"
+}
