@@ -15,7 +15,12 @@
     "sys/dev/usb/net/if_smsc.c": "da883ecf5a1c6d8f2cd26e197db11295701690b4e42b3c34ac502513a9be95b0",
     "sys/dev/usb/net/if_muge.c": "ec3245ed6c9a0941cf5995b511510813efdcafbfbb413f1a6b3cb789cc81a523",
     "sys/arm/conf/GENERIC": "8daf5484b0f53ca91852d271591d9911affcc5e77b981c4c4967481348f2415e",
-    "UPDATING": "8ea09b1cb205f96a4df30f31be4011acd041c6954dd5885352bb3e314c238007"
+    "UPDATING": "8ea09b1cb205f96a4df30f31be4011acd041c6954dd5885352bb3e314c238007",
+    "sys/arm64/broadcom/genet/if_genet.c": "c6535f6dd36b14eaecd0e41e59f2f0450004c63276ed6c80bb5d067e1723ba20",
+    "sys/arm64/broadcom/rp1_pci.c": "4510725473387576e968fe21cba4c9e31ed3c96be8dd5787f15ac22774e9e805",
+    "sys/arm64/broadcom/rp1_gpio.c": "e75120aa173670b25ac009857f6549360302e5fba28691e6e27f03c81cbd7f1a",
+    "sys/arm64/broadcom/rp1_clock.c": "eb69f01bde195082bf589de739b69c683435ae65d579a098d57c1463e28a36bc",
+    "sys/contrib/device-tree/src/arm/broadcom/bcm2837-rpi-3-b.dts": "9912da1723ee565b862964af4b51b1d81646455677a5c22a0f3870556157a6e9"
   },
   "profiles": [
     {
