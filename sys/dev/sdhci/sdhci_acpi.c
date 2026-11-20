@@ -374,7 +374,7 @@ sdhci_acpi_attach(device_t dev)
 	/* Allocate IRQ. */
 	rid = 0;
 	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-		RF_ACTIVE);
+	    irqflags);
 	if (sc->irq_res == NULL) {
 		device_printf(dev, "can't allocate IRQ\n");
 		return (ENOMEM);
