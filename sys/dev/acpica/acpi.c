@@ -1546,6 +1546,47 @@ acpi_sysres_alloc(device_t dev)
 }
 
 /*
+ * A system container can repeat an immediate namespace child's _CRS window
+ * (for example, GDV1 and its BCM2711 eMMC2 child).  Both can be flattened onto
+ * acpi0.  Reserving the container's copy first prevents a later-pass child
+ * driver from allocating its own resource.  Give an exact duplicate to the
+ * enabled child; retain all other container reservations.
+ */
+static bool
+acpi_syscont_child_resource(device_t bus, device_t container,
+    const struct resource_list_entry *rle)
+{
+    struct resource_list_entry *entry;
+    struct acpi_device *ad;
+    ACPI_HANDLE handle, child_handle;
+    device_t child;
+
+    if ((rle->type != SYS_RES_MEMORY && rle->type != SYS_RES_IOPORT) ||
+	rle->count == 0 || rle->end < rle->start ||
+	rle->count - 1 != rle->end - rle->start)
+	return (false);
+    handle = acpi_get_handle(container);
+    if (handle == NULL || !acpi_MatchHid(handle, "ACPI0004"))
+	return (false);
+
+    child_handle = NULL;
+    while (ACPI_SUCCESS(AcpiGetNextObject(ACPI_TYPE_DEVICE, handle,
+	child_handle, &child_handle))) {
+	child = acpi_get_device(child_handle);
+	if (child == NULL || device_get_parent(child) != bus ||
+	    !device_is_enabled(child))
+	    continue;
+	ad = device_get_ivars(child);
+	STAILQ_FOREACH(entry, &ad->ad_rl, link) {
+	    if (entry->type == rle->type && entry->start == rle->start &&
+		entry->end == rle->end && entry->count == rle->count)
+		return (true);
+	}
+    }
+    return (false);
+}
+
+/*
  * Reserve declared resources for active devices found during the
  * namespace scan once the boot-time attach of devices has completed.
  *
@@ -1592,6 +1633,9 @@ acpi_reserve_resources(device_t dev)
 	     * if ECDT is present.
 	     */
 	    if (rle->res != NULL)
+		continue;
+
+	    if (acpi_syscont_child_resource(dev, children[i], rle))
 		continue;
 
 	    /*
