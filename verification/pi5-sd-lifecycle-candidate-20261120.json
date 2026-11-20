@@ -1,0 +1,39 @@
+{
+  "schema": "daemonarchy/pi5-sd-lifecycle-candidate/v1",
+  "base_revision": "8b6683faa65adf855b5f9745266b577e1a24a316",
+  "tested_context_revision": "9cf7e85720c1ec1de67951cf9c6f5a30c4ed3c01",
+  "scope": "BCM2712 FDT SD power/cleanup ownership and standalone module inclusion; no physical SD operation or all-Pi qualification.",
+  "sources": {
+    "sys/dev/sdhci/sdhci_fdt_bcm2712.c": "37433a02fb50ebb37bee3344fc9d0092b69489c96e49625b47e1d0a9fd5d7d82",
+    "sys/modules/sdhci_fdt/Makefile": "5c413ce5009528e3b5685e2dc2dc50f95e388aa44ecd04563edd64311d9caa1d",
+    "tools/daemonarchy/tests/pi5-sd-lifecycle-controls.py": "791c89c42f74587e803bb112927bce01434cc16cd5628ecdae143f9c50df012a"
+  },
+  "validation": {
+    "native_module_sha256": "43c0c6f27c702cc39b3556f4a69da566effd9da28950616434061fe22f86834c",
+    "native_build_exit": 0,
+    "native_compiler": "FreeBSD clang version 21.1.8 (https://github.com/llvm/llvm-project.git llvmorg-21.1.8-0-g2078da43e25a)",
+    "native_source_hashes": {
+      "sdhci_fdt.c": "9fd7d35b39139485362e229ba8fd7c9f6711bfb81d095bbb7c852253e1856628",
+      "sdhci_fdt_gpio.c": "c843fec4db5134ad33d446b7892792aff9439cc7230c3c492ddba7329b950cfd",
+      "sdhci_fdt_bcm2712.c": "37433a02fb50ebb37bee3344fc9d0092b69489c96e49625b47e1d0a9fd5d7d82",
+      "Makefile": "5c413ce5009528e3b5685e2dc2dc50f95e388aa44ecd04563edd64311d9caa1d"
+    },
+    "native_build": "Original sdhci_fdt Makefile with BCM2712 source and generated headers included, -Werror, FDT/INTRNG, no install/load.",
+    "production_callbacks": "Clang18/GCC ASan+UBSan: supply acquisition/rollback/restore, bounded reset and interrupt-disable readback, every fallible cleanup operation and retry, valid child-busy refusal, retained DMA/GPIO/regulator/clock owners on reset or provider failures, I/O supply rollback failure cannot drop newly-enabled card supply.",
+    "existing_sd_controls": "Pi5 pinctrl/regulator provider and Pi4 ACPI SD Clang18 controls pass.",
+    "controller_suite": {
+      "total": 168,
+      "passed": 163,
+      "skipped": 5
+    },
+    "project_authority": "passed",
+    "freebsd_target_locks": "current",
+    "lifecycle_receipt": "missing"
+  },
+  "limitations": [
+    "No physical SD command/read/write, insertion/removal, electrical timing, UHS/1.8V or full-RAM DMA acceptance.",
+    "Existing selected SD bootstrap is3.3V/up to50MHz and refuses MMCCAM power lifecycle.",
+    "D0 pinctrl/AON GPIO provider scope does not establish C1 or unidentified CM5/Pi500 carrier qualification.",
+    "Reset completion and safe owner retention are tested against mocks; physical controller behavior remains unverified."
+  ]
+}
