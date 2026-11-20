@@ -48,7 +48,7 @@ typedef unsigned u_int;
 #define INTR_TYPE_MISC 1
 #define INTR_MPSAFE 2
 struct resource { int rid; };
-struct sdhci_slot { unsigned quirks; };
+struct sdhci_slot { unsigned quirks,max_clk,opt; };
 struct sdhci_acpi_device { const char *hid; int uid; const char *desc; unsigned quirks; };
 struct sdhci_acpi_softc {
  struct sdhci_slot slot;

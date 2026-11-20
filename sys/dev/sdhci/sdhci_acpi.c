@@ -356,6 +356,15 @@ sdhci_acpi_attach(device_t dev)
 			device_printf(dev, "missing or invalid firmware SDHCI capabilities\n");
 			return (ENXIO);
 		}
+		/*
+		 * Firmware supplies an eight-bit MHz clock (250 on EDK2).
+		 * Preserve it even if HOST_VERSION advertises SDHCI 2.0, whose
+		 * generic six-bit capabilities decoder would truncate it.
+		 */
+		sc->slot.max_clk = ((sc->firmware_caps &
+		    SDHCI_CLOCK_V3_BASE_MASK) >> SDHCI_CLOCK_BASE_SHIFT) *
+		    1000000;
+		sc->slot.opt |= SDHCI_MAX_CLK_FIXED;
 	}
 
 	/* Allocate IRQ. */

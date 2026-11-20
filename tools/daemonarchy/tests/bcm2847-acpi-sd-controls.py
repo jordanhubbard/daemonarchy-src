@@ -72,6 +72,9 @@ int main(void) {
  reset_bcm();
  assert(sdhci_acpi_attach(1)==0&&starts==1&&sc.bcm_32bit);
  assert(seen_caps==0x0120fa81&&seen_caps2==0);
+ assert(sc.slot.max_clk==250000000&&(sc.slot.opt&SDHCI_MAX_CLK_FIXED));
+ // A v2 core would otherwise decode the firmware clock as 58 MHz.
+ assert(((seen_caps&SDHCI_CLOCK_BASE_MASK)>>SDHCI_CLOCK_BASE_SHIFT)==58);
  assert((seen_quirks&(SDHCI_QUIRK_BROKEN_DMA|SDHCI_QUIRK_BROKEN_TIMEOUT_VAL|SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK|SDHCI_QUIRK_DONT_SET_HISPD_BIT))==(SDHCI_QUIRK_BROKEN_DMA|SDHCI_QUIRK_BROKEN_TIMEOUT_VAL|SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK|SDHCI_QUIRK_DONT_SET_HISPD_BIT));
  sdhci_acpi_detach(1);assert(cleanups==1&&releases==2);
  for(unsigned n=0;n<5;n++) {
@@ -134,7 +137,7 @@ def main():
     args = parser.parse_args()
     source = SOURCE.read_text()
     definitions = '\n'.join(re.findall(r'^#define\s+SDHCI_\w+[^\n]*', (ROOT / 'sys/dev/sdhci/sdhci.h').read_text(), re.M))
-    prefix = base.PREFIX.replace('struct sdhci_slot { unsigned quirks; };', 'struct sdhci_slot { unsigned quirks,clock; };')
+    prefix = base.PREFIX.replace('struct sdhci_slot { unsigned quirks,max_clk,opt; };', 'struct sdhci_slot { unsigned quirks,max_clk,opt,clock; };')
     prefix = prefix.replace(' bool bcm_32bit;', ' uint32_t blksz_and_count,cmd_and_mode;\n bool bcm_32bit,need_update_blk;')
     prefix = re.sub(r'static uint32_t bus_read_4[^\n]*\n', BUS, prefix)
     prefix = re.sub(r'static long device_get_property[^\n]*\n', PROPERTY, prefix)
