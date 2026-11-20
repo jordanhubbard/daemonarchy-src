@@ -3,7 +3,7 @@
   "platform_register_revision": "89f94c28cc7a510856a112c2321e8e954daf56cf",
   "platform_register": "docs/roadmap/arm-platforms.json in daemonarchy product",
   "scope": "Source coverage audit across registered Raspberry Pi profiles. All physical I/O acceptance remains pending; no platform feature or release gate is promoted by this audit.",
-  "source_revision": "403ca1ace1eee6a2205b534217aa6785b834cbdb",
+  "source_revision": "5c2fc255dc8bf723041533c9b0d5027c0bee42cc",
   "source_evidence": {
     "sys/arm/broadcom/bcm2835/bcm2835_sdhost.c": "96cfb30cf77e788e2237830c168cbc70ab31c7aad3ad4de32cc0c91745477280",
     "sys/arm/broadcom/bcm2835/bcm2835_sdhci.c": "0f838457278955a8de6fc96e4a48727287e5de366effd7707ff4b19fa2215359",
@@ -20,7 +20,8 @@
     "sys/arm64/broadcom/rp1_pci.c": "4510725473387576e968fe21cba4c9e31ed3c96be8dd5787f15ac22774e9e805",
     "sys/arm64/broadcom/rp1_gpio.c": "e75120aa173670b25ac009857f6549360302e5fba28691e6e27f03c81cbd7f1a",
     "sys/arm64/broadcom/rp1_clock.c": "eb69f01bde195082bf589de739b69c683435ae65d579a098d57c1463e28a36bc",
-    "sys/contrib/device-tree/src/arm/broadcom/bcm2837-rpi-3-b.dts": "9912da1723ee565b862964af4b51b1d81646455677a5c22a0f3870556157a6e9"
+    "sys/contrib/device-tree/src/arm/broadcom/bcm2837-rpi-3-b.dts": "9912da1723ee565b862964af4b51b1d81646455677a5c22a0f3870556157a6e9",
+    "sys/dev/acpica/acpi.c": "319586d4016c7fca658ebbe46519e7f4933d947b5d2ac5d3b47f7690998498e6"
   },
   "profiles": [
     {
@@ -52,12 +53,20 @@
       "work_item": "RPI-001",
       "physical_io_qualification": "pending",
       "ethernet": "BCM2711 GENET: existing FDT frontend plus ACPI BCM6E4E candidate PR113",
-      "native_sd": "BCM2711 SDHCI: existing FDT frontend plus ACPI BRCME88C candidate PR112",
+      "native_sd": "BCM2711 SDHCI: existing FDT frontend plus ACPI BRCME88C candidate PR112; duplicate ACPI container window ownership repaired by PR117",
       "remaining": [
         "Physical candidate attach, link/DHCP/packet transfers and SD read/write",
         "Model-specific firmware tables, CM carrier/eMMC mapping and full-RAM DMA",
         "Legacy BCM2847 ACPI controller frontend remains missing"
-      ]
+      ],
+      "model_runtime_evidence": {
+        "receipt": "verification/acpi-container-reservations-20261120.json",
+        "source_stack": "586c8e7 plus ACPI resource ownership fix 8bf730a4682",
+        "platform": "Pi4 UEFI/ACPI partial BCM2711 model, 2GiB RAM",
+        "ethernet": "DHCP, authenticated SSH, bidirectional 1MiB payload hashes and native packet counters pass",
+        "sd": "BRCME88C eMMC2 PIO at3.3V; 1MiB SD write/read and whole disposable backing check pass",
+        "physical_acceptance": "pending"
+      }
     },
     {
       "id": "cm5",
