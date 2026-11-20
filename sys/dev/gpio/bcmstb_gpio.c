@@ -16,7 +16,7 @@
  */
 
 /*
- * FreeBSD adaptation for the BCM2712 D0 AON SD bootstrap. Physical GPIO
+ * FreeBSD adaptation for the BCM2712 C0/C1 and D0 AON SD bootstrap. Physical GPIO
  * numbers retain their 32-pin bank stride; invalid bank-width holes are not
  * compacted. GPIO2 releases RP1 reset, GPIO3/4 control the SD supplies, and
  * GPIO5 samples card detect. Other pins, pulls and GPIO interrupts are not
@@ -86,7 +86,7 @@ bcmstb_gpio_caps(struct bcmstb_gpio_softc *sc, uint32_t pin)
 	return (pin == 5 ? GPIO_PIN_INPUT : 0);
 }
 
-/* Selected D0 AON profile only: validate the entire child plan before MMIO.
+/* Selected BCM2712 AON profiles only: validate the entire child plan before MMIO.
  * The local gpio-hog binding uses two cells per pin, not a provider phandle.
  */
 static int
@@ -350,7 +350,7 @@ bcmstb_gpio_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev) ||
 	    !ofw_bus_is_compatible(dev, "brcm,brcmstb-gpio"))
 		return (ENXIO);
-	/* Do not claim other STB GPIO banks or SoCs with this D0-only port. */
+	/* Claim only the BCM2712 AON block with a supported sibling profile. */
 	if (OF_getproplen(node, "reg") != sizeof(reg) ||
 	    OF_getencprop(node, "reg", reg, sizeof(reg)) != sizeof(reg) ||
 	    reg[0] != 0x7d517c00 || reg[1] != BCMSTB_BANKS * 32)
@@ -358,8 +358,9 @@ bcmstb_gpio_probe(device_t dev)
 	for (sibling = OF_child(OF_parent(node)); sibling != 0;
 	    sibling = OF_peer(sibling)) {
 		if (ofw_bus_node_status_okay(sibling) &&
-		    ofw_bus_node_is_compatible(sibling, "brcm,bcm2712d0-aon-pinctrl")) {
-			device_set_desc(dev, "BCM2712 D0 AON GPIO SD bootstrap (polled)");
+		    (ofw_bus_node_is_compatible(sibling, "brcm,bcm2712d0-aon-pinctrl") ||
+		 ofw_bus_node_is_compatible(sibling, "brcm,bcm2712c0-aon-pinctrl"))) {
+			device_set_desc(dev, "BCM2712 AON GPIO SD bootstrap (polled)");
 			return (BUS_PROBE_DEFAULT);
 		}
 	}
@@ -425,7 +426,8 @@ bcmstb_gpio_attach(device_t dev)
 	if (OF_getproplen(node, "brcm,gpio-bank-widths") != sizeof(sc->widths) ||
 	    OF_getencprop(node, "brcm,gpio-bank-widths", sc->widths,
 	    sizeof(sc->widths)) != sizeof(sc->widths) ||
-	    sc->widths[0] != 15 || sc->widths[1] != 6 ||
+	    (sc->widths[0] != 15 && sc->widths[0] != 17) ||
+	    sc->widths[1] != 6 ||
 	    OF_getencprop(node, "#gpio-cells", &cells, sizeof(cells)) != sizeof(cells) ||
 	    cells != 2 || !OF_hasprop(node, "gpio-controller"))
 		return (EINVAL);
@@ -444,13 +446,21 @@ bcmstb_gpio_attach(device_t dev)
 	for (sibling = OF_child(OF_parent(node)); sibling != 0;
 	    sibling = OF_peer(sibling)) {
 		if (ofw_bus_node_status_okay(sibling) &&
-		    ofw_bus_node_is_compatible(sibling, "brcm,bcm2712d0-aon-pinctrl")) {
+		    (ofw_bus_node_is_compatible(sibling, "brcm,bcm2712d0-aon-pinctrl") ||
+		 ofw_bus_node_is_compatible(sibling, "brcm,bcm2712c0-aon-pinctrl"))) {
+			/* The bank width belongs to this exact sibling profile. */
+			if (sc->widths[0] !=
+			    (ofw_bus_node_is_compatible(sibling,
+				"brcm,bcm2712c0-aon-pinctrl") ? 17 : 15)) {
+				error = EINVAL;
+				goto fail;
+			}
 			sc->pinctrl = OF_device_from_xref(OF_xref_from_node(sibling));
 			break;
 		}
 	}
 	if (sc->pinctrl == NULL) {
-		device_printf(dev, "required D0 AON pinctrl provider is unavailable\n");
+		device_printf(dev, "required BCM2712 AON pinctrl provider is unavailable\n");
 		goto fail;
 	}
 	mtx_init(&sc->lock, device_get_nameunit(dev), NULL, MTX_DEF);

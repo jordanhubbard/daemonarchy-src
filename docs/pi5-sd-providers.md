@@ -1,4 +1,4 @@
-# BCM2712 D0 SD provider preparation
+# BCM2712 SD provider preparation
 
 This follow-on supplies the pin-control and voltage-settling portions of the
 initial on-SoC SD path missing from source `73260396`. It does not establish
@@ -17,12 +17,15 @@ are not dependencies of this initial SD host.
 
 ## Pin controller
 
-`bcm2712_pinctrl.c` matches only `brcm,bcm2712d0-pinctrl` and
-`brcm,bcm2712d0-aon-pinctrl`. The D0 main pin table is adapted from OpenBSD
+`bcm2712_pinctrl.c` matches `brcm,bcm2712d0-pinctrl`,
+`brcm,bcm2712d0-aon-pinctrl`, `brcm,bcm2712c0-pinctrl` and
+`brcm,bcm2712c0-aon-pinctrl`. The C0 register layout is also used by C1 silicon.
+The pin tables are adapted from OpenBSD
 `sys/dev/fdt/bcmstbpinctrl.c`, CVS revision 1.3, 2025-09-19, Git blob
 `76647bfb5ae305be07b339f649c7f57a7aa8636a`. Mark Kettenis's 2025 ISC copyright,
-permission and disclaimer remain in the driver and table header. C0 layouts and
-other undeclared functions are not advertised.
+permission and disclaimer remain in the driver and table header. Undeclared
+pins and functions are rejected; these tables cover the selected firmware
+bootstrap groups rather than all peripherals.
 
 The selected SD group requests pull-ups on `emmc_cmd` and `emmc_dat0..3`.
 At CPU `0x107d504100`, these are fields in offset `0x18`: mask `0x000ff0c0`,
@@ -43,7 +46,7 @@ Because this DTB has no `gpio-ranges`, the AON GPIO driver resolves the register
 sibling compatible and uses standard `FDT_PINCTRL_SET_FLAGS` before changing
 GPIO direction. The provider verifies the sibling's compatible, parent, register
 shape and bank widths. Physical pins2/3/4 are set to GPIO mux0. CD5 input keeps
-and verifies native SD-card mux4; output requests fail. OUTPUT preset flags are
+and verifies native SD-card mux4 on D0 or mux6 on C0/C1; output requests fail. OUTPUT preset flags are
 allowed so the GPIO provider can preload DATA before enabling output. Other
 unsupported flags fail. The pin controller does not change GPIO DATA or IODIR.
 
@@ -201,3 +204,38 @@ common-bus lifetime repairs and production plain/OFW/ACPI failure controls.
 These later implementation changes require a new native kernel build; the
 preceding `8ec367…` build and Pi4 controls remain evidence for their original
 sealed source, not the hog implementation.
+
+## C1 register profile candidate
+
+The Pi 5 Model B C1 fixture captures raw selected default properties from
+`raspberrypi/firmware@016253866bbd6c77fcb2a744a97d81e79ad4884f`,
+`boot/bcm2712-rpi-5-b.dtb`, SHA256
+`03ce4742452ad52e3e8ec2259a0c705b496970e2b75e6e0b4e5446475ea1b926`.
+This tree advertises the C0 pinctrl compatibles. Its default main and AON
+plans contain 37 and 2 register operations, respectively.
+
+C0/C1 dedicated SD pulls occupy offset `0x2c`, mask `0x0000ff0c`,
+pull-up value `0x0000aa08`. DAT2 uses bits 13:12; the imported OpenBSD
+C0 table had incorrectly placed DAT2 at DAT4's bits 17:16. The correction
+and added enabled SPI/UART default entries use register facts cross-checked
+against Raspberry Pi Linux `pinctrl-bcm2712.c`, blob
+`c349bcf05391aee45833ffdd76879437b541fa8e`; no Linux implementation is imported.
+C1 card detect selects AON offset `0x0c`, shift20, mux6 and pulls up at
+`0x1c`, shift0. GPIO2/3/4 pad pulls occupy offset `0x18`, shifts24/26/28.
+The C1 AON bank widths are 17/6. A width from one layout paired with the
+other pinctrl profile is rejected before publication. GPIO capability remains
+limited to the existing reset, SD supply and card-detect bootstrap pins.
+
+```
+python3 tools/daemonarchy/tests/pi5-c1-sd-controls.py --cc clang-18
+python3 tools/daemonarchy/tests/pi5-c1-sd-controls.py --cc gcc
+python3 tools/daemonarchy/tests/bcmstb-gpio-controls.py --cc clang-18 --sanitize
+python3 tools/daemonarchy/tests/pi5-sd-provider-controls.py --cc clang-18
+```
+
+These production callback controls check independent expected register fields,
+unknown-profile refusal, default-group validation before MMIO, mux readback,
+width mismatch refusal and both C1/D0 GPIO lifecycle faults. Physical C1
+boot, SD enumeration and transfers remain unqualified. The historical native
+build results above predate this C1 change; new native evidence is recorded
+separately.

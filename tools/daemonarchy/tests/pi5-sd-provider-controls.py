@@ -38,7 +38,7 @@ typedef int phandle_t;
 typedef int device_t;
 typedef uint32_t pcell_t;
 #define BCM2712_MAX_OPS 128
-struct bcm2712_pinctrl_softc { int aon,lock; uint32_t *mem; };
+struct bcm2712_pinctrl_softc { int profile,lock; uint32_t *mem; };
 static struct bcm2712_pinctrl_softc *device_sc;
 static void *device_get_softc(device_t dev) { assert(dev==3);return device_sc; }
 static phandle_t ofw_bus_get_node(device_t dev) { return dev; }
@@ -154,7 +154,7 @@ typedef uint32_t pcell_t;
 #define GPIO_PIN_PULLDOWN 64U
 #define GPIO_PIN_PRESET_LOW 0x400U
 #define GPIO_PIN_PRESET_HIGH 0x800U
-struct bcm2712_pinctrl_softc { int aon, lock;uint32_t *mem; };
+struct bcm2712_pinctrl_softc { int profile, lock;uint32_t *mem; };
 static uint32_t regs[8];
 static struct bcm2712_pinctrl_softc sc={1,0,regs};
 static unsigned writes;
@@ -266,10 +266,10 @@ int main(void) {
 
 
 
-def selected_dtb_program():
+def selected_dtb_program(fixture_name="pi500-pinctrl-defaults.json", controls=None):
     """Retain exact FDT wire properties, including grouped UART and SDIO pins."""
-    fixture=json.loads((ROOT/'tools/daemonarchy/tests/fixtures/pi500-pinctrl-defaults.json').read_text())
-    assert fixture['dtb_sha256']=='400b2da08abb8fd0ffd65085d1e0e1e6c6d01cadd27385403ea3a3fd5a1537f4'
+    fixture=json.loads((ROOT/'tools/daemonarchy/tests/fixtures'/fixture_name).read_text())
+    assert fixture['dtb_sha256']=={'pi500-pinctrl-defaults.json':'400b2da08abb8fd0ffd65085d1e0e1e6c6d01cadd27385403ea3a3fd5a1537f4', 'pi5-c1-pinctrl-defaults.json':'03ce4742452ad52e3e8ec2259a0c705b496970e2b75e6e0b4e5446475ea1b926'}[fixture_name]
     paths=sorted(fixture['nodes'])
     ids={path:i+1 for i,path in enumerate(paths)}
     main_id=ids[fixture['main_provider']]
@@ -285,7 +285,7 @@ def selected_dtb_program():
 typedef int phandle_t;
 typedef int device_t;
 #define BCM2712_MAX_OPS 128
-struct bcm2712_pinctrl_softc { int aon; };
+struct bcm2712_pinctrl_softc { int profile; };
 struct property { const char *name; const unsigned char *data; int len; };
 struct node { int parent, nprops; struct property *props; };
 """
@@ -387,6 +387,8 @@ static size_t strlcpy(char *dst,const char *src,size_t len) {
     pinpath='sys/arm64/broadcom/bcm2712_pinctrl.c'
     source+=function(pinpath,'bcm2712_pin_parse')
     source+=function(pinpath,'bcm2712_pin_default_plan')
+    if controls is not None:
+        return source+controls
     source+=r"""
 static uint32_t regs[8];static unsigned reads,writes;
 static uint32_t read_reg(void *arg,uint32_t off) {
@@ -402,7 +404,7 @@ int main(void) {
      0x0003fc00,0x3f0ff030,0x000ff0ff,0};
  static const uint32_t values[]={0x00006670,0,0x11004444,0x00001111,
      0x00000800,0x28088020,0x000aa0aa,0};
- sc.aon=0;
+ sc.profile=0;
  assert(bcm2712_pin_default_plan(MAIN_PROVIDER,1,ops,&count,0)==0);
  assert(count==37 && allocs==0 && reads==0 && writes==0);
  for(i=0;i<8;i++)regs[i]=0xdeadbeef;
@@ -414,7 +416,7 @@ int main(void) {
  assert(bcm2712_pin_default_plan(MAIN_PROVIDER,1,ops,&count,0)==EOPNOTSUPP);
  assert(allocs==0 && reads==37 && writes==37);
  p->data=saved;p->len=savedlen;
- sc.aon=1;count=0;
+ sc.profile=1;count=0;
  assert(bcm2712_pin_default_plan(AON_PROVIDER,1,ops,&count,0)==0);
  assert(count==2 && allocs==0);
  /* Disabled AON I2C group is present but must not be applied; foreign RP1
