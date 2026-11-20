@@ -2072,7 +2072,10 @@ acpi_device_get_prop(device_t bus, device_t dev, const char *propname,
 		val = &pkg->Package.Elements[1];
 		if (name->Type != ACPI_TYPE_STRING)
 			continue;
-		if (strncmp(propname, name->String.Pointer, name->String.Length) == 0) {
+		if (name->String.Pointer != NULL &&
+		    strlen(propname) == name->String.Length &&
+		    strncmp(propname, name->String.Pointer,
+		    name->String.Length) == 0) {
 			if (value != NULL)
 				*value = val;
 
