@@ -8,6 +8,7 @@ static struct resource registers;
 static struct device gpio = { &softc, 10, false }, pinctrl = { NULL, 20, true };
 static struct device bus = { NULL, 30, true };
 static uint32_t widths[2];
+static bool c0_profile;
 static uint32_t bus_reg[2];
 static int widthslen, gpio_cells, allocations, registered;
 static bool allocation_fail, provider_missing, add_bus_fail, child_attach_fail;
@@ -96,7 +97,7 @@ bool ofw_bus_is_compatible(device_t d, const char *s)
 { return (d == &gpio && !strcmp(s, "brcm,brcmstb-gpio")); }
 bool ofw_bus_node_status_okay(phandle_t p) { return p==20 || (p>=40 && p<40+nhogs && hogs[p-40].enabled); }
 bool ofw_bus_node_is_compatible(phandle_t p, const char *s)
-{ return (p == 20 && !strcmp(s, "brcm,bcm2712d0-aon-pinctrl")); }
+{ return (p == 20 && !strcmp(s, c0_profile ? "brcm,bcm2712c0-aon-pinctrl" : "brcm,bcm2712d0-aon-pinctrl")); }
 phandle_t OF_parent(phandle_t p) { assert(p == 10); return (1); }
 phandle_t OF_child(phandle_t p) { if(p==1)return 10; if(p==10)return nhogs?40:0; assert(p>=40 && p<40+nhogs);return hogs[p-40].nested?100:0; }
 phandle_t OF_peer(phandle_t p) { if(p>=40 && p<40+nhogs)return p+1<40+nhogs?p+1:0;return p==10?20:0; }
@@ -210,7 +211,7 @@ reset(void)
 	registers.size = 64;
 	for (unsigned i = 0; i < 16; i++)
 		registers.words[i] = 0xa5a50000U | (i * 17);
-	widths[0] = 15; widths[1] = 6; widthslen = 8; gpio_cells = 2;
+	widths[0] = c0_profile ? 17 : 15; widths[1] = 6; widthslen = 8; gpio_cells = 2;
 	bus_reg[0] = 0x7d517c00; bus_reg[1] = 64;
 	allocation_fail = provider_missing = add_bus_fail = child_attach_fail = false;
 	mux_error = mux_error_at = 0;drop_offset=-1; mux_checks_preload = false; attach_hook = NULL;
@@ -451,11 +452,18 @@ test_hog_failures(void)
 int
 main(void)
 {
-	test_failed_attach();
-	test_gpio_operations();
-	test_hog_preflight();
-	test_hog_success();
-	test_hog_failures();
-	puts("PASS: production AON GPIO/hog complete preflight, all-pin reservation, private ordered apply/readback, polarity, raw-write exclusion and retained-owner failure/retry controls");
+	for (unsigned profile = 0; profile < 2; profile++) {
+		c0_profile = profile;
+		test_failed_attach();
+		test_gpio_operations();
+		test_hog_preflight();
+		test_hog_success();
+		test_hog_failures();
+		reset();
+		widths[0] = c0_profile ? 15 : 17;
+		assert(bcmstb_gpio_attach(&gpio) == EINVAL);
+		assert(!allocations && !writes && !registered);
+	}
+	puts("PASS: production C0/C1 and D0 AON GPIO/hog complete preflight, all-pin reservation, private ordered apply/readback, polarity, raw-write exclusion and retained-owner failure/retry controls");
 	return (0);
 }
