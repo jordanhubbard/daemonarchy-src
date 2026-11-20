@@ -332,7 +332,7 @@ static int
 sdhci_acpi_attach(device_t dev)
 {
 	struct sdhci_acpi_softc *sc = device_get_softc(dev);
-	int rid, err;
+	int rid, err, irqflags;
 	u_int quirks;
 	const struct sdhci_acpi_device *acpi_dev;
 
@@ -356,12 +356,25 @@ sdhci_acpi_attach(device_t dev)
 			device_printf(dev, "missing or invalid firmware SDHCI capabilities\n");
 			return (ENXIO);
 		}
+		/*
+		 * Firmware supplies an eight-bit MHz clock (250 on EDK2).
+		 * Preserve it even if HOST_VERSION advertises SDHCI 2.0, whose
+		 * generic six-bit capabilities decoder would truncate it.
+		 */
+		sc->slot.max_clk = ((sc->firmware_caps &
+		    SDHCI_CLOCK_V3_BASE_MASK) >> SDHCI_CLOCK_BASE_SHIFT) *
+		    1000000;
+		sc->slot.opt |= SDHCI_MAX_CLK_FIXED;
 	}
 
+	/* BCM2847 and eMMC2 can share the firmware's SD interrupt. */
+	irqflags = RF_ACTIVE;
+	if (sc->bcm_32bit || strcmp(acpi_dev->hid, "BRCME88C") == 0)
+		irqflags |= RF_SHAREABLE;
 	/* Allocate IRQ. */
 	rid = 0;
 	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-		RF_ACTIVE);
+	    irqflags);
 	if (sc->irq_res == NULL) {
 		device_printf(dev, "can't allocate IRQ\n");
 		return (ENOMEM);
