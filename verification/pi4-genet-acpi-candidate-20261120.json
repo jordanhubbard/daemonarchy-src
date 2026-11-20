@@ -1,0 +1,55 @@
+{
+  "schema": "daemonarchy/pi4-genet-acpi-candidate@1",
+  "source_base": "8b6683faa65adf855b5f9745266b577e1a24a316",
+  "driver_source_sha256": "c6535f6dd36b14eaecd0e41e59f2f0450004c63276ed6c80bb5d067e1723ba20",
+  "host_control_sha256": "c42d156e3bb5aabff7eda7674452ddbf6d8f3a50634eb3c55ea8aafa765fd011",
+  "hardware_ID": "BCM6E4E",
+  "native": {
+    "os": "FreeBSD 16.0-CURRENT",
+    "architecture": "arm64",
+    "compiler": "FreeBSD Clang 21.1.8",
+    "build": "original standalone if_genet module target with current source headers and explicit FDT/ACPI option headers",
+    "variants": [
+      {
+        "variant": "both",
+        "exit": 0,
+        "module_sha256": "d8965a604fb06b1b35f646943cf7580284774f2a942d4f02ff83d765a2ba2f23",
+        "expected_frontend_symbols": true,
+        "no_ofw_dependencies": false
+      },
+      {
+        "variant": "fdt",
+        "exit": 0,
+        "module_sha256": "20e8f13d37ef58e60b571e883c6e91be41befbe121cb0e7b69cb1b9eb77fc6dd",
+        "expected_frontend_symbols": true,
+        "no_ofw_dependencies": false
+      },
+      {
+        "variant": "acpi",
+        "exit": 0,
+        "module_sha256": "917504d46991b8e28478a1d4a9a61dfcb987982526f46b3125fc7515f359e263",
+        "expected_frontend_symbols": true,
+        "no_ofw_dependencies": true
+      }
+    ],
+    "module_installed_or_loaded": false
+  },
+  "controls": {
+    "production_frontend_callbacks": "passed with Clang18 ASan/UBSan",
+    "coverage": [
+      "HID probe/disabled-device handling",
+      "ancestor DMA-window refusal and unrelated-sibling separation",
+      "bounded _DSD PHY parsing; all four RGMII modes",
+      "register MAC preservation before core reset and multicast refusal",
+      "unchanged FDT PHY/MAC paths",
+      "uninitialized and partial IRQ/DMA cleanup"
+    ]
+  },
+  "limitations": [
+    "No physical PHY/link/DHCP or packet transfer result",
+    "No full-RAM or DMA runtime qualification",
+    "Future ancestor DMA windows require explicit constraint/translation support",
+    "No Pi5 RP1 Ethernet or other model qualification inferred",
+    "No canonical SDK/lifecycle/release qualification inferred"
+  ]
+}
