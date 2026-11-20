@@ -1,0 +1,39 @@
+{
+  "schema": "daemonarchy/pi-rp1-nexus-candidate/v1",
+  "base_revision": "8b6683faa65adf855b5f9745266b577e1a24a316",
+  "scope": "RP1 PCI/FDT resource nexus and interrupt controller candidate for the selected Pi 5 D0 firmware layout. No physical attachment or Ethernet/SD qualification.",
+  "sources": {
+    "sys/arm64/broadcom/rp1_pci.c": "4510725473387576e968fe21cba4c9e31ed3c96be8dd5787f15ac22774e9e805",
+    "sys/arm64/conf/std.broadcom": "bab721f690d519204661131bfdadd0f2674ca3dc2f9710908edde23687f9be6c",
+    "sys/conf/files.arm64": "d89fc7daf4f94e23906cc297c29a51d170b599d8f1c4db2c7c9d08d04e881a6a",
+    "sys/modules/Makefile": "e3a7785882c4684dc6188cb445aa6102c36128f2b0b44e5a37f75598722253ed",
+    "sys/modules/rp1/Makefile": "e55b44e78396cf8a0999732575395e9e1551330e317d92a81ba924ea9d7a3754",
+    "tools/daemonarchy/tests/rp1-nexus-controls.py": "e034a90cdb3e6237c785ec07886fd5c0bf242097814ef2a87ceac11450296e1f"
+  },
+  "validation": {
+    "native_arm64_module": {
+      "exit": 0,
+      "compiler": "FreeBSD clang version 21.1.8 (https://github.com/llvm/llvm-project.git llvmorg-21.1.8-0-g2078da43e25a)",
+      "module_sha256": "a3c117dab4ade4e6283bd5a8712e08012af3bb454c96aa4932ad5636d625506f",
+      "source_sha256": "4510725473387576e968fe21cba4c9e31ed3c96be8dd5787f15ac22774e9e805",
+      "flags": "Original bsd.kmod.mk, -Werror, FDT and INTRNG option headers; no install/load."
+    },
+    "production_callbacks": "Clang 18 and GCC with address/undefined-behavior sanitizers: BAR split/bounds, selected DMA layout, interrupt decoding, filter/thread ACK ordering, all seven cleanup failure points and retry, undersized BAR refusal, published PIC ownership.",
+    "controller_suite": {
+      "passed": 163,
+      "skipped": 5,
+      "total": 168
+    },
+    "project_authority": "passed",
+    "freebsd_lock_check": "current",
+    "host_lock_check": "FreeBSD-target locks are intentionally not host-target locks.",
+    "lifecycle_receipt": "missing"
+  },
+  "limitations": [
+    "Selected BCM2712 PCIe2 host and exact RP1 DMA layout only; alternate firmware layouts refused.",
+    "Memory children use RF_ACTIVE BAR subregions; explicit map/unmap/adjust and RF_UNMAPPED memory requests refused.",
+    "Published PIC retained for boot lifetime because generic interrupt-controller deregistration is not implemented.",
+    "No physical MSI delivery, DMA, link, DHCP, packets or SD transfers demonstrated.",
+    "RP1 clocks, GPIO/pin control and Cadence Ethernet platform initialization remain to implement; legacy Pi SD qualification remains open."
+  ]
+}
