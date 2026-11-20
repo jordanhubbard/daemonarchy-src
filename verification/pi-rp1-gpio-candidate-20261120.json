@@ -1,0 +1,42 @@
+{
+  "schema": "daemonarchy/pi-rp1-gpio-candidate/v1",
+  "scope": "RP1 polled GPIO support including Ethernet PHY reset line; no physical GPIO, PHY, Ethernet or SD qualification.",
+  "sources": {
+    "sys/arm64/broadcom/rp1_gpio.c": "e75120aa173670b25ac009857f6549360302e5fba28691e6e27f03c81cbd7f1a",
+    "sys/modules/rp1/Makefile": "81043fe0197cdf5d07c8b0bb7f5a9b0a2768813a0747e6f89a86c1d933ae6230",
+    "sys/conf/files.arm64": "3793f6342435444b145e536a3c710f5499f88527038344cc7f32ede696aee581",
+    "tools/daemonarchy/tests/rp1-gpio-controls.py": "c431519e552208d1e0eb16d7db3e090775cd7cb61bedffd04b36b5492fd3debc"
+  },
+  "reference": {
+    "url": "https://github.com/openbsd/src/blob/master/sys/arch/arm64/dev/rpigpio.c",
+    "git_blob": "39b35f8ef54676b0e8a469d335382b442ee9318c",
+    "note": "Register/bank/pad adaptation; ISC license and copyright retained. Blob ID identifies a file, not a commit."
+  },
+  "validation": {
+    "native_module_sha256": "6209f51d97cbad72665f6053b7e6b9ace5ed634d9953638f5159d7861faa07f6",
+    "native_compiler": "FreeBSD clang version 21.1.8 (https://github.com/llvm/llvm-project.git llvmorg-21.1.8-0-g2078da43e25a)",
+    "native_source_sha256": {
+      "rp1_pci.c": "4510725473387576e968fe21cba4c9e31ed3c96be8dd5787f15ac22774e9e805",
+      "rp1_gpio.c": "e75120aa173670b25ac009857f6549360302e5fba28691e6e27f03c81cbd7f1a",
+      "Makefile": "81043fe0197cdf5d07c8b0bb7f5a9b0a2768813a0747e6f89a86c1d933ae6230"
+    },
+    "native_build_exit": 0,
+    "native_flags": "Original bsd.kmod.mk, -Werror, FDT/INTRNG headers; no install or load.",
+    "production_callbacks": "Clang18 and GCC ASan/UBSan pass: all54pins; bank boundaries27/28,33/34,53/54; GPIO output disconnect/preset/mux/OE sequence; latch SET/CLR/XOR; polled input; reserved bit preservation; alternate function reporting; invalid flags/specifiers; active-low mapping; all resource acquisition/short-BAR failures; bus attach/retained-owner and cleanup retry failures.",
+    "existing_rp1_nexus_controls": "Clang18 ASan/UBSan pass",
+    "controller_suite": {
+      "total": 168,
+      "skipped": 5,
+      "passed": 163
+    },
+    "project_authority": "passed",
+    "freebsd_target_locks": "current",
+    "lifecycle_receipt": "missing"
+  },
+  "limitations": [
+    "No alternate-function pinctrl provider or GPIO interrupt controller yet; advertised capabilities cover polled GPIO only.",
+    "Published provider retained for boot lifetime because cross-tree GPIO handles lack detach reference tracking.",
+    "RP1 clocks and Cadence MAC platform initialization still required for Ethernet.",
+    "Physical assertion/deassertion of reset pin32 and bus throughput remain untested."
+  ]
+}
