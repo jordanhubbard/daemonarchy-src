@@ -1,0 +1,53 @@
+{
+  "schema": "daemonarchy/pi-rp1-clock-candidate/v1",
+  "scope": "RP1 SYS/AUDIO PLLs and clocks needed by selected Ethernet/SD firmware assignments; native compile and mocked-register callbacks only.",
+  "sources": {
+    "sys/arm64/broadcom/rp1_clock.c": "eb69f01bde195082bf589de739b69c683435ae65d579a098d57c1463e28a36bc",
+    "sys/arm64/broadcom/rp1_clock_policy.h": "54d97e64b950f0061c6199393ee1db49b3786914b94aae62c89a797052b56cf0",
+    "sys/conf/files.arm64": "bdeb5bd410056c9dd609c0136173c434b0a7cfe89247d9c6da5bae7a5ae12cab",
+    "sys/modules/rp1/Makefile": "7a97920526455c8ffdbeb8cf09cdb461efc95e744e62f50e3917fd1ad7f107d9",
+    "tools/daemonarchy/tests/rp1-clock-controls.py": "bab18425aea5f8324f1c6e477aaf8e972e4fec51b23ac7bd5053c3ee27560157"
+  },
+  "references": [
+    {
+      "url": "https://github.com/openbsd/src/blob/master/sys/arch/arm64/dev/rpiclock.c",
+      "git_blob": "c2420268b7f55168e31421931f0bedf92da6b301",
+      "role": "ISC-licensed register/math adaptation, with original license and copyrights retained."
+    },
+    {
+      "url": "https://github.com/raspberrypi/linux/blob/rpi-6.12.y/drivers/clk/clk-rp1.c",
+      "role": "Independent comparison of source-selector, divider-width, fractional-modulator and hardware-clock semantics; no GPL code copied."
+    }
+  ],
+  "validation": {
+    "native_module_sha256": "47aa7ad8a084b46582a8ecf32707bdef6cb64b64bb6e1955f830d1dc31f0a3e6",
+    "native_compiler": "FreeBSD clang version 21.1.8 (https://github.com/llvm/llvm-project.git llvmorg-21.1.8-0-g2078da43e25a)",
+    "native_source_sha256": {
+      "rp1_pci.c": "4510725473387576e968fe21cba4c9e31ed3c96be8dd5787f15ac22774e9e805",
+      "rp1_gpio.c": "e75120aa173670b25ac009857f6549360302e5fba28691e6e27f03c81cbd7f1a",
+      "rp1_clock.c": "eb69f01bde195082bf589de739b69c683435ae65d579a098d57c1463e28a36bc",
+      "rp1_clock_policy.h": "54d97e64b950f0061c6199393ee1db49b3786914b94aae62c89a797052b56cf0",
+      "Makefile": "7a97920526455c8ffdbeb8cf09cdb461efc95e744e62f50e3917fd1ad7f107d9"
+    },
+    "native_build_exit": 0,
+    "native_flags": "Original bsd.kmod.mk, -Werror, FDT/INTRNG headers; no install/load.",
+    "production_callbacks": "Clang18/GCC ASan/UBSan pass for selected13 assigned rates, parent graph, unconfigured descendants, Ethernet125/25/2.5MHz rates, PLL fractional mode/rounding, unchangedPLL and contiguous feedback write batch, reservedbits, dryrun, invalidspecifiers, readback failures/timeout and unavailableprovider lookup.",
+    "existing_gpio_nexus_controls": "Clang18 ASan/UBSan pass",
+    "controller_suite": {
+      "total": 168,
+      "passed": 163,
+      "skipped": 5
+    },
+    "project_authority": "passed",
+    "freebsd_target_locks": "current",
+    "lifecycle_receipt": "missing"
+  },
+  "limitations": [
+    "Supported IDs0,1,3,4,6,8,9,10,12,13,16,29,31,32 only; no RP1 video/GP/UART/PWM or alternate pinmux claim.",
+    "SYS/AUDIO VCO requests bounded to2GHz and validated against supported reference frequency; assigned-rate readback tolerance bounded to one24bit feedback LSB.",
+    "Unconfigured/unavailable clocks recalculate as zeroHz to respect the framework descendant-cache contract; provider lookup stays unavailable until required assignments verify.",
+    "Clock domains retain resources for boot lifetime because no clkdom/clknode unregister API exists, including partial setup failures.",
+    "No physical PLL lock, waveform, clock switching or Ethernet/SD operation demonstrated. Cadence MAC integration and all-Pi hardware acceptance remain open.",
+    "Earlier full GENERIC success at75b4c91671e did not include this clock driver."
+  ]
+}
