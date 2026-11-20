@@ -1,0 +1,150 @@
+{
+  "schema": "daemonarchy/pi-controller-coverage/v1",
+  "platform_register_revision": "89f94c28cc7a510856a112c2321e8e954daf56cf",
+  "platform_register": "docs/roadmap/arm-platforms.json in daemonarchy product",
+  "scope": "Source coverage audit across registered Raspberry Pi profiles. All physical I/O acceptance remains pending; no platform feature or release gate is promoted by this audit.",
+  "source_revision": "403ca1ace1eee6a2205b534217aa6785b834cbdb",
+  "source_evidence": {
+    "sys/arm/broadcom/bcm2835/bcm2835_sdhost.c": "96cfb30cf77e788e2237830c168cbc70ab31c7aad3ad4de32cc0c91745477280",
+    "sys/arm/broadcom/bcm2835/bcm2835_sdhci.c": "0f838457278955a8de6fc96e4a48727287e5de366effd7707ff4b19fa2215359",
+    "sys/dev/sdhci/sdhci_acpi.c": "e86ff625495a26cc25cdcb1044535b5e3686c2a7d36902ac41783f60dadf7b08",
+    "sys/dev/sdhci/sdhci_fdt_bcm2712.c": "37433a02fb50ebb37bee3344fc9d0092b69489c96e49625b47e1d0a9fd5d7d82",
+    "sys/arm64/broadcom/bcm2712_pinctrl.c": "aebf0323bf61571cce01e777c66f19a39e912792c1346fb174c693550a5b66de",
+    "sys/dev/gpio/bcmstb_gpio.c": "82a3e45f31373d393561726178ab52c25112afc71e58eaaab3aa126d871ff574",
+    "sys/dev/cadence/if_cgem.c": "3eb02e3c5e9c914bcfe2735784bfcb4f1fd996d03389a77a3720dac700f8e65f",
+    "sys/dev/usb/net/if_smsc.c": "da883ecf5a1c6d8f2cd26e197db11295701690b4e42b3c34ac502513a9be95b0",
+    "sys/dev/usb/net/if_muge.c": "ec3245ed6c9a0941cf5995b511510813efdcafbfbb413f1a6b3cb789cc81a523",
+    "sys/arm/conf/GENERIC": "8daf5484b0f53ca91852d271591d9911affcc5e77b981c4c4967481348f2415e",
+    "UPDATING": "8ea09b1cb205f96a4df30f31be4011acd041c6954dd5885352bb3e314c238007"
+  },
+  "profiles": [
+    {
+      "id": "cm4",
+      "work_item": "RPI-001",
+      "physical_io_qualification": "pending",
+      "ethernet": "BCM2711 GENET: existing FDT frontend plus ACPI BCM6E4E candidate PR113",
+      "native_sd": "BCM2711 SDHCI: existing FDT frontend plus ACPI BRCME88C candidate PR112",
+      "remaining": [
+        "Physical candidate attach, link/DHCP/packet transfers and SD read/write",
+        "Model-specific firmware tables, CM carrier/eMMC mapping and full-RAM DMA",
+        "Legacy BCM2847 ACPI controller frontend remains missing"
+      ]
+    },
+    {
+      "id": "pi400",
+      "work_item": "RPI-001",
+      "physical_io_qualification": "pending",
+      "ethernet": "BCM2711 GENET: existing FDT frontend plus ACPI BCM6E4E candidate PR113",
+      "native_sd": "BCM2711 SDHCI: existing FDT frontend plus ACPI BRCME88C candidate PR112",
+      "remaining": [
+        "Physical candidate attach, link/DHCP/packet transfers and SD read/write",
+        "Model-specific firmware tables, CM carrier/eMMC mapping and full-RAM DMA",
+        "Legacy BCM2847 ACPI controller frontend remains missing"
+      ]
+    },
+    {
+      "id": "pi4b",
+      "work_item": "RPI-001",
+      "physical_io_qualification": "pending",
+      "ethernet": "BCM2711 GENET: existing FDT frontend plus ACPI BCM6E4E candidate PR113",
+      "native_sd": "BCM2711 SDHCI: existing FDT frontend plus ACPI BRCME88C candidate PR112",
+      "remaining": [
+        "Physical candidate attach, link/DHCP/packet transfers and SD read/write",
+        "Model-specific firmware tables, CM carrier/eMMC mapping and full-RAM DMA",
+        "Legacy BCM2847 ACPI controller frontend remains missing"
+      ]
+    },
+    {
+      "id": "cm5",
+      "work_item": "RPI-002",
+      "physical_io_qualification": "pending",
+      "ethernet": "RP1 Cadence GEM candidate PR114, with RP1 nexus/MSI-X/GPIO/clocks",
+      "native_sd": "BCM2712 SDHCI bootstrap, checked cleanup PR115, D0 or separate C0/C1 pinctrl/GPIO profile PR116",
+      "remaining": [
+        "Physical firmware/U-Boot/kernel entry (Pi5 D0 HDMI stays blank without a visible U-Boot marker)",
+        "Physical enumeration/link/DHCP/packets/SD transfers and full-RAM DMA",
+        "CM carrier/eMMC pin, regulator, reset and power-sequence variants; no generic carrier success implied"
+      ]
+    },
+    {
+      "id": "pi5-c1",
+      "work_item": "RPI-002",
+      "physical_io_qualification": "pending",
+      "ethernet": "RP1 Cadence GEM candidate PR114, with RP1 nexus/MSI-X/GPIO/clocks",
+      "native_sd": "BCM2712 SDHCI bootstrap, checked cleanup PR115, D0 or separate C0/C1 pinctrl/GPIO profile PR116",
+      "remaining": [
+        "Physical firmware/U-Boot/kernel entry (Pi5 D0 HDMI stays blank without a visible U-Boot marker)",
+        "Physical enumeration/link/DHCP/packets/SD transfers and full-RAM DMA",
+        "CM carrier/eMMC pin, regulator, reset and power-sequence variants; no generic carrier success implied"
+      ]
+    },
+    {
+      "id": "pi5-d0",
+      "work_item": "RPI-002",
+      "physical_io_qualification": "pending",
+      "ethernet": "RP1 Cadence GEM candidate PR114, with RP1 nexus/MSI-X/GPIO/clocks",
+      "native_sd": "BCM2712 SDHCI bootstrap, checked cleanup PR115, D0 or separate C0/C1 pinctrl/GPIO profile PR116",
+      "remaining": [
+        "Physical firmware/U-Boot/kernel entry (Pi5 D0 HDMI stays blank without a visible U-Boot marker)",
+        "Physical enumeration/link/DHCP/packets/SD transfers and full-RAM DMA",
+        "CM carrier/eMMC pin, regulator, reset and power-sequence variants; no generic carrier success implied"
+      ]
+    },
+    {
+      "id": "pi500",
+      "work_item": "RPI-002",
+      "physical_io_qualification": "pending",
+      "ethernet": "RP1 Cadence GEM candidate PR114, with RP1 nexus/MSI-X/GPIO/clocks",
+      "native_sd": "BCM2712 SDHCI bootstrap, checked cleanup PR115, D0 or separate C0/C1 pinctrl/GPIO profile PR116",
+      "remaining": [
+        "Physical firmware/U-Boot/kernel entry (Pi5 D0 HDMI stays blank without a visible U-Boot marker)",
+        "Physical enumeration/link/DHCP/packets/SD transfers and full-RAM DMA",
+        "CM carrier/eMMC pin, regulator, reset and power-sequence variants; no generic carrier success implied"
+      ]
+    },
+    {
+      "id": "pi-armv6",
+      "work_item": "ARM-008",
+      "physical_io_qualification": "pending",
+      "ethernet": "Separate legacy feasibility; no new native build/physical verdict",
+      "native_sd": "Separate legacy feasibility; no new native build/physical verdict",
+      "remaining": [
+        "Current source UPDATING entry 20240712 states armv6 support disconnected and being removed",
+        "Needs an explicitly maintained legacy source/image policy before 1.6 product qualification"
+      ]
+    },
+    {
+      "id": "pi-zero-armv6",
+      "work_item": "ARM-008",
+      "physical_io_qualification": "pending",
+      "ethernet": "Separate legacy feasibility; no new native build/physical verdict",
+      "native_sd": "Separate legacy feasibility; no new native build/physical verdict",
+      "remaining": [
+        "Current source UPDATING entry 20240712 states armv6 support disconnected and being removed",
+        "Needs an explicitly maintained legacy source/image policy before 1.6 product qualification"
+      ]
+    },
+    {
+      "id": "pi-zero2",
+      "work_item": "ARM-008",
+      "physical_io_qualification": "pending",
+      "ethernet": "Existing USB Ethernet drivers if_smsc/if_muge on equipped variants; Zero2 needs separate external adapter identity",
+      "native_sd": "Existing BCM2835 SDHOST/SDHCI FDT drivers",
+      "remaining": [
+        "Model-specific firmware/controller enrollment and ARMv7/arm64 build/boot controls",
+        "Physical enumeration, network and SD transfers; no existing-source presence treated as qualification"
+      ]
+    },
+    {
+      "id": "pi3",
+      "work_item": "ARM-008",
+      "physical_io_qualification": "pending",
+      "ethernet": "Existing USB Ethernet drivers if_smsc/if_muge on equipped variants; Zero2 needs separate external adapter identity",
+      "native_sd": "Existing BCM2835 SDHOST/SDHCI FDT drivers",
+      "remaining": [
+        "Model-specific firmware/controller enrollment and ARMv7/arm64 build/boot controls",
+        "Physical enumeration, network and SD transfers; no existing-source presence treated as qualification"
+      ]
+    }
+  ]
+}

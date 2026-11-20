@@ -1,0 +1,25 @@
+{
+  "revision": "80b592f731b46058d83b7481b0bad6776ee923fe",
+  "exit": 0,
+  "finished": "2026-11-20T18:30:43.693543+00:00",
+  "selected_symbols": [
+    "ffff000000e15048 D bcm2712_sdhci_driver",
+    "ffff000000e00690 d cgem_driver",
+    "ffff00000015d960 t cgem_rp1_phy_reset",
+    "ffff000000f006f0 D gen_acpi_driver",
+    "ffff000000ab6190 t rp1_clknode_set_freq",
+    "ffff000000f3b568 d rp1_clock_driver",
+    "ffff000000f3b188 D rp1_driver",
+    "ffff000000f3b3c0 d rp1_gpio_driver",
+    "ffff0000002ebba0 t sdhci_acpi_attach"
+  ],
+  "stripped_kernel_sha256": "de4c2c90e48f7419a6393f83aac779d01e85a95029187a253aa8dee028d9b2aa",
+  "stripped_kernel_bytes": 16257224,
+  "frozen_overlay_sources_reverified": true,
+  "schema": "daemonarchy/pi-io-sd-native-kernel/v1",
+  "kernel_sha256": "6fcd889ac0a72704cf275f76d61a7fc0d978543cf2538fbe27cca73b3d2db2f2",
+  "scope": "Native arm64 GENERIC kernel compilation with combined ACPI Ethernet/SD and RP1 nexus/GPIO/clock/Cadence Ethernet plus checked BCM2712 SD shutdown candidates; no install, boot or physical qualification.",
+  "hosted_ci": "disabled per operator direction",
+  "lifecycle_receipt": "missing",
+  "later_C1_change": "This built kernel predates the separate C1 provider change 808d1aaf036; C1 native objects are recorded separately."
+}
