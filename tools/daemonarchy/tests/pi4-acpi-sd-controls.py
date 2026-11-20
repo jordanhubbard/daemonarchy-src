@@ -55,7 +55,8 @@ struct sdhci_acpi_softc {
  struct resource *mem_res,*irq_res;
  void *intrhand;
  const struct sdhci_acpi_device *acpi_dev;
- uint64_t caps_mask;
+ uint64_t caps_mask,firmware_caps;
+ bool bcm_32bit;
  bool slot_initialized;
 };
 static struct sdhci_acpi_softc sc;
