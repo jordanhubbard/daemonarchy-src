@@ -1,0 +1,22 @@
+{
+  "schema": "daemonarchy/pi-io-cgem-native-kernel/v1",
+  "revision": "9cf7e85720c1ec1de67951cf9c6f5a30c4ed3c01",
+  "build_exit": 0,
+  "kernel_sha256": "13f033dbd37953d941631711535e2a1f5f592d66dbee9a9d981b1d0e25a1e890",
+  "selected_symbols": [
+    "ffff000000e156c8 D bcm2712_sdhci_driver",
+    "ffff000000e00d10 d cgem_driver",
+    "ffff00000015d960 t cgem_rp1_phy_reset",
+    "ffff000000f00d70 D gen_acpi_driver",
+    "ffff000000ab5990 t rp1_clknode_set_freq",
+    "ffff000000f3bbe8 d rp1_clock_driver",
+    "ffff000000f3b808 D rp1_driver",
+    "ffff000000f3ba40 d rp1_gpio_driver",
+    "ffff0000002eb810 t sdhci_acpi_attach"
+  ],
+  "scope": "Native arm64 GENERIC kernel compilation with combined ACPI Ethernet/SD and RP1 nexus/GPIO/clock/Cadence Ethernet candidates; no install, boot or physical qualification.",
+  "finished": "2026-11-20T18:09:53.124839+00:00",
+  "hosted_ci": "disabled per operator direction",
+  "lifecycle_receipt": "missing",
+  "superseded_for_next_image": "Requires the later BCM2712 SD lifecycle fix a766fffd5b0; that combined kernel build is pending."
+}
