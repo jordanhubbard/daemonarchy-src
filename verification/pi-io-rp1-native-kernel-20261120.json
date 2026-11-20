@@ -1,0 +1,21 @@
+{
+  "schema": "daemonarchy/pi-io-rp1-native-kernel/v1",
+  "revision": "75b4c91671e3947761f345a9d65c3042a7ece9ec",
+  "build_exit": 0,
+  "kernel_sha256": "88bb6e834386fcc3b36bd5601abe00fc7c4a23bb3e63a6fed263f3f0137f070e",
+  "selected_symbols": [
+    "ffff000000f2aaf8 D bcm2712_pcie_driver",
+    "ffff000000e04ac8 D bcm2712_sdhci_driver",
+    "ffff000000a35578 t gen_acpi_attach",
+    "ffff000000ef0170 D gen_acpi_driver",
+    "ffff000000ab2770 t rp1_attach",
+    "ffff000000f2ac08 D rp1_driver",
+    "ffff000000ab40dc t rp1_gpio_attach",
+    "ffff000000f2ae40 d rp1_gpio_driver",
+    "ffff0000002eacf4 t sdhci_acpi_attach"
+  ],
+  "scope": "Native ARM64 GENERIC kernel with Pi4 ACPI GENET/SDHCI, BCM2712 SDHCI/PCIe, and RP1 nexus/GPIO candidates. No install/boot/physicalI/O. RP1 clock candidate was not part of this kernel build.",
+  "finished": "2026-11-20T17:32:19.088275+00:00",
+  "hosted_ci": "disabled per operator direction",
+  "lifecycle_receipt": "missing"
+}
