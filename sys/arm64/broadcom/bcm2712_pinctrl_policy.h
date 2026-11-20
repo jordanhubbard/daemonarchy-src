@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* FreeBSD D0 bootstrap adaptation. Register plans are validated before MMIO. */
+/* FreeBSD C0/C1 and D0 bootstrap adaptation. Register plans are validated before MMIO. */
 #ifndef _BCM2712_PINCTRL_POLICY_H_
 #define _BCM2712_PINCTRL_POLICY_H_
 
@@ -24,6 +24,48 @@ struct bcmstbpinctrl_pin {
 	uint8_t bias_reg, bias_off;
 	const char *func[10];
 };
+
+/* C0 register layout, also used by C1 silicon. OpenBSD table with the
+ * DAT2 pull field corrected to register 11 bits 13:12 (vendor register map).
+ * Additional entries cover enabled firmware defaults, rather than all muxes.
+ */
+static const struct bcmstbpinctrl_pin bcmstbpinctrl_c0_pins[] = {
+	{ "gpio1", 0, 1, 7, 8, { "gpio" } },
+	{ "gpio2", 0, 2, 7, 9, { [0] = "gpio", [6] = "vc_spi0" } },
+	{ "gpio3", 0, 3, 7, 10, { [0] = "gpio", [5] = "vc_spi0" } },
+	{ "gpio4", 0, 4, 7, 11, { [0] = "gpio", [6] = "vc_spi0" } },
+	{ "gpio24", 3, 0, 9, 1, { [0] = "gpio", [3] = "uart0" } },
+	{ "gpio25", 3, 1, 9, 2, { [0] = "gpio", [4] = "uart0" } },
+	{ "gpio26", 3, 2, 9, 3, { [0] = "gpio", [4] = "uart0" } },
+	{ "gpio27", 3, 3, 9, 4, { [0] = "gpio", [4] = "uart0" } },
+	{ "gpio29", 3, 5, 9, 6, { "gpio" } },
+	{ "gpio20", 2, 4, 8, 12, { "gpio" } },
+	{ "gpio28", 3, 4, 9, 5, { "gpio" } },
+	{ "gpio30", 3, 6, 9, 7, { "gpio", NULL, NULL, NULL, "sd2" } },
+	{ "gpio31", 3, 7, 9, 8, { "gpio", NULL, NULL, NULL, "sd2" } },
+	{ "gpio32", 4, 0, 9, 9, { "gpio", NULL, NULL, NULL, "sd2" } },
+	{ "gpio33", 4, 1, 9, 10, { "gpio", NULL, NULL, "sd2" } },
+	{ "gpio34", 4, 2, 9, 11, { "gpio", NULL, NULL, NULL, "sd2" } },
+	{ "gpio35", 4, 3, 9, 12, { "gpio", NULL, NULL, "sd2" } },
+	{ "emmc_cmd", 0, 0, 11, 1 /* no mux */, { NULL } },
+	{ "emmc_dat0", 0, 0, 11, 4 /* no mux */, { NULL } },
+	{ "emmc_dat1", 0, 0, 11, 5 /* no mux */, { NULL } },
+	{ "emmc_dat2", 0, 0, 11, 6 /* no mux */, { NULL } },
+	{ "emmc_dat3", 0, 0, 11, 7 /* no mux */, { NULL } },
+	{ "emmc_dat4", 0, 0, 11, 8 /* no mux */, { NULL } },
+	{ "emmc_dat5", 0, 0, 11, 9 /* no mux */, { NULL } },
+	{ "emmc_dat6", 0, 0, 11, 10 /* no mux */, { NULL } },
+	{ "emmc_dat7", 0, 0, 11, 11 /* no mux */, { NULL } },
+};
+
+static const struct bcmstbpinctrl_pin bcmstbpinctrl_c0_aon_pins[] = {
+	{ "aon_gpio2", 3, 2, 6, 12, { "gpio" } },
+	{ "aon_gpio3", 3, 3, 6, 13, { "gpio" } },
+	{ "aon_gpio4", 3, 4, 6, 14, { "gpio" } },
+	{ "aon_gpio5", 3, 5, 7, 0,
+	  { "gpio", NULL, NULL, NULL, NULL, NULL, "sd_card_g" } },
+};
+
 
 static const struct bcmstbpinctrl_pin bcmstbpinctrl_d0_pins[] = {
 	/* Additional enabled firmware defaults; D0 register facts from Linux. */
@@ -69,14 +111,32 @@ struct bcm2712_pin_op {
 
 /* bias == -1 preserves the pad; an empty function preserves the mux. */
 static int
-bcm2712_pin_plan(int aon, const char *name, const char *function, int bias,
+bcm2712_pin_plan(int profile, const char *name, const char *function, int bias,
     struct bcm2712_pin_op *ops, unsigned *count, unsigned capacity)
 {
 	const struct bcmstbpinctrl_pin *pins, *pin;
 	unsigned i, n, f, needed;
-	pins = aon ? bcmstbpinctrl_d0_aon_pins : bcmstbpinctrl_d0_pins;
-	n = aon ? sizeof(bcmstbpinctrl_d0_aon_pins) / sizeof(*pins) :
-		  sizeof(bcmstbpinctrl_d0_pins) / sizeof(*pins);
+	/* Keep the two layouts distinct; unknown profiles never produce MMIO. */
+	switch (profile) {
+	case 0:
+		pins = bcmstbpinctrl_d0_pins;
+		n = sizeof(bcmstbpinctrl_d0_pins) / sizeof(*pins);
+		break;
+	case 1:
+		pins = bcmstbpinctrl_d0_aon_pins;
+		n = sizeof(bcmstbpinctrl_d0_aon_pins) / sizeof(*pins);
+		break;
+	case 2:
+		pins = bcmstbpinctrl_c0_pins;
+		n = sizeof(bcmstbpinctrl_c0_pins) / sizeof(*pins);
+		break;
+	case 3:
+		pins = bcmstbpinctrl_c0_aon_pins;
+		n = sizeof(bcmstbpinctrl_c0_aon_pins) / sizeof(*pins);
+		break;
+	default:
+		return (EINVAL);
+	}
 	for (i = 0; i < n; i++)
 		if (strcmp(name, pins[i].name) == 0)
 			break;

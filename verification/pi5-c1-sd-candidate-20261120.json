@@ -1,0 +1,112 @@
+{
+  "schema": "daemonarchy/pi5-c1-sd-candidate/v1",
+  "tested_revision": "808d1aaf036351ba63ee0f6ebc7b484c449fa2ec",
+  "source_files": {
+    "docs/pi5-sd-providers.md": "fcc3738f7be89779fb33de74d6b817c7ae36dcd05206531e640b5c956cbb5089",
+    "sys/arm64/broadcom/bcm2712_pinctrl.c": "aebf0323bf61571cce01e777c66f19a39e912792c1346fb174c693550a5b66de",
+    "sys/arm64/broadcom/bcm2712_pinctrl_policy.h": "bb7ea872c71f9aca7798183674c067a45cbb30c59e4f58c340883c326056d7f9",
+    "sys/dev/gpio/bcmstb_gpio.c": "82a3e45f31373d393561726178ab52c25112afc71e58eaaab3aa126d871ff574",
+    "tools/daemonarchy/tests/bcmstb-gpio.c": "0f12cda2f3750da0b4c7419d6640cf6bab8d70cf927b916a1d6d0d7cdc1d5723",
+    "tools/daemonarchy/tests/fixtures/pi5-c1-pinctrl-defaults.json": "c52226853819c95b5f18412a1a012868a43b25d1d670f690f3e528609e0d3669",
+    "tools/daemonarchy/tests/pi5-c1-sd-controls.py": "805871d4c081638f287a6f94bea94e71cb9df01426067c75cf597cd691bfab07",
+    "tools/daemonarchy/tests/pi5-sd-provider-controls.py": "51fc08f605d60ce0c3c33124e72c1805dafd1796ecf91668397691f316936398"
+  },
+  "references": {
+    "bcm2712-rpi-5-b.dtb": {
+      "url": "https://github.com/raspberrypi/firmware/blob/016253866bbd6c77fcb2a744a97d81e79ad4884f/boot/bcm2712-rpi-5-b.dtb",
+      "blob": "30c817961c891893003657bf6d9010f577cf8ebe",
+      "sha256": "03ce4742452ad52e3e8ec2259a0c705b496970e2b75e6e0b4e5446475ea1b926"
+    },
+    "openbsd-bcmstbpinctrl.c": {
+      "url": "https://github.com/openbsd/src/blob/master/sys/dev/fdt/bcmstbpinctrl.c",
+      "blob": "76647bfb5ae305be07b339f649c7f57a7aa8636a",
+      "sha256": "7053509a01b29c08f8f0310f73d79cd28e2d597257bea7c330485990dbc3c738"
+    },
+    "vendor-pinctrl-bcm2712.c": {
+      "url": "https://github.com/raspberrypi/linux/blob/rpi-6.12.y/drivers/pinctrl/bcm/pinctrl-bcm2712.c",
+      "blob": "c349bcf05391aee45833ffdd76879437b541fa8e",
+      "sha256": "f3387ef8c8ab9ae2867abc23862fb8c3e03d9b0a74f45cbbb5b14eccef45bff2"
+    }
+  },
+  "fixture_completeness": {
+    "all_dtb_nodes_scanned": 318,
+    "owned_enabled_defaults": [
+      {
+        "consumer": "/pwr_button",
+        "group": "/soc@107c000000/pinctrl@7d504100/pwr_button_pins"
+      },
+      {
+        "consumer": "/wl-on-reg",
+        "group": "/soc@107c000000/pinctrl@7d504100/wl_on_pins"
+      },
+      {
+        "consumer": "/axi/mmc@1100000",
+        "group": "/soc@107c000000/pinctrl@7d504100/sdio2_30_pins"
+      },
+      {
+        "consumer": "/soc@107c000000/serial@7d50c000",
+        "group": "/soc@107c000000/pinctrl@7d504100/uarta_24_pins"
+      },
+      {
+        "consumer": "/soc@107c000000/serial@7d50c000",
+        "group": "/soc@107c000000/pinctrl@7d504100/bt_shutdown_pins"
+      },
+      {
+        "consumer": "/soc@107c000000/spi@7d004000",
+        "group": "/soc@107c000000/pinctrl@7d504100/spi10_gpio2"
+      },
+      {
+        "consumer": "/soc@107c000000/spi@7d004000",
+        "group": "/soc@107c000000/pinctrl@7d504100/spi10_cs_gpio1"
+      },
+      {
+        "consumer": "/soc@107c000000/mmc@fff000",
+        "group": "/soc@107c000000/pinctrl@7d504100/emmc_sd_pulls"
+      },
+      {
+        "consumer": "/soc@107c000000/mmc@fff000",
+        "group": "/soc@107c000000/pinctrl@7d510700/emmc_aon_cd_pins"
+      }
+    ],
+    "all_owned_enabled_defaults_represented": true,
+    "scope": "Independent full-DTB scan verifies that selected fixture omits no enabled consumer of either C1 pinctrl provider."
+  },
+  "native_provider_objects": {
+    "status": "native-provider-objects-built",
+    "compiler": "native FreeBSD 16 arm64 Clang 21.1.8; frozen original GENERIC compile recipes, all writable outputs redirected to separate workspace",
+    "recipe_context_revision": "9cf7e85720c1ec1de67951cf9c6f5a30c4ed3c01",
+    "objects": [
+      {
+        "source": "sys/dev/gpio/bcmstb_gpio.c",
+        "exit": 0,
+        "sha256": "264b286de14a0a5d0cc1a4a522ed2b11cdee92a8db27b2b72574dbcae079e1c2"
+      },
+      {
+        "source": "sys/arm64/broadcom/bcm2712_pinctrl.c",
+        "exit": 0,
+        "sha256": "a093d4fca739bc1dc10002aa67b1f37b7b5aad229f41e1fe1b1db19e008b191a"
+      }
+    ],
+    "scope": "Native changed-provider object compilation with frozen GENERIC generated interfaces. No link, install or physical qualification."
+  },
+  "controls": [
+    "Exact selected C1 firmware defaults: main37/AON2 operations match independent register expectations",
+    "Actual four-compatible probe/attach and mapped-size boundaries; allocation/preflight failure leaves unpublished",
+    "C1 card-detect mux6, offset0x1c pull, GPIO2/3/4 pad offsets; unknown profiles/functions and dropped MMIO refused",
+    "Complete production AON GPIO lifecycle/fault controls for both 17/6 C1 and 15/6 D0 profiles; width mismatch refused before MMIO",
+    "Clang18 and GCC ASan/UBSan pass C1 and complete GPIO controls",
+    "Existing D0 provider controls pass",
+    "168 controller tests pass; 5 skips",
+    "FreeBSD component lock check current"
+  ],
+  "documentation_authority": "pending: project.documentation_authority_review_stale after docs/pi5-sd-providers.md update; review marker was not self-attested",
+  "lifecycle_receipt": "missing",
+  "hosted_ci": "disabled per operator direction",
+  "physical_acceptance": {
+    "C1_boot": false,
+    "SD_enumeration": false,
+    "SD_transfers": false,
+    "electrical_timing": false,
+    "scope": "Source and native object candidate only. No aggregate C1 kernel link or physical I/O qualification."
+  }
+}

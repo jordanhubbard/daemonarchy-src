@@ -1,0 +1,250 @@
+{
+  "schema": "daemonarchy/pi5-c1-default-pinctrl-fixture/1",
+  "dtb_sha256": "03ce4742452ad52e3e8ec2259a0c705b496970e2b75e6e0b4e5446475ea1b926",
+  "source": "raspberrypi/firmware@016253866bbd6c77fcb2a744a97d81e79ad4884f/boot/bcm2712-rpi-5-b.dtb",
+  "capture": "fdtget raw properties from pinned C1 DTB; selected default groups and minimal ancestors/consumers as D0 fixture",
+  "main_provider": "/soc@107c000000/pinctrl@7d504100",
+  "aon_provider": "/soc@107c000000/pinctrl@7d510700",
+  "nodes": {
+    "/soc@107c000000/mmc@fff000": {
+      "properties": {
+        "compatible": "6272636d2c62636d323731322d7364686369006272636d2c73646863692d6272636d73746200",
+        "pinctrl-0": "000000090000000a",
+        "status": "6f6b617900",
+        "phandle": "00000074"
+      }
+    },
+    "/soc@107c000000": {
+      "properties": {
+        "compatible": "73696d706c652d62757300",
+        "phandle": "00000083"
+      }
+    },
+    "/": {
+      "properties": {
+        "compatible": "72617370626572727970692c352d6d6f64656c2d62006272636d2c62636d3237313200"
+      }
+    },
+    "/soc@107c000000/spi@7d004000": {
+      "properties": {
+        "compatible": "6272636d2c62636d323833352d73706900",
+        "status": "6f6b617900",
+        "pinctrl-0": "0000001c0000001d",
+        "phandle": "0000008c"
+      }
+    },
+    "/soc@107c000000/serial@7d50c000": {
+      "properties": {
+        "compatible": "6272636d2c62636d373237312d7561727400",
+        "status": "6f6b617900",
+        "pinctrl-0": "0000002000000021",
+        "phandle": "00000090"
+      }
+    },
+    "/axi/mmc@1100000": {
+      "properties": {
+        "compatible": "6272636d2c62636d323731322d736468636900",
+        "status": "6f6b617900",
+        "pinctrl-0": "0000004a",
+        "phandle": "000000f7"
+      }
+    },
+    "/axi": {
+      "properties": {
+        "compatible": "73696d706c652d62757300",
+        "phandle": "000000a2"
+      }
+    },
+    "/wl-on-reg": {
+      "properties": {
+        "compatible": "726567756c61746f722d666978656400",
+        "pinctrl-0": "0000005a",
+        "phandle": "0000004b"
+      }
+    },
+    "/pwr_button": {
+      "properties": {
+        "compatible": "6770696f2d6b65797300",
+        "pinctrl-0": "00000075",
+        "status": "6f6b617900"
+      }
+    },
+    "/soc@107c000000/i2c@7d005600": {
+      "properties": {
+        "compatible": "6272636d2c62636d323731312d693263006272636d2c62636d323833352d69326300",
+        "status": "64697361626c656400",
+        "pinctrl-0": "0000001e",
+        "phandle": "0000008e"
+      }
+    },
+    "/axi/pcie@1000120000/rp1/usb@200000": {
+      "properties": {
+        "compatible": "736e70732c6477633300",
+        "status": "6f6b617900",
+        "pinctrl-0": "00000044",
+        "phandle": "000000eb"
+      }
+    },
+    "/axi/pcie@1000120000/rp1": {
+      "properties": {
+        "compatible": "73696d706c652d62757300",
+        "phandle": "00000028"
+      }
+    },
+    "/axi/pcie@1000120000": {
+      "properties": {
+        "compatible": "6272636d2c62636d323731322d7063696500",
+        "status": "6f6b617900",
+        "phandle": "000000a4"
+      }
+    },
+    "/soc@107c000000/pinctrl@7d504100": {
+      "properties": {
+        "compatible": "6272636d2c62636d3237313263302d70696e6374726c00",
+        "reg": "7d50410000000030",
+        "phandle": "0000008f"
+      }
+    },
+    "/soc@107c000000/pinctrl@7d510700": {
+      "properties": {
+        "compatible": "6272636d2c62636d3237313263302d616f6e2d70696e6374726c00",
+        "reg": "7d51070000000020",
+        "phandle": "00000091"
+      }
+    },
+    "/soc@107c000000/pinctrl@7d504100/emmc_sd_pulls": {
+      "properties": {
+        "pins": "656d6d635f636d6400656d6d635f6461743000656d6d635f6461743100656d6d635f6461743200656d6d635f6461743300",
+        "bias-pull-up": "",
+        "phandle": "00000009"
+      }
+    },
+    "/soc@107c000000/pinctrl@7d504100/spi10_gpio2": {
+      "properties": {
+        "function": "76635f7370693000",
+        "pins": "6770696f32006770696f33006770696f3400",
+        "bias-disable": "",
+        "phandle": "0000001c"
+      }
+    },
+    "/soc@107c000000/pinctrl@7d504100/spi10_cs_gpio1": {
+      "properties": {
+        "function": "6770696f00",
+        "pins": "6770696f3100",
+        "bias-pull-up": "",
+        "phandle": "0000001d"
+      }
+    },
+    "/soc@107c000000/pinctrl@7d504100/uarta_24_pins": {
+      "properties": {
+        "phandle": "00000020"
+      }
+    },
+    "/soc@107c000000/pinctrl@7d504100/uarta_24_pins/pin_rts": {
+      "properties": {
+        "function": "756172743000",
+        "pins": "6770696f323400",
+        "bias-disable": ""
+      }
+    },
+    "/soc@107c000000/pinctrl@7d504100/uarta_24_pins/pin_cts": {
+      "properties": {
+        "function": "756172743000",
+        "pins": "6770696f323500",
+        "bias-pull-up": ""
+      }
+    },
+    "/soc@107c000000/pinctrl@7d504100/uarta_24_pins/pin_txd": {
+      "properties": {
+        "function": "756172743000",
+        "pins": "6770696f323600",
+        "bias-disable": ""
+      }
+    },
+    "/soc@107c000000/pinctrl@7d504100/uarta_24_pins/pin_rxd": {
+      "properties": {
+        "function": "756172743000",
+        "pins": "6770696f323700",
+        "bias-pull-up": ""
+      }
+    },
+    "/soc@107c000000/pinctrl@7d504100/bt_shutdown_pins": {
+      "properties": {
+        "function": "6770696f00",
+        "pins": "6770696f323900",
+        "phandle": "00000021"
+      }
+    },
+    "/soc@107c000000/pinctrl@7d504100/sdio2_30_pins": {
+      "properties": {
+        "phandle": "0000004a"
+      }
+    },
+    "/soc@107c000000/pinctrl@7d504100/sdio2_30_pins/pin_clk": {
+      "properties": {
+        "function": "73643200",
+        "pins": "6770696f333000",
+        "bias-disable": ""
+      }
+    },
+    "/soc@107c000000/pinctrl@7d504100/sdio2_30_pins/pin_cmd": {
+      "properties": {
+        "function": "73643200",
+        "pins": "6770696f333100",
+        "bias-pull-up": ""
+      }
+    },
+    "/soc@107c000000/pinctrl@7d504100/sdio2_30_pins/pins_dat": {
+      "properties": {
+        "function": "73643200",
+        "pins": "6770696f3332006770696f3333006770696f3334006770696f333500",
+        "bias-pull-up": ""
+      }
+    },
+    "/soc@107c000000/pinctrl@7d504100/wl_on_pins": {
+      "properties": {
+        "function": "6770696f00",
+        "pins": "6770696f323800",
+        "phandle": "0000005a"
+      }
+    },
+    "/soc@107c000000/pinctrl@7d504100/pwr_button_pins": {
+      "properties": {
+        "function": "6770696f00",
+        "pins": "6770696f323000",
+        "bias-pull-up": "",
+        "phandle": "00000075"
+      }
+    },
+    "/soc@107c000000/pinctrl@7d510700/emmc_aon_cd_pins": {
+      "properties": {
+        "function": "73645f636172645f6700",
+        "pins": "616f6e5f6770696f3500",
+        "bias-pull-up": "",
+        "phandle": "0000000a"
+      }
+    },
+    "/soc@107c000000/pinctrl@7d510700/i2c3_m4_agpio0_pins": {
+      "properties": {
+        "function": "76635f6932633300",
+        "pins": "616f6e5f6770696f3000616f6e5f6770696f3100",
+        "bias-pull-up": "",
+        "phandle": "0000001e"
+      }
+    },
+    "/axi/pcie@1000120000/rp1/gpio@d0000/usb_vbus_pins": {
+      "properties": {
+        "function": "766275733100",
+        "pins": "6770696f3432006770696f343300",
+        "phandle": "00000044"
+      }
+    },
+    "/axi/pcie@1000120000/rp1/gpio@d0000": {
+      "properties": {
+        "compatible": "72617370626572727970692c7270312d6770696f00",
+        "status": "6f6b617900",
+        "phandle": "0000002e"
+      }
+    }
+  }
+}
