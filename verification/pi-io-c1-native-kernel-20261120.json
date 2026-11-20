@@ -1,0 +1,28 @@
+{
+  "revision": "586c8e710a9cd0e961433deaaeda918e77353a3e",
+  "exit": 0,
+  "finished": "2026-11-20T18:45:46.040067+00:00",
+  "selected_symbols": [
+    "ffff000000f3b9a0 d bcm2712_pinctrl_driver",
+    "ffff000000e15bc8 D bcm2712_sdhci_driver",
+    "ffff000000e05be8 d bcmstb_gpio_driver",
+    "ffff000000e01210 d cgem_driver",
+    "ffff00000015d960 t cgem_rp1_phy_reset",
+    "ffff000000f01270 D gen_acpi_driver",
+    "ffff000000ab623c t rp1_clknode_set_freq",
+    "ffff000000f3c0e8 d rp1_clock_driver",
+    "ffff000000f3bd08 D rp1_driver",
+    "ffff000000f3bf40 d rp1_gpio_driver",
+    "ffff0000002ebb6c t sdhci_acpi_attach"
+  ],
+  "stripped_kernel_sha256": "16a100d8d888adf706590e7f7450a33346b927c0cfed6e87ac9402eb6398fd44",
+  "stripped_kernel_bytes": 16261320,
+  "frozen_overlay_sources_reverified": true,
+  "schema": "daemonarchy/pi-io-c1-native-kernel/v1",
+  "kernel_sha256": "b34ae9a050a6c80770f737498574a2408c60a4c264a1c827ec7f28a2f839b764",
+  "scope": "Native arm64 GENERIC kernel compilation with combined ACPI Ethernet/SD and RP1 nexus/GPIO/clock/Cadence Ethernet plus checked BCM2712 SD shutdown and separate C0/C1 provider candidates; no install, boot or physical qualification.",
+  "hosted_ci": "disabled per operator direction",
+  "documentation_authority_review": "pending for C1 provider documentation",
+  "lifecycle_receipt": "missing",
+  "physical_io_acceptance": "pending"
+}
