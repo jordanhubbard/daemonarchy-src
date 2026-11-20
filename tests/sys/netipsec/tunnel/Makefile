@@ -11,7 +11,10 @@ ATF_TESTS_SH+=	empty \
 		aesni_aes_cbc_256_hmac_sha2_256 \
 		aesni_aes_gcm_128 \
 		aesni_aes_gcm_256 \
-		chacha20_poly1305
+		chacha20_poly1305 \
+		esp_iv \
+		flowlabel \
+		sa_flowid
 
 TEST_METADATA+= execenv="jail" \
 		execenv_jail_params="vnet allow.raw_sockets"

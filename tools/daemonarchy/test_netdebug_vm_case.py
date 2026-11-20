@@ -3,8 +3,11 @@
 import importlib.util
 import os
 import pathlib
+import select
+import shlex
 import shutil
 import struct
+import sys
 import tempfile
 import time
 import unittest
@@ -16,11 +19,17 @@ SPEC.loader.exec_module(CASE)
 
 FAKE_SUDO = '#!/bin/sh\n[ "$1" = -n ] && shift\nexec "$@"\n'
 # Like bhyve with a guest stopped in DDB: SIGTERM (the ACPI power button) is ignored.
-FAKE_BHYVE = '''#!/usr/bin/env python3
+FAKE_BHYVE = f'''#!/bin/sh
+exec {shlex.quote(sys.executable)} - "$@" <<'FAKE_GUEST'
 import os, signal, sys, time
-signal.signal(signal.SIGTERM, signal.SIG_IGN)
-open(os.environ["FAKE_VM_DIR"] + "/" + sys.argv[-1] + ".pid", "w").write(str(os.getpid()))
+vm = os.environ["FAKE_VM_DIR"] + "/" + sys.argv[-1]
+def ignore_term(signum, frame):
+    open(vm + ".term", "w").write("ignored SIGTERM\\n")
+signal.signal(signal.SIGTERM, ignore_term)
+lease = open(vm + ".alive", "w")
+open(vm + ".pid", "w").write(str(os.getpid()))
 time.sleep(600)
+FAKE_GUEST
 '''
 FAKE_BHYVECTL = '''#!/bin/sh
 vm=${2#--vm=}
@@ -44,6 +53,13 @@ class BoundTest(unittest.TestCase):
         self.saved = {k: os.environ.get(k) for k in ("PATH", "FAKE_VM_DIR")}
         os.environ["PATH"] = f"{self.bin}{os.pathsep}{os.environ['PATH']}"
         os.environ["FAKE_VM_DIR"] = str(self.dir)
+        self.guest_readers = {}
+        for vm in ("vm-a", "vm-b"):
+            path = self.dir / (vm + ".alive")
+            os.mkfifo(path)
+            reader = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
+            self.guest_readers[vm] = reader
+            self.addCleanup(os.close, reader)
 
     def tearDown(self):
         for key, value in self.saved.items():
@@ -58,16 +74,29 @@ class BoundTest(unittest.TestCase):
         path.write_text(body)
         path.chmod(0o755)
 
+    def assert_guest_stopped(self, vm, deadline, *, ignored_term=False):
+        self.assertTrue((self.dir / (vm + ".pid")).is_file(), "fake guest never started")
+        if ignored_term:
+            self.assertTrue((self.dir / (vm + ".term")).is_file(), "SIGTERM was not observed")
+        # The guest holds the FIFO writer. EOF observes its actual exit without
+        # depending on when another parent reaps it, within the original bound.
+        reader = self.guest_readers[vm]
+        ready = select.select([reader], [], [], max(0, deadline - time.monotonic()))[0]
+        self.assertTrue(ready, "fake guest is still alive after the VM bound returned")
+        self.assertEqual(os.read(reader, 1), b"")
+
     @unittest.skipUnless(shutil.which("timeout"), "timeout(1) is required")
     def test_sigterm_ignoring_guest_is_killed_at_hard_deadline(self):
         start = time.monotonic()
         status, destroyed = CASE.run_bounded_vm("vm-a", ["-c", "1"], 1, grace=1,
                                                 destroy_after=30)
         elapsed = time.monotonic() - start
-        # GNU timeout re-raises KILL on itself; BSD timeout exits 128 + 9.
-        self.assertIn(status, (137, -9))
+        # BSD timeout reports expiration as 124; GNU may re-raise KILL.
+        self.assertIn(status, (124, 137, -9))
         self.assertFalse(destroyed)
         self.assertLess(elapsed, 10)
+        self.assert_guest_stopped("vm-a", start + 10, ignored_term=True)
+        self.assertLess(time.monotonic() - start, 10)
 
     def test_destroy_watchdog_ends_guest_when_timeout_does_not(self):
         self.tool("timeout", FAKE_TIMEOUT)
@@ -79,6 +108,8 @@ class BoundTest(unittest.TestCase):
         self.assertNotEqual(status, 0)
         self.assertLess(elapsed, 10)
         self.assertIn("--destroy --vm=vm-b", (self.dir / "bhyvectl.log").read_text())
+        self.assert_guest_stopped("vm-b", start + 10)
+        self.assertLess(time.monotonic() - start, 10)
 
     def test_tree_identity_and_loader_cases(self):
         tree = self.dir / "tree"

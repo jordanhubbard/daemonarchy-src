@@ -30,7 +30,11 @@
  * SUCH DAMAGE.
  */
 
-/* Support for the AMD K8 and later processors */
+/*
+ * Support for 64-bit AMD processors:
+ *  - Zen families of microarchitectures
+ *  - (legacy) K8-K10, up to Bulldozer and Jaguar families
+ */
 
 #include <sys/param.h>
 #include <sys/lock.h>
@@ -57,7 +61,7 @@
 
 DPCPU_DEFINE_STATIC(uint32_t, nmi_counter);
 
-/* AMD K8 PMCs */
+/* AMD PMC decriptors */
 struct amd_descr {
 	struct pmc_descr pm_descr;   /* "base class" */
 	uint32_t	pm_evsel;    /* address of EVSEL register */
@@ -409,6 +413,7 @@ static int
 amd_read_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t *v)
 {
 	const struct amd_descr *pd;
+	struct pmc_pcpu_state *pps;
 	pmc_value_t tmp;
 	enum pmc_mode mode;
 
@@ -427,7 +432,19 @@ amd_read_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t *v)
 
 	tmp = rdmsr(pd->pm_perfctr); /* RDMSR serializes */
 	PMCDBG2(MDP, REA, 2, "amd-read (pre-munge) id=%d -> %jd", ri, tmp);
-	if (PMC_IS_SAMPLING_MODE(mode)) {
+	if (pd->pm_subclass == PMC_AMD_SUB_CLASS_UMC) {
+		/*
+		 * UMC counters saturate at 2^48 instead of wrapping.  Clear
+		 * bit 47 once it is set and keep the carries in software.
+		 */
+		pps = &pm->pm_pcpu_state[cpu];
+		if ((tmp & (1ULL << 47)) != 0) {
+			tmp &= ~(1ULL << 47);
+			wrmsr(pd->pm_perfctr, tmp);
+			pps->pps_overflowcnt++;
+		}
+		tmp += (pmc_value_t)pps->pps_overflowcnt << 47;
+	} else if (PMC_IS_SAMPLING_MODE(mode)) {
 		/*
 		 * Clamp value to 0 if the counter just overflowed,
 		 * otherwise the returned reload count would wrap to a
@@ -465,9 +482,14 @@ amd_write_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t v)
 	pd = &amd_pmcdesc[ri];
 	mode = PMC_TO_MODE(pm);
 
-	/* use 2's complement of the count for sampling mode PMCs */
-	if (PMC_IS_SAMPLING_MODE(mode))
+	if (pd->pm_subclass == PMC_AMD_SUB_CLASS_UMC) {
+		/* Bits 47 and up are kept in software, see amd_read_pmc(). */
+		pm->pm_pcpu_state[cpu].pps_overflowcnt = v >> 47;
+		v &= (1ULL << 47) - 1;
+	} else if (PMC_IS_SAMPLING_MODE(mode)) {
+		/* use 2's complement of the count for sampling mode PMCs */
 		v = AMD_RELOAD_COUNT_TO_PERFCTR_VALUE(v);
+	}
 
 	PMCDBG3(MDP, WRI, 1, "amd-write cpu=%d ri=%d v=%jx", cpu, ri, v);
 
@@ -1281,7 +1303,7 @@ amd_pcpu_init(struct pmc_mdep *md, int cpu)
 	 * state and initialize pointers in the MI per-cpu descriptor.
 	 */
 	pc = pmc_pcpu[cpu];
-	first_ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_K8].pcd_ri;
+	first_ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_AMD].pcd_ri;
 
 	KASSERT(pc != NULL, ("[amd,%d] NULL per-cpu pointer", __LINE__));
 
@@ -1340,7 +1362,7 @@ amd_pcpu_fini(struct pmc_mdep *md, int cpu)
 	pc = pmc_pcpu[cpu];
 	KASSERT(pc != NULL, ("[amd,%d] NULL per-cpu state", __LINE__));
 
-	first_ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_K8].pcd_ri;
+	first_ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_AMD].pcd_ri;
 
 	/*
 	 * Reset pointers in the MI 'per-cpu' state.
@@ -1629,8 +1651,8 @@ pmc_amd_initialize(void)
 	for (i = 0; i < amd_core_npmcs; i++) {
 		d = &amd_pmcdesc[i];
 		snprintf(d->pm_descr.pd_name, PMC_NAME_MAX,
-		    "K8-%d", i);
-		d->pm_descr.pd_class = PMC_CLASS_K8;
+		    "AMD-%d", i);
+		d->pm_descr.pd_class = PMC_CLASS_AMD;
 		d->pm_descr.pd_caps = AMD_PMC_CAPS;
 		/*
 		 * Zen 5 can precisely count retire events.
@@ -1660,8 +1682,8 @@ pmc_amd_initialize(void)
 		for (i = 0; i < amd_l3_npmcs; i++) {
 			d = &amd_pmcdesc[amd_npmcs + i];
 			snprintf(d->pm_descr.pd_name, PMC_NAME_MAX,
-			    "K8-L3-%d", i);
-			d->pm_descr.pd_class = PMC_CLASS_K8;
+			    "AMD-L3-%d", i);
+			d->pm_descr.pd_class = PMC_CLASS_AMD;
 			d->pm_descr.pd_caps = AMD_PMC_L3_CAPS;
 			d->pm_descr.pd_width = 48;
 			d->pm_evsel = AMD_PMC_L3_BASE + 2 * i;
@@ -1676,8 +1698,8 @@ pmc_amd_initialize(void)
 		for (i = 0; i < amd_df_npmcs; i++) {
 			d = &amd_pmcdesc[amd_npmcs + i];
 			snprintf(d->pm_descr.pd_name, PMC_NAME_MAX,
-			    "K8-DF-%d", i);
-			d->pm_descr.pd_class = PMC_CLASS_K8;
+			    "AMD-DF-%d", i);
+			d->pm_descr.pd_class = PMC_CLASS_AMD;
 			d->pm_descr.pd_caps = AMD_PMC_DF_CAPS;
 			d->pm_descr.pd_width = 48;
 			d->pm_evsel = AMD_PMC_DF_BASE + 2 * i;
@@ -1700,8 +1722,8 @@ pmc_amd_initialize(void)
 			hw = ch * pmcs_per_umc + j;
 			d = &amd_pmcdesc[amd_npmcs + i];
 			snprintf(d->pm_descr.pd_name, PMC_NAME_MAX,
-			    "K8-UMC%d-%d", ch, i);
-			d->pm_descr.pd_class = PMC_CLASS_K8;
+			    "AMD-UMC%d-%d", ch, i);
+			d->pm_descr.pd_class = PMC_CLASS_AMD;
 			d->pm_descr.pd_caps = AMD_PMC_UMC_CAPS;
 			d->pm_descr.pd_width = 48;
 			d->pm_evsel = AMD_PMC_UMC_BASE + 2 * hw;
@@ -1776,11 +1798,11 @@ pmc_amd_initialize(void)
 	if (error != 0)
 		goto error;
 
-	/* Initialize AMD K8 PMC handling. */
-	pcd = &pmc_mdep->pmd_classdep[PMC_MDEP_CLASS_INDEX_K8];
+	/* Initialize AMD PMC handling. */
+	pcd = &pmc_mdep->pmd_classdep[PMC_MDEP_CLASS_INDEX_AMD];
 
 	pcd->pcd_caps		= AMD_PMC_CAPS;
-	pcd->pcd_class		= PMC_CLASS_K8;
+	pcd->pcd_class		= PMC_CLASS_AMD;
 	pcd->pcd_num		= amd_npmcs;
 	pcd->pcd_ri		= pmc_mdep->pmd_npmc;
 	pcd->pcd_width		= 48;

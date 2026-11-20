@@ -591,6 +591,41 @@ resume and final source/compiler/product admission remain open.
   admission. Do not normalize corrupt records or infer complete dependencies
   from the earlier aggregate.
 
+The renewed source104 amd64 run completes all five phases and its byte verifier,
+but strict review again refuses two malformed records, among 113,252 retained
+blobs. Separate checks pass all 538 artifacts, 524 package records and their
+dependencies, complete source payloads, and matching kernel/module packages and
+sets. Those successes do not qualify the failed trace set.
+
+The install rules have a separate metadata collision: parallel `PROGS`
+sub-makes share `_proginstall.meta` and `_debuginstall.meta`. On the same native
+make/module pair, barrier-coordinated original install recipes reproduce two
+corrupt shared files. Candidate per-payload recipe targets produce four distinct,
+valid traces and byte-identical installed programs and debug files. The generic
+install entry points remain aliases, and the existing ordering is retained.
+`tools/daemonarchy/test_install_metadata.sh` also fails against the original
+rules and passes with the candidate. Its script payloads test installation and
+metadata; they do not establish compilation or runtime qualification. Four
+additional native cases pass for debug-disabled programs, a single program,
+library installation and direct generic entry points, including instrumented
+before/after hooks and program-to-debug ordering. Renewed complete capture and
+exact-head integration gates remain open. No canonical graph or SDK admission
+is implied.
+
+Full native-suite preparation also exposed a hosted-probe restriction that
+required reports inside source. External absolute reports are now supported
+while preserving guest-relative transport for repository-local reports and the
+canonical-path guard. Three path regressions pass on the controller; complete
+native execution of all 165 existing cases and these three additions on source
+`789350ff4180` yields 166 passes, two fixture failures and no skips. The fake
+guest required an unavailable `python3` alias, and its timeout assertion omitted
+the documented BSD expiration status. The fixture now binds the actual test
+interpreter and requires positive startup, ignored SIGTERM and FIFO EOF within
+the original deadline. Both original bound cases pass natively with the updated
+fixture; the Linux bound-test class also passes. Complete native-suite renewal
+on the combined revision remains required. The original preparation refusal
+and failed full-suite run remain retained.
+
 
 ### Explicit make client for renewed filemon capture
 

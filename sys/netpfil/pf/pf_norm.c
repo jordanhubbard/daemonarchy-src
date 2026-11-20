@@ -31,6 +31,7 @@
 #include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_ipstealth.h"
 #include "opt_pf.h"
 
 #include <sys/param.h>
@@ -1142,6 +1143,21 @@ pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag,
 			}
 		} else if (forward) {
 			MPASS(m->m_pkthdr.rcvif != NULL);
+			/*
+			 * The forwarding path decremented the hop limit before
+			 * its outbound hooks, and ip6_forward() would do it
+			 * again, so give the hop back.  A hop limit raised to
+			 * the maximum (scrub min-ttl 255) has no room for it,
+			 * and the packet leaves with one less.
+			 */
+#ifdef IPSTEALTH
+			if (!V_ip6stealth)
+#endif
+			{
+				hdr = mtod(m, struct ip6_hdr *);
+				if (hdr->ip6_hlim < IPV6_MAXHLIM)
+					hdr->ip6_hlim += IPV6_HLIMDEC;
+			}
 			ip6_forward(m, 0);
 		} else {
 			(void)ip6_output(m, NULL, NULL, 0, NULL, NULL,
@@ -1595,7 +1611,7 @@ pf_normalize_sctp_init(struct pf_pdesc *pd, struct pf_state_peer *src,
 
 	dst->scrub = uma_zalloc(V_pf_state_scrub_z, M_ZERO | M_NOWAIT);
 	if (dst->scrub == NULL) {
-		uma_zfree(V_pf_state_scrub_z, src);
+		uma_zfree(V_pf_state_scrub_z, src->scrub);
 		return (1);
 	}
 
