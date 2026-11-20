@@ -39,6 +39,7 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/gpio.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
@@ -76,6 +77,7 @@
 #include <dev/mii/mii_fdt.h>
 
 #include <dev/clk/clk.h>
+#include <dev/gpio/gpiobusvar.h>
 
 #if BUS_SPACE_MAXADDR > BUS_SPACE_MAXADDR_32BIT
 #define CGEM64
@@ -101,6 +103,9 @@
 #define HWQUIRK_NONE		0
 #define HWQUIRK_NEEDNULLQS	1
 #define HWQUIRK_RXHANGWAR	2
+/* RP1 clock behavior also documented in FreeBSD review D58108. */
+#define HWQUIRK_RP1		4
+#define CGEM_GPIO_ACTIVE_LOW	1U	/* Standard OFW GPIO specifier flag. */
 
 static struct ofw_compat_data compat_data[] = {
 	{ "cdns,zynq-gem",		HWQUIRK_RXHANGWAR }, /* Deprecated */
@@ -110,6 +115,7 @@ static struct ofw_compat_data compat_data[] = {
 	{ "microchip,mpfs-mss-gem",	HWQUIRK_NEEDNULLQS },
 	{ "sifive,fu540-c000-gem",	HWQUIRK_NONE },
 	{ "sifive,fu740-c000-gem",	HWQUIRK_NONE },
+	{ "raspberrypi,rp1-gem",	HWQUIRK_RP1 | HWQUIRK_NEEDNULLQS },
 	{ NULL,				0 }
 };
 
@@ -133,6 +139,20 @@ struct cgem_softc {
 	clk_t			clk_tsuclk;
 	int			neednullqs;
 	int			phy_contype;
+	bool			rp1;
+	bool			lock_initialized;
+	bool			callout_initialized;
+	bool			ether_attached;
+	bool			hardware_initialized;
+	bool			desc_map_loaded;
+	bool			detaching;
+	u_int			clock_enabled;
+	uint32_t		mdc_div;
+	uint32_t		rp1_axi_mask, rp1_axi_value;
+	int			phy_addr, phy_flags;
+	gpio_pin_t		phy_reset;
+	uint32_t		phy_reset_ms, phy_post_ms;
+	bool			phy_reset_armed;
 
 	bus_dma_tag_t		desc_dma_tag;
 	bus_dma_tag_t		mbuf_dma_tag;
@@ -244,8 +264,8 @@ static void
 cgem_get_mac(struct cgem_softc *sc, u_char eaddr[])
 {
 	int i;
-	uint32_t rnd;
 
+	memset(eaddr, 0, ETHER_ADDR_LEN);
 	/* See if boot loader gave us a MAC address already. */
 	for (i = 0; i < 4; i++) {
 		uint32_t low = RD4(sc, CGEM_SPEC_ADDR_LOW(i));
@@ -257,28 +277,15 @@ cgem_get_mac(struct cgem_softc *sc, u_char eaddr[])
 			eaddr[3] = (low >> 24) & 0xff;
 			eaddr[4] = high & 0xff;
 			eaddr[5] = (high >> 8) & 0xff;
-			break;
+			if (!ETHER_IS_ZERO(eaddr) && !ETHER_IS_MULTICAST(eaddr))
+				break;
 		}
 	}
 
-	/* No MAC from boot loader?  Assign a random one. */
-	if (i == 4) {
-		rnd = arc4random();
-
-		eaddr[0] = 'b';
-		eaddr[1] = 's';
-		eaddr[2] = 'd';
-		eaddr[3] = (rnd >> 16) & 0xff;
-		eaddr[4] = (rnd >> 8) & 0xff;
-		eaddr[5] = rnd & 0xff;
-
-		device_printf(sc->dev, "no mac address found, assigning "
-		    "random: %02x:%02x:%02x:%02x:%02x:%02x\n", eaddr[0],
-		    eaddr[1], eaddr[2], eaddr[3], eaddr[4], eaddr[5]);
-	}
+	fdt_ether_get_addr(ofw_bus_get_node(sc->dev), sc->ifp, eaddr);
 
 	/* Move address to first slot and zero out the rest. */
-	WR4(sc, CGEM_SPEC_ADDR_LOW(0), (eaddr[3] << 24) |
+	WR4(sc, CGEM_SPEC_ADDR_LOW(0), ((uint32_t)eaddr[3] << 24) |
 	    (eaddr[2] << 16) | (eaddr[1] << 8) | eaddr[0]);
 	WR4(sc, CGEM_SPEC_ADDR_HI(0), (eaddr[5] << 8) | eaddr[4]);
 
@@ -361,14 +368,23 @@ cgem_rx_filter(struct cgem_softc *sc)
 	WR4(sc, CGEM_NET_CFG, sc->net_cfg_shadow);
 }
 
-/* For bus_dmamap_load() callback. */
+struct cgem_dma_load {
+	bus_addr_t address;
+	int error;
+	bool called, mapped;
+};
+
+/* bus_dmamap_load() may report a mapping error only through its callback. */
 static void
 cgem_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
+	struct cgem_dma_load *load = arg;
 
-	if (nsegs != 1 || error != 0)
-		return;
-	*(bus_addr_t *)arg = segs[0].ds_addr;
+	load->called = true;
+	load->mapped = error == 0 && nsegs > 0;
+	load->error = error != 0 ? error : nsegs != 1 ? EFBIG : 0;
+	if (load->error == 0)
+		load->address = segs[0].ds_addr;
 }
 
 /* Set up null queues for priority queues we actually can't disable. */
@@ -395,7 +411,9 @@ cgem_null_qs(struct cgem_softc *sc)
 	tx_desc->ctl = CGEM_TXDESC_USED | CGEM_TXDESC_WRAP;
 
 	/* Point all valid ring base pointers to the null queues. */
-	for (n = 1; (queue_mask & 1) != 0; n++, queue_mask >>= 1) {
+	for (n = 1; queue_mask != 0; n++, queue_mask >>= 1) {
+		if ((queue_mask & 1) == 0)
+			continue;
 		WR4(sc, CGEM_RX_QN_BAR(n), sc->null_qs_physaddr);
 		WR4(sc, CGEM_TX_QN_BAR(n), sc->null_qs_physaddr +
 		    sizeof(struct cgem_rx_desc));
@@ -406,6 +424,7 @@ cgem_null_qs(struct cgem_softc *sc)
 static int
 cgem_setup_descs(struct cgem_softc *sc)
 {
+	struct cgem_dma_load load = { 0 };
 	int i, err;
 	int desc_rings_size = CGEM_NUM_RX_DESCS * sizeof(struct cgem_rx_desc) +
 	    CGEM_NUM_TX_DESCS * sizeof(struct cgem_tx_desc);
@@ -453,9 +472,11 @@ cgem_setup_descs(struct cgem_softc *sc)
 	/* Load descriptor DMA memory. */
 	err = bus_dmamap_load(sc->desc_dma_tag, sc->rxring_dma_map,
 	    (void *)sc->rxring, desc_rings_size,
-	    cgem_getaddr, &sc->rxring_physaddr, BUS_DMA_NOWAIT);
-	if (err)
-		return (err);
+	    cgem_getaddr, &load, BUS_DMA_NOWAIT);
+	sc->desc_map_loaded = err == 0 && load.called && load.mapped;
+	if (err != 0 || !load.called || load.error != 0)
+		return (err != 0 ? err : !load.called ? EIO : load.error);
+	sc->rxring_physaddr = load.address;
 
 	/* Initialize RX descriptors. */
 	for (i = 0; i < CGEM_NUM_RX_DESCS; i++) {
@@ -748,6 +769,8 @@ cgem_start_locked(if_t ifp)
 	int i, nsegs, wrap, err;
 
 	CGEM_ASSERT_LOCKED(sc);
+	if (sc->detaching)
+		return;
 
 	if ((if_getdrvflags(ifp) & IFF_DRV_OACTIVE) != 0)
 		return;
@@ -943,6 +966,8 @@ cgem_tick(void *arg)
 	struct mii_data *mii;
 
 	CGEM_ASSERT_LOCKED(sc);
+	if (sc->detaching)
+		return;
 
 	/* Poll the phy. */
 	if (sc->miibus != NULL) {
@@ -981,7 +1006,7 @@ cgem_intr(void *arg)
 
 	CGEM_LOCK(sc);
 
-	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0) {
+	if (sc->detaching || (if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0) {
 		CGEM_UNLOCK(sc);
 		return;
 	}
@@ -1059,7 +1084,7 @@ cgem_reset(struct cgem_softc *sc)
 	WR4(sc, CGEM_RX_QBAR, 0);
 
 	/* Get management port running even if interface is down. */
-	sc->net_cfg_shadow |= CGEM_NET_CFG_MDC_CLK_DIV_48;
+	sc->net_cfg_shadow |= sc->mdc_div;
 	WR4(sc, CGEM_NET_CFG, sc->net_cfg_shadow);
 
 	sc->net_ctl_shadow = CGEM_NET_CTRL_MGMT_PORT_EN;
@@ -1125,7 +1150,7 @@ cgem_config(struct cgem_softc *sc)
 	WR4(sc, CGEM_NET_CTRL, sc->net_ctl_shadow);
 
 	/* Set receive address in case it changed. */
-	WR4(sc, CGEM_SPEC_ADDR_LOW(0), (eaddr[3] << 24) |
+	WR4(sc, CGEM_SPEC_ADDR_LOW(0), ((uint32_t)eaddr[3] << 24) |
 	    (eaddr[2] << 16) | (eaddr[1] << 8) | eaddr[0]);
 	WR4(sc, CGEM_SPEC_ADDR_HI(0), (eaddr[5] << 8) | eaddr[4]);
 
@@ -1142,6 +1167,8 @@ cgem_init_locked(struct cgem_softc *sc)
 	struct mii_data *mii;
 
 	CGEM_ASSERT_LOCKED(sc);
+	if (sc->detaching)
+		return;
 
 	if ((if_getdrvflags(sc->ifp) & IFF_DRV_RUNNING) != 0)
 		return;
@@ -1190,9 +1217,11 @@ cgem_stop(struct cgem_softc *sc)
 			/* Unload and destroy dmamap. */
 			bus_dmamap_unload(sc->mbuf_dma_tag,
 			    sc->txring_m_dmamap[i]);
-			bus_dmamap_destroy(sc->mbuf_dma_tag,
-			    sc->txring_m_dmamap[i]);
-			sc->txring_m_dmamap[i] = NULL;
+			if (!sc->detaching) {
+				bus_dmamap_destroy(sc->mbuf_dma_tag,
+				    sc->txring_m_dmamap[i]);
+				sc->txring_m_dmamap[i] = NULL;
+			}
 			m_freem(sc->txring_m[i]);
 			sc->txring_m[i] = NULL;
 		}
@@ -1211,9 +1240,11 @@ cgem_stop(struct cgem_softc *sc)
 			/* Unload and destroy dmamap. */
 			bus_dmamap_unload(sc->mbuf_dma_tag,
 			    sc->rxring_m_dmamap[i]);
-			bus_dmamap_destroy(sc->mbuf_dma_tag,
-			    sc->rxring_m_dmamap[i]);
-			sc->rxring_m_dmamap[i] = NULL;
+			if (!sc->detaching) {
+				bus_dmamap_destroy(sc->mbuf_dma_tag,
+				    sc->rxring_m_dmamap[i]);
+				sc->rxring_m_dmamap[i] = NULL;
+			}
 
 			m_freem(sc->rxring_m[i]);
 			sc->rxring_m[i] = NULL;
@@ -1237,6 +1268,8 @@ cgem_ioctl(if_t ifp, u_long cmd, caddr_t data)
 	struct mii_data *mii;
 	int error = 0, mask;
 
+	if (sc->detaching)
+		return (ENXIO);
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		CGEM_LOCK(sc);
@@ -1498,7 +1531,7 @@ cgem_mediachange(struct cgem_softc *sc,	struct mii_data *mii)
 
 	WR4(sc, CGEM_NET_CFG, sc->net_cfg_shadow);
 
-	if (sc->clk_pclk != NULL) {
+	if (!sc->rp1 && sc->clk_pclk != NULL) {
 		CGEM_UNLOCK(sc);
 		if (clk_set_freq(sc->clk_pclk, ref_clk_freq, 0))
 			device_printf(sc->dev, "could not set ref clk to %d\n",
@@ -1712,6 +1745,185 @@ cgem_add_sysctls(device_t dev)
 	    "Number frames received with UDP checksum errors");
 }
 
+/* All clock handles are released in reverse acquisition order. */
+static int
+cgem_clock_get(struct cgem_softc *sc, const char *name, clk_t *clock,
+    unsigned bit, bool required)
+{
+	int error;
+
+	error = clk_get_by_ofw_name(sc->dev, 0, name, clock);
+	if (error != 0) {
+		device_printf(sc->dev, "could not retrieve %s: %d\n", name, error);
+		return (required ? error : 0);
+	}
+	error = clk_enable(*clock);
+	if (error == 0)
+		sc->clock_enabled |= 1U << bit;
+	return (error);
+}
+
+static int
+cgem_clocks_release(struct cgem_softc *sc)
+{
+	clk_t *clocks[] = { &sc->clk_pclk, &sc->clk_hclk, &sc->clk_txclk,
+	    &sc->clk_rxclk, &sc->clk_tsuclk };
+	int error;
+
+	for (int i = nitems(clocks) - 1; i >= 0; i--) {
+		if (*clocks[i] == NULL)
+			continue;
+		if ((sc->clock_enabled & (1U << i)) != 0) {
+			error = clk_disable(*clocks[i]);
+			if (error != 0)
+				return (error);
+			sc->clock_enabled &= ~(1U << i);
+		}
+		error = clk_release(*clocks[i]);
+		if (error != 0)
+			return (error);
+		*clocks[i] = NULL;
+	}
+	return (0);
+}
+
+static int
+cgem_rp1_mdc(uint64_t frequency, uint32_t *divider)
+{
+	static const unsigned divisors[] = { 8, 16, 32, 48, 64, 96, 128, 224 };
+
+	if (frequency == 0)
+		return (EINVAL);
+	for (unsigned i = 0; i < nitems(divisors); i++) {
+		if (frequency <= UINT64_C(2500000) * divisors[i]) {
+			*divider = i << 18;
+			return (0);
+		}
+	}
+	return (ERANGE);
+}
+
+static int
+cgem_rp1_parse(struct cgem_softc *sc)
+{
+	phandle_t node = ofw_bus_get_node(sc->dev), phy;
+	pcell_t xref, address;
+	uint8_t value;
+	const char *names[] = { "cdns,ar2r-max-pipe", "cdns,aw2w-max-pipe" };
+
+	switch (sc->phy_contype) {
+	case MII_CONTYPE_RGMII_ID:
+		sc->phy_flags = MIIF_RX_DELAY | MIIF_TX_DELAY;
+		break;
+	case MII_CONTYPE_RGMII_RXID:
+		sc->phy_flags = MIIF_RX_DELAY;
+		break;
+	case MII_CONTYPE_RGMII_TXID:
+		sc->phy_flags = MIIF_TX_DELAY;
+		break;
+	case MII_CONTYPE_RGMII:
+		break;
+	default:
+		return (EOPNOTSUPP);
+	}
+	if (OF_getencprop(node, "phy-handle", &xref, sizeof(xref)) != sizeof(xref))
+		return (EINVAL);
+	phy = OF_node_from_xref(xref);
+	if (phy <= 0 || OF_parent(phy) != node || !ofw_bus_node_status_okay(phy) ||
+	    OF_getencprop(phy, "reg", &address, sizeof(address)) != sizeof(address) || address > 31)
+		return (EINVAL);
+	sc->phy_addr = address;
+	for (unsigned i = 0; i < nitems(names); i++) {
+		if (!OF_hasprop(node, names[i]))
+			continue;
+		if (OF_getproplen(node, names[i]) != sizeof(value) ||
+		    OF_getprop(node, names[i], &value, sizeof(value)) != sizeof(value) || value == 0)
+			return (EINVAL);
+		sc->rp1_axi_mask |= 0xffU << (i * 8);
+		sc->rp1_axi_value |= (uint32_t)value << (i * 8);
+	}
+	if (OF_hasprop(node, "cdns,use-aw2b-fill")) {
+		if (OF_getproplen(node, "cdns,use-aw2b-fill") != 0)
+			return (EINVAL);
+		sc->rp1_axi_mask |= CGEM_AXI_AW2B_FILL;
+		sc->rp1_axi_value |= CGEM_AXI_AW2B_FILL;
+	}
+	sc->phy_reset_ms = 10;
+	sc->phy_post_ms = 10;
+	if ((OF_hasprop(node, "phy-reset-duration") &&
+	    OF_getencprop(node, "phy-reset-duration", &sc->phy_reset_ms,
+	    sizeof(sc->phy_reset_ms)) != sizeof(sc->phy_reset_ms)) ||
+	    (OF_hasprop(node, "phy-reset-post-delay") &&
+	    OF_getencprop(node, "phy-reset-post-delay", &sc->phy_post_ms,
+	    sizeof(sc->phy_post_ms)) != sizeof(sc->phy_post_ms)) ||
+	    sc->phy_reset_ms == 0 || sc->phy_reset_ms > 1000 || sc->phy_post_ms > 1000)
+		return (EINVAL);
+	return (0);
+}
+
+static int
+cgem_rp1_setup(struct cgem_softc *sc)
+{
+	uint64_t frequency;
+	uint32_t value;
+	int error;
+
+#ifndef CGEM64
+	return (EOPNOTSUPP); /* The selected parent tag emits 64-bit PCI DMA addresses. */
+#endif
+	if ((RD4(sc, CGEM_DESIGN_CFG6) & CGEM_DESIGN_CFG6_ADDR_64B) == 0)
+		return (EOPNOTSUPP);
+	error = clk_get_freq(sc->clk_pclk, &frequency);
+	if (error != 0)
+		return (error);
+	error = cgem_rp1_mdc(frequency, &sc->mdc_div);
+	if (error != 0)
+		return (error);
+	/* RP1 divides a fixed 125MHz TX input internally for 10/100 links. */
+	error = clk_set_freq(sc->clk_txclk, 125000000, 0);
+	if (error != 0)
+		return (error);
+	error = clk_get_freq(sc->clk_txclk, &frequency);
+	if (error != 0 || frequency != 125000000)
+		return (error != 0 ? error : ERANGE);
+	value = RD4(sc, CGEM_USER_IO) | CGEM_USER_IO_RGMII;
+	WR4(sc, CGEM_USER_IO, value);
+	value = (RD4(sc, CGEM_AXI_PIPELINE) & ~sc->rp1_axi_mask) | sc->rp1_axi_value;
+	WR4(sc, CGEM_AXI_PIPELINE, value);
+	if ((RD4(sc, CGEM_USER_IO) & CGEM_USER_IO_RGMII) == 0 ||
+	    (RD4(sc, CGEM_AXI_PIPELINE) & sc->rp1_axi_mask) != sc->rp1_axi_value)
+		return (EIO);
+	return (0);
+}
+
+static int
+cgem_rp1_phy_reset(struct cgem_softc *sc)
+{
+	phandle_t node = ofw_bus_get_node(sc->dev);
+	uint32_t preset;
+	int error;
+
+	if (!OF_hasprop(node, "phy-reset-gpios"))
+		return (0);
+	error = gpio_pin_get_by_ofw_property(sc->dev, node, "phy-reset-gpios", &sc->phy_reset);
+	if (error != 0)
+		return (error);
+	preset = (sc->phy_reset->flags & CGEM_GPIO_ACTIVE_LOW) != 0 ?
+	    GPIO_PIN_PRESET_LOW : GPIO_PIN_PRESET_HIGH;
+	/* A failed provider operation may still have changed the pin. */
+	sc->phy_reset_armed = true;
+	error = gpio_pin_setflags(sc->phy_reset, GPIO_PIN_OUTPUT | preset);
+	if (error != 0)
+		return (error);
+	DELAY(sc->phy_reset_ms * 1000);
+	error = gpio_pin_set_active(sc->phy_reset, false);
+	if (error != 0)
+		return (error);
+	sc->phy_reset_armed = false;
+	DELAY(sc->phy_post_ms * 1000);
+	return (0);
+}
+
 static int
 cgem_probe(device_t dev)
 {
@@ -1730,89 +1942,59 @@ static int
 cgem_attach(device_t dev)
 {
 	struct cgem_softc *sc = device_get_softc(dev);
-	if_t ifp = NULL;
-	int rid, err;
+	if_t ifp;
 	u_char eaddr[ETHER_ADDR_LEN];
-	int hwquirks;
-	phandle_t node;
+	int rid, err, cleanup, hwquirks;
 
 	sc->dev = dev;
+	sc->phy_addr = MII_PHY_ANY;
+	sc->mdc_div = CGEM_NET_CFG_MDC_CLK_DIV_48;
 	CGEM_LOCK_INIT(sc);
-
-	/* Key off of compatible string and set hardware-specific options. */
+	sc->lock_initialized = true;
+	callout_init_mtx(&sc->tick_ch, &sc->sc_mtx, 0);
+	sc->callout_initialized = true;
 	hwquirks = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
-	if ((hwquirks & HWQUIRK_NEEDNULLQS) != 0)
-		sc->neednullqs = 1;
-	if ((hwquirks & HWQUIRK_RXHANGWAR) != 0)
-		sc->rxhangwar = 1;
-	/*
-	 * Both pclk and hclk are mandatory but we don't have a proper
-	 * clock driver for Zynq so don't make it fatal if we can't
-	 * get them.
-	 */
-	if (clk_get_by_ofw_name(dev, 0, "pclk", &sc->clk_pclk) != 0)
-		device_printf(dev,
-		  "could not retrieve pclk.\n");
-	else {
-		if (clk_enable(sc->clk_pclk) != 0)
-			device_printf(dev, "could not enable pclk.\n");
-	}
-	if (clk_get_by_ofw_name(dev, 0, "hclk", &sc->clk_hclk) != 0)
-		device_printf(dev,
-		  "could not retrieve hclk.\n");
-	else {
-		if (clk_enable(sc->clk_hclk) != 0)
-			device_printf(dev, "could not enable hclk.\n");
+	sc->neednullqs = (hwquirks & HWQUIRK_NEEDNULLQS) != 0;
+	sc->rxhangwar = (hwquirks & HWQUIRK_RXHANGWAR) != 0;
+	sc->rp1 = (hwquirks & HWQUIRK_RP1) != 0;
+	sc->phy_contype = mii_fdt_get_contype(ofw_bus_get_node(dev));
+	if (sc->rp1) {
+		err = cgem_rp1_parse(sc);
+		if (err != 0)
+			goto fail;
 	}
 
-	/* Optional clocks */
-	if (clk_get_by_ofw_name(dev, 0, "tx_clk", &sc->clk_txclk) == 0) {
-		if (clk_enable(sc->clk_txclk) != 0) {
-			device_printf(dev, "could not enable tx_clk.\n");
-			err = ENXIO;
-			goto err_pclk;
-		}
-	}
-	if (clk_get_by_ofw_name(dev, 0, "rx_clk", &sc->clk_rxclk) == 0) {
-		if (clk_enable(sc->clk_rxclk) != 0) {
-			device_printf(dev, "could not enable rx_clk.\n");
-			err = ENXIO;
-			goto err_tx_clk;
-		}
-	}
-	if (clk_get_by_ofw_name(dev, 0, "tsu_clk", &sc->clk_tsuclk) == 0) {
-		if (clk_enable(sc->clk_tsuclk) != 0) {
-			device_printf(dev, "could not enable tsu_clk.\n");
-			err = ENXIO;
-			goto err_rx_clk;
-		}
-	}
+	/* Preserve platforms without clock providers; RP1 requires all four. */
+	err = cgem_clock_get(sc, "pclk", &sc->clk_pclk, 0, sc->rp1);
+	if (err == 0)
+		err = cgem_clock_get(sc, "hclk", &sc->clk_hclk, 1, sc->rp1);
+	if (err == 0)
+		err = cgem_clock_get(sc, "tx_clk", &sc->clk_txclk, 2, sc->rp1);
+	if (err == 0)
+		err = cgem_clock_get(sc, "rx_clk", &sc->clk_rxclk, 3, false);
+	if (err == 0)
+		err = cgem_clock_get(sc, "tsu_clk", &sc->clk_tsuclk, 4, sc->rp1);
+	if (err != 0)
+		goto fail;
 
-	node = ofw_bus_get_node(dev);
-	sc->phy_contype = mii_fdt_get_contype(node);
-
-	/* Get memory resource. */
 	rid = 0;
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
-	if (sc->mem_res == NULL) {
-		device_printf(dev, "could not allocate memory resources.\n");
-		err = ENOMEM;
-		goto err_tsu_clk;
+	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	if (sc->mem_res == NULL ||
+	    (sc->rp1 && rman_get_size(sc->mem_res) < 0x4000)) {
+		err = ENXIO;
+		goto fail;
 	}
-
-	/* Get IRQ resource. */
 	rid = 0;
-	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->irq_res == NULL) {
-		device_printf(dev, "could not allocate interrupt resource.\n");
-		cgem_detach(dev);
-		return (ENOMEM);
+		err = ENXIO;
+		goto fail;
 	}
-
-	/* Set up ifnet structure. */
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		err = ENOMEM;
+		goto fail;
+	}
 	if_setsoftc(ifp, sc);
 	if_initname(ifp, IF_CGEM_NAME, device_get_unit(dev));
 	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
@@ -1823,158 +2005,225 @@ cgem_attach(device_t dev)
 	    IFCAP_VLAN_MTU | IFCAP_VLAN_HWCSUM, 0);
 	if_setsendqlen(ifp, CGEM_NUM_TX_DESCS);
 	if_setsendqready(ifp);
-
-	/* Disable hardware checksumming by default. */
 	if_sethwassist(ifp, 0);
 	if_setcapenable(ifp, if_getcapabilities(ifp) &
 	    ~(IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6 | IFCAP_VLAN_HWCSUM));
-
 	sc->if_old_flags = if_getflags(ifp);
 	sc->rxbufs = DEFAULT_NUM_RX_BUFS;
 
-	/* Reset hardware. */
+	/* Capture boot-loader/FDT MAC before resetting the core. */
+	cgem_get_mac(sc, eaddr);
+	if (sc->rp1) {
+		err = cgem_rp1_setup(sc);
+		if (err != 0)
+			goto fail;
+	}
 	CGEM_LOCK(sc);
+	sc->hardware_initialized = true;
 	cgem_reset(sc);
 	CGEM_UNLOCK(sc);
-
-	/* Attach phy to mii bus. */
-	err = mii_attach(dev, &sc->miibus, ifp,
-	    cgem_ifmedia_upd, cgem_ifmedia_sts, BMSR_DEFCAPMASK,
-	    MII_PHY_ANY, MII_OFFSET_ANY, 0);
-	if (err)
-		device_printf(dev, "warning: attaching PHYs failed\n");
-
-	/* Set up TX and RX descriptor area. */
-	err = cgem_setup_descs(sc);
-	if (err) {
-		device_printf(dev, "could not set up dma mem for descs.\n");
-		cgem_detach(dev);
-		goto err;
+	if (sc->rp1) {
+		err = cgem_rp1_phy_reset(sc);
+		if (err != 0)
+			goto fail;
 	}
-
-	/* Get a MAC address. */
-	cgem_get_mac(sc, eaddr);
-
-	/* Start ticks. */
-	callout_init_mtx(&sc->tick_ch, &sc->sc_mtx, 0);
-
-	ether_ifattach(ifp, eaddr);
-
+	err = mii_attach(dev, &sc->miibus, ifp, cgem_ifmedia_upd,
+	    cgem_ifmedia_sts, BMSR_DEFCAPMASK, sc->phy_addr, MII_OFFSET_ANY,
+	    sc->phy_flags);
+	if (err != 0) {
+		device_printf(dev, "could not attach PHY: %d\n", err);
+		goto fail;
+	}
+	err = cgem_setup_descs(sc);
+	if (err != 0)
+		goto fail;
 	err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE |
 	    INTR_EXCL, NULL, cgem_intr, sc, &sc->intrhand);
-	if (err) {
-		device_printf(dev, "could not set interrupt handler.\n");
-		ether_ifdetach(ifp);
-		cgem_detach(dev);
-		goto err;
-	}
-
+	if (err != 0)
+		goto fail;
+	ether_ifattach(ifp, eaddr);
+	sc->ether_attached = true;
 	cgem_add_sysctls(dev);
-
 	return (0);
-
-err_tsu_clk:
-	if (sc->clk_tsuclk)
-		clk_release(sc->clk_tsuclk);
-err_rx_clk:
-	if (sc->clk_rxclk)
-		clk_release(sc->clk_rxclk);
-err_tx_clk:
-	if (sc->clk_txclk)
-		clk_release(sc->clk_txclk);
-err_pclk:
-	if (sc->clk_pclk)
-		clk_release(sc->clk_pclk);
-	if (sc->clk_hclk)
-		clk_release(sc->clk_hclk);
-err:
+fail:
+	device_printf(dev, "attach failed: %d\n", err);
+	cleanup = cgem_detach(dev);
+	if (cleanup != 0) {
+		device_printf(dev, "retaining unavailable device after cleanup error %d\n", cleanup);
+		return (0); /* A callback or busy owner may still reference the softc. */
+	}
 	return (err);
+}
+
+/* Stop accepting DMA before releasing any descriptors or packet storage. */
+static int
+cgem_quiesce(struct cgem_softc *sc)
+{
+	uint32_t control;
+
+	CGEM_ASSERT_LOCKED(sc);
+	WR4(sc, CGEM_INTR_DIS, CGEM_INTR_ALL);
+	control = RD4(sc, CGEM_NET_CTRL);
+	control = (control & ~CGEM_NET_CTRL_RX_EN) | CGEM_NET_CTRL_TX_HALT;
+	WR4(sc, CGEM_NET_CTRL, control);
+	(void)RD4(sc, CGEM_NET_CTRL);
+	for (unsigned i = 0; i < 1400; i++) {
+		if ((RD4(sc, CGEM_TX_STAT) & CGEM_TX_STAT_GO) == 0) {
+			WR4(sc, CGEM_NET_CTRL, 0);
+			(void)RD4(sc, CGEM_NET_CTRL);
+			return (0);
+		}
+		DELAY(10);
+	}
+	return (ETIMEDOUT);
 }
 
 static int
 cgem_detach(device_t dev)
 {
 	struct cgem_softc *sc = device_get_softc(dev);
-	int i;
+	int error, i;
 
 	if (sc == NULL)
 		return (ENODEV);
-
-	if (device_is_attached(dev)) {
+	sc->detaching = true;
+	if (sc->hardware_initialized) {
 		CGEM_LOCK(sc);
-		cgem_stop(sc);
+		error = cgem_quiesce(sc);
+		if (error != 0) {
+			CGEM_UNLOCK(sc);
+			return (error);
+		}
+		if (sc->ether_attached)
+			cgem_stop(sc);
+		else
+			cgem_reset(sc);
+		sc->hardware_initialized = false;
 		CGEM_UNLOCK(sc);
+	}
+	if (sc->callout_initialized) {
 		callout_drain(&sc->tick_ch);
+		sc->callout_initialized = false;
+	}
+	if (sc->intrhand != NULL) {
+		error = bus_teardown_intr(dev, sc->irq_res, sc->intrhand);
+		if (error != 0)
+			return (error);
+		sc->intrhand = NULL;
+	}
+	if (sc->ether_attached) {
 		if_setflagbits(sc->ifp, 0, IFF_UP);
 		ether_ifdetach(sc->ifp);
+		sc->ether_attached = false;
 	}
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
+	sc->miibus = NULL;
 
-	bus_generic_detach(dev);
-
-	/* Release resources. */
-	if (sc->mem_res != NULL) {
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    rman_get_rid(sc->mem_res), sc->mem_res);
-		sc->mem_res = NULL;
+	/* DMA cannot outlive its maps, packet buffers or parent tags. */
+	for (i = 0; i < CGEM_NUM_RX_DESCS; i++) {
+		if (sc->rxring_m_dmamap[i] == NULL)
+			continue;
+		error = bus_dmamap_destroy(sc->mbuf_dma_tag, sc->rxring_m_dmamap[i]);
+		if (error != 0)
+			return (error);
+		sc->rxring_m_dmamap[i] = NULL;
 	}
-	if (sc->irq_res != NULL) {
-		if (sc->intrhand)
-			bus_teardown_intr(dev, sc->irq_res, sc->intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ,
-		    rman_get_rid(sc->irq_res), sc->irq_res);
-		sc->irq_res = NULL;
+	for (i = 0; i < CGEM_NUM_TX_DESCS; i++) {
+		if (sc->txring_m_dmamap[i] == NULL)
+			continue;
+		error = bus_dmamap_destroy(sc->mbuf_dma_tag, sc->txring_m_dmamap[i]);
+		if (error != 0)
+			return (error);
+		sc->txring_m_dmamap[i] = NULL;
 	}
-
-	/* Release DMA resources. */
+	if (sc->desc_map_loaded) {
+		bus_dmamap_unload(sc->desc_dma_tag, sc->rxring_dma_map);
+		sc->desc_map_loaded = false;
+		sc->rxring_physaddr = sc->txring_physaddr = sc->null_qs_physaddr = 0;
+	}
 	if (sc->rxring != NULL) {
-		if (sc->rxring_physaddr != 0) {
-			bus_dmamap_unload(sc->desc_dma_tag,
-			    sc->rxring_dma_map);
-			sc->rxring_physaddr = 0;
-			sc->txring_physaddr = 0;
-			sc->null_qs_physaddr = 0;
-		}
-		bus_dmamem_free(sc->desc_dma_tag, sc->rxring,
-				sc->rxring_dma_map);
+		bus_dmamem_free(sc->desc_dma_tag, sc->rxring, sc->rxring_dma_map);
 		sc->rxring = NULL;
 		sc->txring = NULL;
 		sc->null_qs = NULL;
-
-		for (i = 0; i < CGEM_NUM_RX_DESCS; i++)
-			if (sc->rxring_m_dmamap[i] != NULL) {
-				bus_dmamap_destroy(sc->mbuf_dma_tag,
-				    sc->rxring_m_dmamap[i]);
-				sc->rxring_m_dmamap[i] = NULL;
-			}
-		for (i = 0; i < CGEM_NUM_TX_DESCS; i++)
-			if (sc->txring_m_dmamap[i] != NULL) {
-				bus_dmamap_destroy(sc->mbuf_dma_tag,
-				    sc->txring_m_dmamap[i]);
-				sc->txring_m_dmamap[i] = NULL;
-			}
+		sc->rxring_dma_map = NULL;
 	}
 	if (sc->desc_dma_tag != NULL) {
-		bus_dma_tag_destroy(sc->desc_dma_tag);
+		error = bus_dma_tag_destroy(sc->desc_dma_tag);
+		if (error != 0)
+			return (error);
 		sc->desc_dma_tag = NULL;
 	}
 	if (sc->mbuf_dma_tag != NULL) {
-		bus_dma_tag_destroy(sc->mbuf_dma_tag);
+		error = bus_dma_tag_destroy(sc->mbuf_dma_tag);
+		if (error != 0)
+			return (error);
 		sc->mbuf_dma_tag = NULL;
 	}
+	if (sc->ifp != NULL) {
+		if_free(sc->ifp);
+		sc->ifp = NULL;
+	}
+	if (sc->phy_reset != NULL) {
+		if (sc->phy_reset_armed) {
+			error = gpio_pin_set_active(sc->phy_reset, false);
+			if (error != 0)
+				return (error);
+			sc->phy_reset_armed = false;
+		}
+		gpio_pin_release(sc->phy_reset);
+		sc->phy_reset = NULL;
+	}
+	error = cgem_clocks_release(sc);
+	if (error != 0)
+		return (error);
+	if (sc->irq_res != NULL) {
+		error = bus_release_resource(dev, SYS_RES_IRQ, rman_get_rid(sc->irq_res), sc->irq_res);
+		if (error != 0)
+			return (error);
+		sc->irq_res = NULL;
+	}
+	if (sc->mem_res != NULL) {
+		error = bus_release_resource(dev, SYS_RES_MEMORY, rman_get_rid(sc->mem_res), sc->mem_res);
+		if (error != 0)
+			return (error);
+		sc->mem_res = NULL;
+	}
+	if (sc->lock_initialized) {
+		CGEM_LOCK_DESTROY(sc);
+		sc->lock_initialized = false;
+	}
+	return (0);
+}
 
-	if (sc->clk_tsuclk)
-		clk_release(sc->clk_tsuclk);
-	if (sc->clk_rxclk)
-		clk_release(sc->clk_rxclk);
-	if (sc->clk_txclk)
-		clk_release(sc->clk_txclk);
-	if (sc->clk_pclk)
-		clk_release(sc->clk_pclk);
-	if (sc->clk_hclk)
-		clk_release(sc->clk_hclk);
+static void
+cgem_new_pass(device_t dev)
+{
+	struct cgem_softc *sc = device_get_softc(dev);
 
-	CGEM_LOCK_DESTROY(sc);
+	if (!sc->detaching)
+		bus_generic_new_pass(dev);
+}
 
+static void
+cgem_driver_added(device_t dev, driver_t *driver)
+{
+	struct cgem_softc *sc = device_get_softc(dev);
+
+	if (!sc->detaching)
+		bus_generic_driver_added(dev, driver);
+}
+
+static int
+cgem_rescan(device_t dev)
+{
+	struct cgem_softc *sc = device_get_softc(dev);
+
+	if (sc->detaching)
+		return (ENXIO);
+	bus_attach_children(dev);
 	return (0);
 }
 
@@ -1983,6 +2232,9 @@ static device_method_t cgem_methods[] = {
 	DEVMETHOD(device_probe,		cgem_probe),
 	DEVMETHOD(device_attach,	cgem_attach),
 	DEVMETHOD(device_detach,	cgem_detach),
+	DEVMETHOD(bus_new_pass,	cgem_new_pass),
+	DEVMETHOD(bus_driver_added, cgem_driver_added),
+	DEVMETHOD(bus_rescan,	cgem_rescan),
 
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	cgem_miibus_readreg),
@@ -2000,7 +2252,10 @@ static driver_t cgem_driver = {
 };
 
 DRIVER_MODULE(cgem, simplebus, cgem_driver, NULL, NULL);
+DRIVER_MODULE(cgem, rp1, cgem_driver, NULL, NULL);
 DRIVER_MODULE(miibus, cgem, miibus_driver, NULL, NULL);
 MODULE_DEPEND(cgem, miibus, 1, 1, 1);
 MODULE_DEPEND(cgem, ether, 1, 1, 1);
+MODULE_DEPEND(cgem, gpiobus, 1, 1, 1);
 SIMPLEBUS_PNP_INFO(compat_data);
+FDTCOMPAT_PNP_INFO(compat_data, rp1);
