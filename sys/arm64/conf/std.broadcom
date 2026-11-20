@@ -19,6 +19,8 @@ device		pl011
 
 # Ethernet NICs
 device		genet			# Broadcom on RPi4
+device		rp1			# RPi5 peripheral nexus
+device		cgem			# RPi5 RP1 Ethernet
 
 # USB support
 device		dwcotg

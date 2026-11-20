@@ -1,0 +1,68 @@
+{
+  "schema": "daemonarchy/pi5-cgem-candidate/v1",
+  "scope": "RP1 Cadence GEM attachment/platform candidate, with checked generic CGEM ownership cleanup. Native compilation and mocked register/clock/GPIO/DMA tests only.",
+  "sources": {
+    "sys/dev/cadence/if_cgem.c": "3eb02e3c5e9c914bcfe2735784bfcb4f1fd996d03389a77a3720dac700f8e65f",
+    "sys/dev/cadence/if_cgem_hw.h": "13bd8908b3b144ff28d89e5f9333520e73d09fae0c35401a88f01981ade397e8",
+    "sys/modules/if_cgem/Makefile": "d1f1e7f8e93bd9a7357f0546efa45613838c5b68df8f4bd8873c6b6aff017093",
+    "sys/arm64/conf/std.broadcom": "8df25fb197b1dca3cb4ea449f42aef1ea87339400f7d769a4e9d1eeecbf92191",
+    "tools/daemonarchy/tests/pi5-cgem-controls.py": "0410646006af58db4dfb154cf7979327fde072834df5c5a8c7b3e7a8c7c9eb38"
+  },
+  "references": [
+    {
+      "url": "https://reviews.freebsd.org/D58108?id=181533",
+      "role": "BSD RP1 hardware clock quirk and MAC/clock cleanup review; not assumed merged or qualified."
+    },
+    {
+      "url": "https://github.com/raspberrypi/linux/blob/rpi-6.12.y/drivers/net/ethernet/cadence/macb_main.c",
+      "role": "Primary comparison of RP1 fixed125MHz TX, RGMII userIO and DT AXI pipeline semantics; no GPL code copied."
+    },
+    {
+      "url": "https://github.com/raspberrypi/linux/blob/rpi-6.12.y/drivers/net/ethernet/cadence/macb.h",
+      "role": "Primary register-field comparison for AXI read/write pipeline and userIO."
+    }
+  ],
+  "behavior": {
+    "rp1_tx_input_hz": 125000000,
+    "rp1_tx_input_at_10_100_1000": "fixed; MAC divides internally, no pclk/tx_clk rate changes on link changes",
+    "mdio_max_hz": 2500000,
+    "pclk_200mhz_mdio_divisor": 96,
+    "phy_modes": [
+      "rgmii",
+      "rgmii-id",
+      "rgmii-rxid",
+      "rgmii-txid"
+    ],
+    "phy_reset": "MAC-node GPIO acquired with active-low respected; selected5ms assertion and default10ms post delay; failed assertions retain a deassertion owner.",
+    "dma": "Existing CGEM64 rings and parent translated DMA tag retained; require64bit hardware capability for RP1; checked descriptor-load callback and non-contiguous priority nullqueue setup.",
+    "cleanup": "Bounded TX halt/RX disable before DMA release; tracked callout/IRQ/ifnet/child/map/tag/GPIO/clock/resource owners; retry preserves each failed owner and softc."
+  },
+  "validation": {
+    "native_module_sha256": "da4161f5e07e6c6ab83d768a4ea96ecfafc4470c4a334e280a461dd86c5cd4c7",
+    "native_compiler": "FreeBSD clang version 21.1.8 (https://github.com/llvm/llvm-project.git llvmorg-21.1.8-0-g2078da43e25a)",
+    "native_sources": {
+      "if_cgem.c": "3eb02e3c5e9c914bcfe2735784bfcb4f1fd996d03389a77a3720dac700f8e65f",
+      "if_cgem_hw.h": "13bd8908b3b144ff28d89e5f9333520e73d09fae0c35401a88f01981ade397e8",
+      "Makefile": "bf9ac8bac15a56931f31f5f17eb62585efdab5ef05c215d31d9e13c869f39845"
+    },
+    "original_makefile_sha256": "d1f1e7f8e93bd9a7357f0546efa45613838c5b68df8f4bd8873c6b6aff017093",
+    "native_build_exit": 0,
+    "native_build_note": "Original bsd.kmod.mk/if_cgem Makefile with build-only candidate header include root prepended; no install/load. Added missing gpio_if.h/clknode_if.h to source module Makefile.",
+    "production_callbacks": "Clang18/GCC ASan+UBSan pass using production attach, setup_descriptors, stop/reset, detach, PHY, clock, MDIO, AXI, MAC/FDT helper, media and DMA callback code. Faults across acquisitions, callback-only mapping errors, stuckTX timeout and every fallible release/retry; optionalRX-clock absence allowed.",
+    "prior_rp1_controls": "Nexus/GPIO/clock Clang18 controls pass",
+    "controller_suite": {
+      "total": 168,
+      "passed": 163,
+      "skipped": 5
+    },
+    "project_authority": "passed",
+    "freebsd_target_locks": "current",
+    "lifecycle_receipt": "missing"
+  },
+  "limitations": [
+    "No selected Pi5 kernel boot, physical PHY reset/MDIO/link/DHCP/packet traffic or full-RAM DMA acceptance yet.",
+    "Changed generic CGEM cleanup is locally/native-compile tested but not physically regressed on other SoCs.",
+    "RP1 clock provider can calculate lower divider rates, but the Ethernet MAC must keep its TX input125MHz at every link speed. Earlier proposed dynamic Ethernet TX-clock adjustment was incorrect.",
+    "BCM2712/Pi4/legacy SD operation and broader all-Pi hardware matrix remain separate open requirements."
+  ]
+}
