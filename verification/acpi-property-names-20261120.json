@@ -1,0 +1,45 @@
+{
+  "schema": "daemonarchy/acpi-property-name-controls@1",
+  "code_revision": "b1845c398e9",
+  "problem": "acpi_device_get_prop used the firmware key length for prefix comparison, so a request for sdhci-caps-mask matched an earlier sdhci-caps key.",
+  "before": "Actual original function reproduces the wrong 0x0120fa81 result for sdhci-caps-mask when only sdhci-caps exists.",
+  "after": "Require a nonnull firmware string and an exact matching key length before the bounded comparison.",
+  "controls": {
+    "compilers": [
+      "Clang 18",
+      "GCC"
+    ],
+    "sanitizers": [
+      "AddressSanitizer",
+      "UndefinedBehaviorSanitizer"
+    ],
+    "source": "tools/daemonarchy/tests/acpi-property-name-controls.py",
+    "cases": [
+      "exact key",
+      "shorter and longer prefix",
+      "prefix keys in either order",
+      "case mismatch",
+      "empty name",
+      "bounded nonterminated name",
+      "null firmware string",
+      "wrong package type/count",
+      "wrong name type",
+      "null query or ivars",
+      "cached missing property",
+      "failed property discovery",
+      "query without output value"
+    ],
+    "baseline_reproduced": true,
+    "fixed_pass": true
+  },
+  "native_combined_kernel": {
+    "revision": "602327bafcb923ef91a6a44e8c9f431634396c99",
+    "kernel_sha256": "52c25e1780cafc1fcc91554110d1d11d2d0df2df8256cae2b1aa9a0a3c22b238",
+    "scope": "Full original native GENERIC link with two changed objects over the previously built Pi stack; includes separate reservation fix and legacy SD driver. Not native execution or physical acceptance of this independent branch."
+  },
+  "physical_acceptance": "pending",
+  "CI": "Disabled at operator request; local/native testing only",
+  "standard_lifecycle": "No receipt or per-unit admission claimed",
+  "production_source_sha256": "40f0164527f6bb8ec15bb8954fa804ce2de8ade28a4596843d3cd684fc3c87af",
+  "control_sha256": "6f226bca651a6ca679de461c468ad1875de21fd83a445b79a17840d96f2f2b19"
+}
