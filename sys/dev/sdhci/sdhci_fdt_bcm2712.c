@@ -79,6 +79,7 @@ struct bcm2712_sdhci_softc {
 	bool		clock_enabled;
 	bool		slot_initialized;
 	bool		cfg_saved;
+	bool		detaching;
 	uint32_t	cfg_ctrl;
 	uint32_t	cfg_mode;
 	uint32_t	max_frequency;
@@ -126,41 +127,83 @@ bcm2712_supply_power(struct bcm2712_supply *s, bool on)
 	return (error);
 }
 
-static void
+static int
 bcm2712_supply_release(device_t dev, struct bcm2712_supply *s)
 {
 	int error;
 
 	if (s->reg == NULL)
-		return;
+		return (0);
 	error = bcm2712_supply_power(s, false);
 	if (error != 0)
-		device_printf(dev, "cannot release regulator enable: %d\n", error);
+		return (error);
 	if (s->voltage_set) {
 		error = regulator_set_voltage(s->reg, s->original_uv,
 		    s->original_uv);
 		if (error != 0)
-			device_printf(dev, "cannot restore regulator voltage: %d\n",
-			    error);
+			return (error);
+		s->voltage_set = false;
 	}
-	regulator_release(s->reg);
+	error = regulator_release(s->reg);
+	if (error != 0)
+		return (error);
 	s->reg = NULL;
+	return (0);
 }
 
-static void
+/* Confirm reset completion before the core is allowed to release DMA memory. */
+static int
+bcm2712_sdhci_quiesce(device_t dev)
+{
+	struct bcm2712_sdhci_softc *sc = device_get_softc(dev);
+	struct sdhci_slot *slot = &sc->base.slots[0];
+	int error = ETIMEDOUT;
+
+	mtx_lock(&slot->mtx);
+	SDHCI_WRITE_4(dev, slot, SDHCI_SIGNAL_ENABLE, 0);
+	SDHCI_WRITE_4(dev, slot, SDHCI_INT_ENABLE, 0);
+	if (SDHCI_READ_4(dev, slot, SDHCI_SIGNAL_ENABLE) != 0) {
+		error = EIO;
+		goto out;
+	}
+	SDHCI_WRITE_1(dev, slot, SDHCI_SOFTWARE_RESET, SDHCI_RESET_ALL);
+	for (unsigned i = 0; i < 10000; i++) {
+		if ((SDHCI_READ_1(dev, slot, SDHCI_SOFTWARE_RESET) & SDHCI_RESET_ALL) == 0) {
+			error = 0;
+			break;
+		}
+		DELAY(10);
+	}
+ out:
+	mtx_unlock(&slot->mtx);
+	return (error);
+}
+
+static int
 bcm2712_sdhci_release(device_t dev)
 {
 	struct bcm2712_sdhci_softc *sc = device_get_softc(dev);
 	struct sdhci_fdt_softc *base = &sc->base;
-	int rid;
+	int error;
 
+	sc->detaching = true;
+	if (sc->slot_initialized) {
+		error = bcm2712_sdhci_quiesce(dev);
+		if (error != 0)
+			return (error);
+	}
 	if (base->intrhand != NULL) {
-		bus_teardown_intr(dev, base->irq_res, base->intrhand);
+		error = bus_teardown_intr(dev, base->irq_res, base->intrhand);
+		if (error != 0)
+			return (error);
 		base->intrhand = NULL;
 	}
 	if (sc->slot_initialized) {
-		sdhci_cleanup_slot(&base->slots[0]);
+		error = sdhci_cleanup_slot(&base->slots[0]);
+		if (error != 0)
+			return (error);
 		sc->slot_initialized = false;
+		base->num_slots = 0;
 	}
 	if (sc->cd_pin != NULL) {
 		gpio_pin_release(sc->cd_pin);
@@ -173,33 +216,50 @@ bcm2712_sdhci_release(device_t dev)
 	if (sc->cfg_saved) {
 		bus_write_4(sc->cfg, BCM2712_CFG_CTRL, sc->cfg_ctrl);
 		bus_write_4(sc->cfg, BCM2712_CFG_MAX_50MHZ, sc->cfg_mode);
+		if ((bus_read_4(sc->cfg, BCM2712_CFG_CTRL) & 0xc0000000U) !=
+		    (sc->cfg_ctrl & 0xc0000000U) ||
+		    (bus_read_4(sc->cfg, BCM2712_CFG_MAX_50MHZ) & 0x80000001U) !=
+		    (sc->cfg_mode & 0x80000001U))
+			return (EIO);
 		sc->cfg_saved = false;
 	}
-	bcm2712_supply_release(dev, &sc->vqmmc);
-	bcm2712_supply_release(dev, &sc->vmmc);
+	error = bcm2712_supply_release(dev, &sc->vqmmc);
+	if (error != 0)
+		return (error);
+	error = bcm2712_supply_release(dev, &sc->vmmc);
+	if (error != 0)
+		return (error);
 	if (sc->clock_enabled) {
-		clk_disable(sc->clock);
+		error = clk_disable(sc->clock);
+		if (error != 0)
+			return (error);
 		sc->clock_enabled = false;
 	}
 	if (sc->clock != NULL) {
-		clk_release(sc->clock);
+		error = clk_release(sc->clock);
+		if (error != 0)
+			return (error);
 		sc->clock = NULL;
 	}
 	if (base->irq_res != NULL) {
-		rid = 0;
-		bus_release_resource(dev, SYS_RES_IRQ, rid, base->irq_res);
+		error = bus_release_resource(dev, SYS_RES_IRQ, 0, base->irq_res);
+		if (error != 0)
+			return (error);
 		base->irq_res = NULL;
 	}
 	if (sc->cfg != NULL) {
-		rid = 1;
-		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->cfg);
+		error = bus_release_resource(dev, SYS_RES_MEMORY, 1, sc->cfg);
+		if (error != 0)
+			return (error);
 		sc->cfg = NULL;
 	}
 	if (base->mem_res[0] != NULL) {
-		rid = 0;
-		bus_release_resource(dev, SYS_RES_MEMORY, rid, base->mem_res[0]);
+		error = bus_release_resource(dev, SYS_RES_MEMORY, 0, base->mem_res[0]);
+		if (error != 0)
+			return (error);
 		base->mem_res[0] = NULL;
 	}
+	return (0);
 }
 
 static int
@@ -268,12 +328,29 @@ bcm2712_sdhci_readonly(device_t dev, device_t child)
 	return (active ^ sc->base.wp_inverted);
 }
 
+/* Restore only enables acquired by the failed IOS transaction. */
+static int
+bcm2712_supply_rollback(struct bcm2712_sdhci_softc *sc, bool vmmc_was_on,
+    bool vqmmc_was_on)
+{
+	int error;
+
+	if (!vqmmc_was_on) {
+		error = bcm2712_supply_power(&sc->vqmmc, false);
+		if (error != 0)
+			return (error);
+	}
+	if (!vmmc_was_on)
+		return (bcm2712_supply_power(&sc->vmmc, false));
+	return (0);
+}
+
 static int
 bcm2712_sdhci_update_ios(device_t dev, device_t child)
 {
 	struct bcm2712_sdhci_softc *sc = device_get_softc(dev);
 	struct sdhci_slot *slot = device_get_ivars(child);
-	int error;
+	int error, rollback;
 	bool vmmc_was_on, vqmmc_was_on;
 
 	if (slot->host.ios.power_mode != power_off &&
@@ -286,18 +363,14 @@ bcm2712_sdhci_update_ios(device_t dev, device_t child)
 		if (error == 0)
 			error = bcm2712_supply_power(&sc->vqmmc, true);
 		if (error != 0) {
-			if (!vmmc_was_on)
-				bcm2712_supply_power(&sc->vmmc, false);
-			return (error);
+			rollback = bcm2712_supply_rollback(sc, vmmc_was_on, vqmmc_was_on);
+			return (rollback != 0 ? rollback : error);
 		}
 	}
 	error = sdhci_generic_update_ios(dev, child);
 	if (error != 0) {
-		if (!vqmmc_was_on)
-			bcm2712_supply_power(&sc->vqmmc, false);
-		if (!vmmc_was_on)
-			bcm2712_supply_power(&sc->vmmc, false);
-		return (error);
+		rollback = bcm2712_supply_rollback(sc, vmmc_was_on, vqmmc_was_on);
+		return (rollback != 0 ? rollback : error);
 	}
 	if (slot->host.ios.power_mode != power_off)
 		return (error);
@@ -322,7 +395,8 @@ bcm2712_sdhci_intr(void *arg)
 {
 	struct bcm2712_sdhci_softc *sc = arg;
 
-	sdhci_generic_intr(&sc->base.slots[0]);
+	if (!sc->detaching)
+		sdhci_generic_intr(&sc->base.slots[0]);
 }
 
 static int
@@ -492,7 +566,10 @@ bcm2712_sdhci_attach(device_t dev)
 	return (0);
 fail:
 	device_printf(dev, "bootstrap attach failed at %s: %d\n", stage, error);
-	bcm2712_sdhci_release(dev);
+	if (bcm2712_sdhci_release(dev) != 0) {
+		device_printf(dev, "retaining unavailable controller after cleanup failure\n");
+		return (0);
+	}
 	return (error);
 }
 
@@ -504,7 +581,35 @@ bcm2712_sdhci_detach(device_t dev)
 	error = bus_generic_detach(dev);
 	if (error != 0)
 		return (error);
-	bcm2712_sdhci_release(dev);
+	return (bcm2712_sdhci_release(dev));
+}
+
+static void
+bcm2712_sdhci_new_pass(device_t dev)
+{
+	struct bcm2712_sdhci_softc *sc = device_get_softc(dev);
+
+	if (!sc->detaching)
+		bus_generic_new_pass(dev);
+}
+
+static void
+bcm2712_sdhci_driver_added(device_t dev, driver_t *driver)
+{
+	struct bcm2712_sdhci_softc *sc = device_get_softc(dev);
+
+	if (!sc->detaching)
+		bus_generic_driver_added(dev, driver);
+}
+
+static int
+bcm2712_sdhci_rescan(device_t dev)
+{
+	struct bcm2712_sdhci_softc *sc = device_get_softc(dev);
+
+	if (sc->detaching)
+		return (ENXIO);
+	bus_attach_children(dev);
 	return (0);
 }
 
@@ -512,6 +617,9 @@ static device_method_t bcm2712_sdhci_methods[] = {
 	DEVMETHOD(device_probe,		bcm2712_sdhci_probe),
 	DEVMETHOD(device_attach,		bcm2712_sdhci_attach),
 	DEVMETHOD(device_detach,		bcm2712_sdhci_detach),
+	DEVMETHOD(bus_new_pass,		bcm2712_sdhci_new_pass),
+	DEVMETHOD(bus_driver_added,	bcm2712_sdhci_driver_added),
+	DEVMETHOD(bus_rescan,		bcm2712_sdhci_rescan),
 	DEVMETHOD(sdhci_read_4,		bcm2712_sdhci_read_4),
 	DEVMETHOD(sdhci_set_clock,	bcm2712_sdhci_set_clock),
 	DEVMETHOD(sdhci_get_card_present,	bcm2712_sdhci_present),
