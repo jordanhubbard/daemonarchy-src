@@ -1,0 +1,93 @@
+{
+  "schema": "daemonarchy/bcm2847-acpi-sd@1",
+  "code_revision": "5a091841f3c156b377495eaff009ab5e96dcf6ee",
+  "depends_on": [
+    "PR112 BCM2711 ACPI SD baseline",
+    "PR117 ACPI container reservation fix for eMMC2 runtime",
+    "PR118 exact ACPI property names"
+  ],
+  "implementation": [
+    "BCM2847 HID profile with original BSD-licensed Arasan 32-bit-only accessors, paired block/command writes and two-card-clock-cycle write spacing",
+    "firmware _DSD capabilities and mandatory 3.3V/base clock; retain eight-bit MHz clock even on SDHCI 2.0",
+    "initial PIO/3.3V mode with DMA and UHS disabled even under quirk overrides",
+    "RF_SHAREABLE for BCM2847 and BRCME88C because firmware can publish the same SD interrupt"
+  ],
+  "source_sha256": {
+    "sys/dev/sdhci/sdhci_acpi.c": "441bb9a33ea8061342310f0a7f8f50102cbfb16da8cd7f0ef344ee5eace2d9e2",
+    "sys/dev/sdhci/sdhci_acpi_bcm2835.h": "ff52b49c16b59438f8476cf7f3f75e0877fc2284577f9a725906b916b94f769e",
+    "tools/daemonarchy/tests/bcm2847-acpi-sd-controls.py": "e6be044e47a2ee3a5eb27d204fdd1e91f55e3cd2676cef7b42c4525f6fe00801",
+    "tools/daemonarchy/tests/pi4-acpi-sd-controls.py": "afef2a1da64acef9472fc1e580bf99b5649b18641b5c6201bc5d5f903f32250e"
+  },
+  "original_fdt_source_unchanged_sha256": "0f838457278955a8de6fc96e4a48727287e5de366effd7707ff4b19fa2215359",
+  "native": {
+    "combined_revision": "602327bafcb923ef91a6a44e8c9f431634396c99",
+    "kernel_sha256": "52c25e1780cafc1fcc91554110d1d11d2d0df2df8256cae2b1aa9a0a3c22b238",
+    "full_kernel_sha256": "ea676a94cfa1b3c328fb0e886a1e904d252e980847d7390109ec1ad6c35329af",
+    "source_sha256": {
+      "acpi.c": "e80a8adb49eec1e7fa7e35a79e42ca099c04530ab862f639c2d0d6e2d8c8f752",
+      "sdhci_acpi.c": "441bb9a33ea8061342310f0a7f8f50102cbfb16da8cd7f0ef344ee5eace2d9e2",
+      "sdhci_acpi_bcm2835.h": "ff52b49c16b59438f8476cf7f3f75e0877fc2284577f9a725906b916b94f769e"
+    },
+    "link": "original native GENERIC recipes with original vers.o and two changed objects; previous original-object baseline runtime sections verified; nonloadable CTF metadata is not whole-file reproducibility",
+    "independent_source_object_and_product_readback": true,
+    "all_original_objects_unchanged_verified": true
+  },
+  "controls": {
+    "compilers": [
+      "Clang18",
+      "GCC"
+    ],
+    "sanitizers": [
+      "ASan",
+      "UBSan"
+    ],
+    "production_callbacks_compiled": true,
+    "cases": [
+      "subword accesses use only aligned 32-bit MMIO",
+      "top-byte/halfword values and shift behavior",
+      "command/transfer ordering",
+      "block-size/count caching and hardware count updates",
+      "write spacing across clocks",
+      "required firmware properties and fixed 250MHz clock",
+      "caps masks and forced-DMA override",
+      "shared IRQ flags for both Broadcom IDs",
+      "four attach failure paths",
+      "other HIDs retain original subword accesses"
+    ]
+  },
+  "model_runtime": {
+    "BRCME88C": {
+      "all_checks_pass": true,
+      "check_count": 28,
+      "bus_verified_before_guest_cpu_run": "/machine/soc/peripherals/emmc2/sd-bus",
+      "data_clock_MHz": 26.0,
+      "sd_payload_bytes": 1048576,
+      "sd_payload_sha256": "2b5c38aeb75483c43574490665aaf989ebc19d92132c6b4776d05300a309beca",
+      "payload_offset": 1048576,
+      "whole_64MiB_backing_and_unchanged_other_bytes_verified": true,
+      "ethernet": "native GENET ACPI DHCP, verified SSH host key, bidirectional 1MiB payload hashes and packet counters",
+      "guest_exit": "natural clean reset",
+      "input_unchanged": true,
+      "result_sha256": "2bbbb851c19e284be2bbd69f66bca03900c30022bbbaacf9b55b780f18e84fe7"
+    },
+    "BCM2847": {
+      "all_checks_pass": true,
+      "check_count": 28,
+      "bus_verified_before_guest_cpu_run": "/machine/soc/peripherals/sdhci/sd-bus",
+      "data_clock_MHz": 41.6,
+      "sd_payload_bytes": 1048576,
+      "sd_payload_sha256": "76da8394a5b8b68ea0f745c50a2558cb9a7695076584fe0161b10c503b2ff91c",
+      "payload_offset": 1048576,
+      "whole_64MiB_backing_and_unchanged_other_bytes_verified": true,
+      "ethernet": "native GENET ACPI DHCP, verified SSH host key, bidirectional 1MiB payload hashes and packet counters",
+      "guest_exit": "natural clean reset",
+      "input_unchanged": true,
+      "result_sha256": "07b2b93c2f20fe028022153f467b81d553c70715a3bb925ac21eb6f9522b9fe8"
+    }
+  },
+  "runtime_cohort": "new kernel over retained older source99 FreeBSD16 diagnostic userland/EFI loader; no loadable modules; private mixed-source diagnostic cohort, not a matched-source release",
+  "platform_scope": "Pi4 UEFI/ACPI partial BCM2711 model only; legacy controller transfer is not physical Pi3/Zero2/CM carrier qualification",
+  "physical_io_acceptance": "pending on every profile; Pi5 firmware/U-Boot/kernel entry remains unproven",
+  "standard_lifecycle": "authority and five locks pass on independent branch; configured project test receipt missing, no per-unit admission",
+  "CI": "Disabled per operator request; local/native checks only"
+}
