@@ -1,0 +1,100 @@
+{
+  "schema": "daemonarchy/acpi-container-reservation-candidate/v1",
+  "revision": "8bf730a4682e96c19fee902ada6a85e2ede900e1",
+  "source_sha256": "319586d4016c7fca658ebbe46519e7f4933d947b5d2ac5d3b47f7690998498e6",
+  "controls_sha256": "2e6fe4b1c8612405d6cbe9f19e06d307b14202ec8d81049740706ba2de26acaa",
+  "problem": "The flat ACPI reservation pass assigns the GDV1 memory window before its enabled BRCME88C namespace child, preventing later SDHCI MMIO allocation.",
+  "policy": "Only exact memory/I/O resource duplicates of enabled immediate namespace children on the same flat ACPI bus are deferred from ACPI0004 containers. Partial, unrelated, disabled, missing and already-owned reservations are preserved.",
+  "host_controls": {
+    "baseline_production_function_reproduces_conflict": true,
+    "clang18_ASan_UBSan": "pass",
+    "GCC_ASan_UBSan": "pass",
+    "controller_suite": {
+      "tests": 168,
+      "skipped": 5,
+      "status": "pass"
+    },
+    "project_validation": "pass on independent review branch",
+    "freebsd_component_locks": "current"
+  },
+  "native": {
+    "baseline_revision": "586c8e710a9cd0e961433deaaeda918e77353a3e",
+    "method": "Native FreeBSD16 arm64 Clang21.1.8 compile of the changed ACPI object and original full kernel link/CTF/debuglink steps using unchanged cached objects and vers.o from the successful combined Pi kernel. No original objects or source were modified.",
+    "changed_object_sha256": "d2057ca99730afe2432c9342fb584768439ac32d339e7d9af14585f8b9b74b6d",
+    "original_objects_manifest_sha256": "4e4dcc180362e2bac93572b11cd7a0b475261e1b0b4e2e068f3fdb114b8eab27",
+    "baseline_runtime_sections_byte_identical": true,
+    "baseline_metadata_difference": "Non-loadable SUNW CTF output differs; whole-file reproducibility is not claimed. ELF entry, program headers and other sections match.",
+    "kernel_sha256": "ed5523e5c2b42392bd86253394ff2acc79c7cc3a9c10cff524f6de9b5202a995",
+    "kernel_full_sha256": "abca082e0434a74abc154844d8568b2441331cf36cf07ddb9d3f1db61c784ac8",
+    "original_objects_unchanged": true
+  },
+  "runtime_before": {
+    "unfixed_image_fails_SD_MMIO_allocation": true,
+    "same_emmc2_bus_verified": true,
+    "network_payloads_still_pass": true,
+    "baseline_source_unchanged": true,
+    "disposable_SD_unchanged": true
+  },
+  "runtime_after": {
+    "checks": {
+      "efi_loader": true,
+      "loader_acpi_readback": true,
+      "acpi_four_enabled_cpus": true,
+      "kernel_acpi": true,
+      "native_xhci": true,
+      "native_usb_storage": true,
+      "ufs_root": true,
+      "four_active_cpus": true,
+      "page_size": true,
+      "acpi_profile": true,
+      "fresh_run_label": true,
+      "queue_experiment": true,
+      "all_probes_complete": true,
+      "done_marker": true,
+      "no_ownership_warning": true,
+      "storage_io_clean": true,
+      "guest_physical_memory_bounds": true,
+      "network_handover_genet": true,
+      "fresh_network_diagnostics": true,
+      "scp_bidirectional_sha256": true,
+      "verified_vm_host_key": true,
+      "native_packet_counts": true,
+      "natural_network_continue": true,
+      "native_genet_only": true,
+      "configured_mac": true,
+      "dhcp_ipv4": true,
+      "genet_link_active": true,
+      "sd_backing_has_exact_payload_and_unchanged_other_bytes": true
+    },
+    "image_sha256": "7f61fcd31ff7465ee90e514ce09b5cefcc36c48d61caeefb1c24de2394def406",
+    "emmc2_bus_verified_before_guest_execution": "/machine/soc/peripherals/emmc2/sd-bus",
+    "ethernet": {
+      "driver": "GENET ACPI BCM6E4E",
+      "interface": "genet0",
+      "DHCP_SSH_SCP_bidirectional": true,
+      "payload_bytes": 1048576,
+      "upload_sha256": "a9631e9514e56e6a0801b3cd556281f4f7fb4a19c982a51794644d54d91c7da0",
+      "roundtrip_sha256": "a9631e9514e56e6a0801b3cd556281f4f7fb4a19c982a51794644d54d91c7da0",
+      "download_sha256": "30e14955ebf1352266dc2ff8067e68104607e750abb9d3b36582b8af909fcb58",
+      "host_key_verified": true
+    },
+    "sd": {
+      "driver": "SDHCI ACPI BRCME88C",
+      "mode": "PIO, 3.3V, 4-bit; observed mmcsd0 clock26MHz",
+      "virtual_media_bytes": 67108864,
+      "write_read_bytes": 1048576,
+      "write_offset": 1048576,
+      "readback_sha256": "a9631e9514e56e6a0801b3cd556281f4f7fb4a19c982a51794644d54d91c7da0",
+      "entire_backing_file_matches_payload_and_unchanged_other_bytes": true
+    },
+    "source_image_unchanged": true
+  },
+  "cohort": "New kernel over retained older source99 FreeBSD16 diagnostic userland; no loadable modules. Private model runtime compatibility controls, not matched-source release qualification.",
+  "limitations": [
+    "Physical Pi Ethernet/SD and analog power/timing remain unqualified",
+    "VideoCore/EEPROM boot is bypassed",
+    "Partial BCM2711 model with2GiB RAM; no full-RAM or Pi5/RP1 acceptance",
+    "Lifecycle receipt missing"
+  ],
+  "hosted_ci": "disabled per operator instruction"
+}
