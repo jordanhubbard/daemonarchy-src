@@ -82,6 +82,8 @@ static const struct sdhci_acpi_device {
 	{ "AMDI0040",	0, "AMD eMMC 5.0 Controller",
 	    SDHCI_QUIRK_32BIT_DMA_SIZE |
 	    SDHCI_QUIRK_MMC_HS400_IF_CAN_SDR104 },
+	{ "BRCME88C", 0, "Broadcom BCM2711 eMMC2 SD Controller",
+	    SDHCI_QUIRK_BROKEN_DMA | SDHCI_QUIRK_PRESET_VALUE_BROKEN },
 	{ NULL, 0, NULL, 0}
 };
 
@@ -91,6 +93,7 @@ static char *sdhci_ids[] = {
 	"80865ACA",
 	"80865ACC",
 	"AMDI0040",
+	"BRCME88C",
 	NULL
 };
 
@@ -100,6 +103,8 @@ struct sdhci_acpi_softc {
 	struct resource *irq_res;	/* IRQ resource */
 	void		*intrhand;	/* Interrupt handle */
 	const struct sdhci_acpi_device *acpi_dev;
+	uint64_t	caps_mask;
+	bool		slot_initialized;
 };
 
 static void sdhci_acpi_intr(void *arg);
@@ -154,10 +159,16 @@ sdhci_acpi_read_4(device_t dev, struct sdhci_slot *slot __unused,
     bus_size_t off)
 {
 	struct sdhci_acpi_softc *sc = device_get_softc(dev);
+	uint32_t value;
 
 	bus_barrier(sc->mem_res, 0, 0xFF,
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	return bus_read_4(sc->mem_res, off);
+	value = bus_read_4(sc->mem_res, off);
+	if (off == SDHCI_CAPABILITIES)
+		value &= ~(uint32_t)sc->caps_mask;
+	else if (off == SDHCI_CAPABILITIES2)
+		value &= ~(uint32_t)(sc->caps_mask >> 32);
+	return (value);
 }
 
 static void
@@ -323,6 +334,29 @@ sdhci_acpi_attach(device_t dev)
 		quirks |= SDHCI_QUIRK_MMC_DDR52 | SDHCI_QUIRK_DATA_TIMEOUT_1MHZ;
 	quirks &= ~sdhci_quirk_clear;
 	quirks |= sdhci_quirk_set;
+
+	if (strcmp(acpi_dev->hid, "BRCME88C") == 0) {
+		/*
+		 * Firmware configures the socket clock and pins. Older BCM2711
+		 * revisions have a translated _DMA aperture which this frontend
+		 * cannot yet translate. Use PIO even with global DMA overrides.
+		 * Generic SDHCI voltage switching is also unsupported here.
+		 */
+		if (device_get_property(dev, "sdhci-caps-mask", &sc->caps_mask,
+		    sizeof(sc->caps_mask), DEVICE_PROP_UINT64) !=
+		    sizeof(sc->caps_mask))
+			sc->caps_mask = 0;
+		sc->caps_mask |= SDHCI_CAN_VDD_180 | SDHCI_CAN_VDD_300 |
+		    SDHCI_CAN_DO_DMA |
+		    SDHCI_CAN_DO_ADMA2 |
+		    ((uint64_t)(SDHCI_CAN_SDR50 | SDHCI_CAN_SDR104 |
+		    SDHCI_CAN_DDR50) << 32);
+		quirks &= ~SDHCI_QUIRK_FORCE_DMA;
+		quirks |= SDHCI_QUIRK_BROKEN_DMA |
+		    SDHCI_QUIRK_PRESET_VALUE_BROKEN;
+		device_printf(dev, "using native SDHCI PIO at 3.3 V; "
+		    "DMA and UHS disabled\n");
+	}
 	sc->slot.quirks = quirks;
 
 	err = sdhci_init_slot(dev, &sc->slot, 0);
@@ -331,6 +365,7 @@ sdhci_acpi_attach(device_t dev)
 		sdhci_acpi_detach(dev);
 		return (err);
 	}
+	sc->slot_initialized = true;
 
 	/* Activate the interrupt */
 	err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
@@ -359,7 +394,10 @@ sdhci_acpi_detach(device_t dev)
 		    rman_get_rid(sc->irq_res), sc->irq_res);
 
 	if (sc->mem_res) {
-		sdhci_cleanup_slot(&sc->slot);
+		if (sc->slot_initialized) {
+			sdhci_cleanup_slot(&sc->slot);
+			sc->slot_initialized = false;
+		}
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    rman_get_rid(sc->mem_res), sc->mem_res);
 	}
