@@ -632,7 +632,7 @@ arm64/apple/exynos_uart.c			optional soc_apple_t8103 fdt
 arm64/broadcom/brcmmdio/mdio_mux_iproc.c		optional soc_brcm_ns2 fdt
 arm64/broadcom/brcmmdio/mdio_nexus_iproc.c		optional soc_brcm_ns2 fdt
 arm64/broadcom/brcmmdio/mdio_ns2_pcie_phy.c		optional soc_brcm_ns2 fdt pci
-arm64/broadcom/genet/if_genet.c				optional soc_brcm_bcm2838 fdt genet
+arm64/broadcom/genet/if_genet.c				optional soc_brcm_bcm2838 fdt genet | soc_brcm_bcm2838 acpi genet
 arm/broadcom/bcm2835/bcm2835_audio.c			optional sound vchiq fdt \
 	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
 arm/broadcom/bcm2835/bcm2835_bsc.c			optional bcm2835_bsc fdt
