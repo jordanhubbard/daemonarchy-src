@@ -44,18 +44,20 @@ typedef unsigned u_int;
 #define SYS_RES_IRQ 1
 #define SYS_RES_MEMORY 2
 #define RF_ACTIVE 1
+#define RF_SHAREABLE 4
 #define DEVICE_PROP_UINT64 1
 #define INTR_TYPE_MISC 1
 #define INTR_MPSAFE 2
 struct resource { int rid; };
-struct sdhci_slot { unsigned quirks; };
+struct sdhci_slot { unsigned quirks,max_clk,opt; };
 struct sdhci_acpi_device { const char *hid; int uid; const char *desc; unsigned quirks; };
 struct sdhci_acpi_softc {
  struct sdhci_slot slot;
  struct resource *mem_res,*irq_res;
  void *intrhand;
  const struct sdhci_acpi_device *acpi_dev;
- uint64_t caps_mask;
+ uint64_t caps_mask,firmware_caps;
+ bool bcm_32bit;
  bool slot_initialized;
 };
 static struct sdhci_acpi_softc sc;
@@ -71,7 +73,7 @@ static void *device_get_softc(device_t d) { assert(d==1);return &sc; }
 static void bus_barrier(struct resource *r,int a,int b,int c) {assert(r==&mem&&a==0&&b==0xff&&c==3);barriers++;}
 static uint32_t bus_read_4(struct resource *r,bus_size_t off) {assert(r==&mem);return off==SDHCI_CAPABILITIES?rawcaps:off==SDHCI_CAPABILITIES2?rawcaps2:0x12345678;}
 static const struct sdhci_acpi_device *sdhci_acpi_find_device(device_t d) {assert(d==1);return &selected;}
-static struct resource *bus_alloc_resource_any(device_t d,int type,int *rid,int flags) {assert(d==1&&*rid==0&&flags==RF_ACTIVE);allocations++;if(fail_at==allocations)return NULL;return type==SYS_RES_IRQ?&irq:&mem;}
+static struct resource *bus_alloc_resource_any(device_t d,int type,int *rid,int flags) {assert(d==1&&*rid==0&&flags==(RF_ACTIVE|((type==SYS_RES_IRQ&&(!strcmp(selected.hid,"BCM2847")||!strcmp(selected.hid,"BRCME88C")))?RF_SHAREABLE:0)));allocations++;if(fail_at==allocations)return NULL;return type==SYS_RES_IRQ?&irq:&mem;}
 static int device_printf(device_t d,const char *fmt,...) {(void)d;(void)fmt;return 0;}
 static long device_get_property(device_t d,const char *name,void *out,size_t len,int type) {assert(d==1&&!strcmp(name,"sdhci-caps-mask")&&len==8&&type==DEVICE_PROP_UINT64);*(uint64_t *)out=property;return property_size;}
 static int sdhci_acpi_detach(device_t);

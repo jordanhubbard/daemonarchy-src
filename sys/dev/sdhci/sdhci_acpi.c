@@ -82,6 +82,10 @@ static const struct sdhci_acpi_device {
 	{ "AMDI0040",	0, "AMD eMMC 5.0 Controller",
 	    SDHCI_QUIRK_32BIT_DMA_SIZE |
 	    SDHCI_QUIRK_MMC_HS400_IF_CAN_SDR104 },
+	{ "BCM2847", 0, "Broadcom BCM2835 Arasan SD Controller",
+	    SDHCI_QUIRK_BROKEN_DMA | SDHCI_QUIRK_PRESET_VALUE_BROKEN |
+	    SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
+	    SDHCI_QUIRK_BROKEN_TIMEOUT_VAL | SDHCI_QUIRK_DONT_SET_HISPD_BIT },
 	{ "BRCME88C", 0, "Broadcom BCM2711 eMMC2 SD Controller",
 	    SDHCI_QUIRK_BROKEN_DMA | SDHCI_QUIRK_PRESET_VALUE_BROKEN },
 	{ NULL, 0, NULL, 0}
@@ -93,6 +97,7 @@ static char *sdhci_ids[] = {
 	"80865ACA",
 	"80865ACC",
 	"AMDI0040",
+	"BCM2847",
 	"BRCME88C",
 	NULL
 };
@@ -104,8 +109,15 @@ struct sdhci_acpi_softc {
 	void		*intrhand;	/* Interrupt handle */
 	const struct sdhci_acpi_device *acpi_dev;
 	uint64_t	caps_mask;
+	uint64_t	firmware_caps;
+	uint32_t	blksz_and_count;
+	uint32_t	cmd_and_mode;
+	bool		bcm_32bit;
+	bool		need_update_blk;
 	bool		slot_initialized;
 };
+
+#include "sdhci_acpi_bcm2835.h"
 
 static void sdhci_acpi_intr(void *arg);
 static int sdhci_acpi_detach(device_t dev);
@@ -115,6 +127,9 @@ sdhci_acpi_read_1(device_t dev, struct sdhci_slot *slot __unused,
     bus_size_t off)
 {
 	struct sdhci_acpi_softc *sc = device_get_softc(dev);
+
+	if (sc->bcm_32bit)
+		return (sdhci_acpi_bcm_read_1(dev, slot, off));
 
 	bus_barrier(sc->mem_res, 0, 0xFF,
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
@@ -127,6 +142,11 @@ sdhci_acpi_write_1(device_t dev, struct sdhci_slot *slot __unused,
 {
 	struct sdhci_acpi_softc *sc = device_get_softc(dev);
 
+	if (sc->bcm_32bit) {
+		sdhci_acpi_bcm_write_1(dev, slot, off, val);
+		return;
+	}
+
 	bus_barrier(sc->mem_res, 0, 0xFF,
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	bus_write_1(sc->mem_res, off, val);
@@ -137,6 +157,9 @@ sdhci_acpi_read_2(device_t dev, struct sdhci_slot *slot __unused,
     bus_size_t off)
 {
 	struct sdhci_acpi_softc *sc = device_get_softc(dev);
+
+	if (sc->bcm_32bit)
+		return (sdhci_acpi_bcm_read_2(dev, slot, off));
 
 	bus_barrier(sc->mem_res, 0, 0xFF,
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
@@ -149,6 +172,11 @@ sdhci_acpi_write_2(device_t dev, struct sdhci_slot *slot __unused,
 {
 	struct sdhci_acpi_softc *sc = device_get_softc(dev);
 
+	if (sc->bcm_32bit) {
+		sdhci_acpi_bcm_write_2(dev, slot, off, val);
+		return;
+	}
+
 	bus_barrier(sc->mem_res, 0, 0xFF,
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	bus_write_2(sc->mem_res, off, val);
@@ -160,6 +188,11 @@ sdhci_acpi_read_4(device_t dev, struct sdhci_slot *slot __unused,
 {
 	struct sdhci_acpi_softc *sc = device_get_softc(dev);
 	uint32_t value;
+
+	if (sc->bcm_32bit && off == SDHCI_CAPABILITIES)
+		return ((uint32_t)(sc->firmware_caps & ~sc->caps_mask));
+	if (sc->bcm_32bit && off == SDHCI_CAPABILITIES2)
+		return ((uint32_t)((sc->firmware_caps & ~sc->caps_mask) >> 32));
 
 	bus_barrier(sc->mem_res, 0, 0xFF,
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
@@ -176,6 +209,11 @@ sdhci_acpi_write_4(device_t dev, struct sdhci_slot *slot __unused,
     bus_size_t off, uint32_t val)
 {
 	struct sdhci_acpi_softc *sc = device_get_softc(dev);
+
+	if (sc->bcm_32bit) {
+		sdhci_acpi_bcm_wr4(sc, off, val);
+		return;
+	}
 
 	bus_barrier(sc->mem_res, 0, 0xFF,
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
@@ -294,7 +332,7 @@ static int
 sdhci_acpi_attach(device_t dev)
 {
 	struct sdhci_acpi_softc *sc = device_get_softc(dev);
-	int rid, err;
+	int rid, err, irqflags;
 	u_int quirks;
 	const struct sdhci_acpi_device *acpi_dev;
 
@@ -304,11 +342,39 @@ sdhci_acpi_attach(device_t dev)
 
 	sc->acpi_dev = acpi_dev;
 	quirks = acpi_dev->quirks;
+	sc->bcm_32bit = strcmp(acpi_dev->hid, "BCM2847") == 0;
+	if (sc->bcm_32bit) {
+		/*
+		 * The legacy block has no useful hardware capability registers.
+		 * Require firmware's clock/capabilities rather than guess a clock.
+		 */
+		if (device_get_property(dev, "sdhci-caps", &sc->firmware_caps,
+		    sizeof(sc->firmware_caps), DEVICE_PROP_UINT64) !=
+		    sizeof(sc->firmware_caps) ||
+		    (sc->firmware_caps & SDHCI_CLOCK_V3_BASE_MASK) == 0 ||
+		    (sc->firmware_caps & SDHCI_CAN_VDD_330) == 0) {
+			device_printf(dev, "missing or invalid firmware SDHCI capabilities\n");
+			return (ENXIO);
+		}
+		/*
+		 * Firmware supplies an eight-bit MHz clock (250 on EDK2).
+		 * Preserve it even if HOST_VERSION advertises SDHCI 2.0, whose
+		 * generic six-bit capabilities decoder would truncate it.
+		 */
+		sc->slot.max_clk = ((sc->firmware_caps &
+		    SDHCI_CLOCK_V3_BASE_MASK) >> SDHCI_CLOCK_BASE_SHIFT) *
+		    1000000;
+		sc->slot.opt |= SDHCI_MAX_CLK_FIXED;
+	}
 
+	/* BCM2847 and eMMC2 can share the firmware's SD interrupt. */
+	irqflags = RF_ACTIVE;
+	if (sc->bcm_32bit || strcmp(acpi_dev->hid, "BRCME88C") == 0)
+		irqflags |= RF_SHAREABLE;
 	/* Allocate IRQ. */
 	rid = 0;
 	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-		RF_ACTIVE);
+	    irqflags);
 	if (sc->irq_res == NULL) {
 		device_printf(dev, "can't allocate IRQ\n");
 		return (ENOMEM);
@@ -335,7 +401,7 @@ sdhci_acpi_attach(device_t dev)
 	quirks &= ~sdhci_quirk_clear;
 	quirks |= sdhci_quirk_set;
 
-	if (strcmp(acpi_dev->hid, "BRCME88C") == 0) {
+	if (sc->bcm_32bit || strcmp(acpi_dev->hid, "BRCME88C") == 0) {
 		/*
 		 * Firmware configures the socket clock and pins. Older BCM2711
 		 * revisions have a translated _DMA aperture which this frontend
@@ -356,6 +422,12 @@ sdhci_acpi_attach(device_t dev)
 		    SDHCI_QUIRK_PRESET_VALUE_BROKEN;
 		device_printf(dev, "using native SDHCI PIO at 3.3 V; "
 		    "DMA and UHS disabled\n");
+	}
+	if (sc->bcm_32bit) {
+		/* These are hardware restrictions, including with tunable overrides. */
+		quirks |= SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
+		    SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
+		    SDHCI_QUIRK_DONT_SET_HISPD_BIT;
 	}
 	sc->slot.quirks = quirks;
 
