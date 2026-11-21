@@ -3,11 +3,11 @@
   "platform_register_revision": "89f94c28cc7a510856a112c2321e8e954daf56cf",
   "platform_register": "docs/roadmap/arm-platforms.json in daemonarchy product",
   "scope": "Source coverage audit across registered Raspberry Pi profiles. All physical I/O acceptance remains pending; no platform feature or release gate is promoted by this audit.",
-  "source_revision": "5c2fc255dc8bf723041533c9b0d5027c0bee42cc",
+  "source_revision": "602327bafcb923ef91a6a44e8c9f431634396c99",
   "source_evidence": {
     "sys/arm/broadcom/bcm2835/bcm2835_sdhost.c": "96cfb30cf77e788e2237830c168cbc70ab31c7aad3ad4de32cc0c91745477280",
     "sys/arm/broadcom/bcm2835/bcm2835_sdhci.c": "0f838457278955a8de6fc96e4a48727287e5de366effd7707ff4b19fa2215359",
-    "sys/dev/sdhci/sdhci_acpi.c": "e86ff625495a26cc25cdcb1044535b5e3686c2a7d36902ac41783f60dadf7b08",
+    "sys/dev/sdhci/sdhci_acpi.c": "441bb9a33ea8061342310f0a7f8f50102cbfb16da8cd7f0ef344ee5eace2d9e2",
     "sys/dev/sdhci/sdhci_fdt_bcm2712.c": "37433a02fb50ebb37bee3344fc9d0092b69489c96e49625b47e1d0a9fd5d7d82",
     "sys/arm64/broadcom/bcm2712_pinctrl.c": "aebf0323bf61571cce01e777c66f19a39e912792c1346fb174c693550a5b66de",
     "sys/dev/gpio/bcmstb_gpio.c": "82a3e45f31373d393561726178ab52c25112afc71e58eaaab3aa126d871ff574",
@@ -21,7 +21,8 @@
     "sys/arm64/broadcom/rp1_gpio.c": "e75120aa173670b25ac009857f6549360302e5fba28691e6e27f03c81cbd7f1a",
     "sys/arm64/broadcom/rp1_clock.c": "eb69f01bde195082bf589de739b69c683435ae65d579a098d57c1463e28a36bc",
     "sys/contrib/device-tree/src/arm/broadcom/bcm2837-rpi-3-b.dts": "9912da1723ee565b862964af4b51b1d81646455677a5c22a0f3870556157a6e9",
-    "sys/dev/acpica/acpi.c": "319586d4016c7fca658ebbe46519e7f4933d947b5d2ac5d3b47f7690998498e6"
+    "sys/dev/acpica/acpi.c": "e80a8adb49eec1e7fa7e35a79e42ca099c04530ab862f639c2d0d6e2d8c8f752",
+    "sys/dev/sdhci/sdhci_acpi_bcm2835.h": "ff52b49c16b59438f8476cf7f3f75e0877fc2284577f9a725906b916b94f769e"
   },
   "profiles": [
     {
@@ -29,11 +30,11 @@
       "work_item": "RPI-001",
       "physical_io_qualification": "pending",
       "ethernet": "BCM2711 GENET: existing FDT frontend plus ACPI BCM6E4E candidate PR113",
-      "native_sd": "BCM2711 SDHCI: existing FDT frontend plus ACPI BRCME88C candidate PR112",
+      "native_sd": "BCM2711 eMMC2 ACPI BRCME88C PR112 plus exact container reservation fix PR117; legacy BCM2847 Arasan ACPI and shared SD IRQs PR119, exact firmware property lookup PR118; existing FDT drivers retained",
       "remaining": [
         "Physical candidate attach, link/DHCP/packet transfers and SD read/write",
         "Model-specific firmware tables, CM carrier/eMMC mapping and full-RAM DMA",
-        "Legacy BCM2847 ACPI controller frontend remains missing"
+        "Physical legacy BCM2847 pin routing and card I/O; carrier-specific firmware remains unqualified"
       ]
     },
     {
@@ -41,11 +42,11 @@
       "work_item": "RPI-001",
       "physical_io_qualification": "pending",
       "ethernet": "BCM2711 GENET: existing FDT frontend plus ACPI BCM6E4E candidate PR113",
-      "native_sd": "BCM2711 SDHCI: existing FDT frontend plus ACPI BRCME88C candidate PR112",
+      "native_sd": "BCM2711 eMMC2 ACPI BRCME88C PR112 plus exact container reservation fix PR117; legacy BCM2847 Arasan ACPI and shared SD IRQs PR119, exact firmware property lookup PR118; existing FDT drivers retained",
       "remaining": [
         "Physical candidate attach, link/DHCP/packet transfers and SD read/write",
         "Model-specific firmware tables, CM carrier/eMMC mapping and full-RAM DMA",
-        "Legacy BCM2847 ACPI controller frontend remains missing"
+        "Physical legacy BCM2847 pin routing and card I/O; carrier-specific firmware remains unqualified"
       ]
     },
     {
@@ -53,18 +54,19 @@
       "work_item": "RPI-001",
       "physical_io_qualification": "pending",
       "ethernet": "BCM2711 GENET: existing FDT frontend plus ACPI BCM6E4E candidate PR113",
-      "native_sd": "BCM2711 SDHCI: existing FDT frontend plus ACPI BRCME88C candidate PR112; duplicate ACPI container window ownership repaired by PR117",
+      "native_sd": "BCM2711 eMMC2 ACPI BRCME88C PR112 plus exact container reservation fix PR117; legacy BCM2847 Arasan ACPI and shared SD IRQs PR119, exact firmware property lookup PR118; existing FDT drivers retained",
       "remaining": [
         "Physical candidate attach, link/DHCP/packet transfers and SD read/write",
         "Model-specific firmware tables, CM carrier/eMMC mapping and full-RAM DMA",
-        "Legacy BCM2847 ACPI controller frontend remains missing"
+        "Physical legacy BCM2847 pin routing and card I/O; carrier-specific firmware remains unqualified"
       ],
       "model_runtime_evidence": {
-        "receipt": "verification/acpi-container-reservations-20261120.json",
-        "source_stack": "586c8e7 plus ACPI resource ownership fix 8bf730a4682",
+        "receipt": "verification/bcm2847-acpi-sd-20261120.json",
+        "source_stack": "602327bafcb923ef91a6a44e8c9f431634396c99",
         "platform": "Pi4 UEFI/ACPI partial BCM2711 model, 2GiB RAM",
-        "ethernet": "DHCP, authenticated SSH, bidirectional 1MiB payload hashes and native packet counters pass",
-        "sd": "BRCME88C eMMC2 PIO at3.3V; 1MiB SD write/read and whole disposable backing check pass",
+        "ethernet": "Actual GENET DHCP, strict-key SSH, bidirectional1MiB payloads and native counters pass in both SD runs",
+        "sd": "Separately BCM2847 legacy at41.6MHz and BRCME88C eMMC2 at26MHz, PIO3.3V; each1MiB write/read and whole64MiB backing unchanged-other-bytes check pass",
+        "coexistence": "Both controllers attach with shared interrupt; firmware capability lookup and fixed base clock verified",
         "physical_acceptance": "pending"
       }
     },
@@ -143,21 +145,23 @@
       "work_item": "ARM-008",
       "physical_io_qualification": "pending",
       "ethernet": "Existing USB Ethernet drivers if_smsc/if_muge on equipped variants; Zero2 needs separate external adapter identity",
-      "native_sd": "Existing BCM2835 SDHOST/SDHCI FDT drivers",
+      "native_sd": "Existing BCM2835 SDHOST/SDHCI FDT drivers; BCM2847 ACPI frontend candidate PR119 with exact _DSD names PR118, model-specific firmware enrollment pending",
       "remaining": [
         "Model-specific firmware/controller enrollment and ARMv7/arm64 build/boot controls",
-        "Physical enumeration, network and SD transfers; no existing-source presence treated as qualification"
+        "Physical enumeration, network and SD transfers; no existing-source presence treated as qualification",
+        "BCM2855 SDHOST ACPI frontend remains absent; original FDT SDHOST support retained"
       ]
     },
     {
       "id": "pi3",
       "work_item": "ARM-008",
       "physical_io_qualification": "pending",
-      "ethernet": "Existing USB Ethernet drivers if_smsc/if_muge on equipped variants; Zero2 needs separate external adapter identity",
-      "native_sd": "Existing BCM2835 SDHOST/SDHCI FDT drivers",
+      "ethernet": "Existing USB Ethernet drivers if_smsc/if_muge on equipped Pi3 variants; model-specific adapter enrollment and runtime tests pending",
+      "native_sd": "Existing BCM2835 SDHOST/SDHCI FDT drivers; BCM2847 ACPI frontend candidate PR119 with exact _DSD names PR118, model-specific firmware enrollment pending",
       "remaining": [
         "Model-specific firmware/controller enrollment and ARMv7/arm64 build/boot controls",
-        "Physical enumeration, network and SD transfers; no existing-source presence treated as qualification"
+        "Physical enumeration, network and SD transfers; no existing-source presence treated as qualification",
+        "BCM2855 SDHOST ACPI frontend remains absent; original FDT SDHOST support retained"
       ]
     }
   ]
