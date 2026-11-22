@@ -4,11 +4,15 @@
 
 #define BT_ACPI_MAX 16384
 #define BT_ACPI_ENTRIES 256
+#define BT_ACPI_SSDTS 16
 /* The reader must reject unmapped/device memory before dereferencing it. */
 typedef int (*bt_acpi_read_fn)(void *, uint64_t, void *, size_t);
 /* NULL data records a rejected/missing table, never a successful capture. */
 typedef void (*bt_acpi_emit_fn)(void *, const char *, const void *, size_t,
     const char *);
 int bt_acpi_snapshot(uint64_t, bt_acpi_read_fn, bt_acpi_emit_fn, void *);
+/* Requires additional preallocated DSDT, SS00..SS0F and SSOV slots. */
+int bt_acpi_namespace_snapshot(uint64_t, bt_acpi_read_fn, bt_acpi_emit_fn,
+    void *);
 
 #endif
