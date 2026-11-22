@@ -23,6 +23,20 @@ were made in the driver checkout. The existing owned port's nine downstream
 patches were not part of this raw-driver control; their selected ARM build and
 package acceptance remain required.
 
+The subsequent patched-package control is recorded in ports
+[main review #87](https://github.com/jordanhubbard/daemonarchy-ports/pull/87)
+and [1.6 candidate #88](https://github.com/jordanhubbard/daemonarchy-ports/pull/88).
+It preserves all nine patches and completes native arm64/amd64 packaging plus
+independent install/delete/reinstall and two installed-driver load/unload cycles.
+Its CTF-preserving build removes the missing-CTF warning observed below for the
+raw driver. This does not qualify physical radio operation or full DTrace use.
+The amd64 base SDIO dependency refuses unload by design of its current
+`EOPNOTSUPP` deinitialization; a same-disk reboot restores baseline modules.
+Exact products, source/kernel inputs, complete archives and remaining gates are
+in that ports branch's `verification/brcmfmac-native-packages-20261122.json`.
+The following raw-driver evidence and its original limitations are historical
+controls retained unchanged.
+
 The unmodified driver first compiles against the original F4 headers, then
 against the exact completed MMCCAM kernel configuration, including 303 generated
 headers. All 55 driver files, 36,893 kernel source/header entries, generated
