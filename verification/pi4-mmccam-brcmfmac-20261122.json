@@ -1,0 +1,111 @@
+{
+  "schema": "daemonarchy/development-probe@1",
+  "date_utc": "2026-11-22T10:14:04.701879+00:00",
+  "work": "RPI-SDIO-001",
+  "status": "native-MMCCAM-build-boot-and-idle-raw-driver-controls-passed-physical-and-package-pending",
+  "canonical_lifecycle_admission": false,
+  "source": {
+    "kernel_base": "f4eb2cff7f8b5c511c448f0158f071105d19aaf5",
+    "kernel_config": "GENERIC-MMCCAM (original in-tree profile)",
+    "additional_kernel_candidate": "BCM2711 ACPI property mailbox; exact sources in pi4-acpi-mailbox-20261122.json",
+    "driver_upstream_revision": "9adbe774d3be91827d628fbd811daf63512acb6d",
+    "driver_archive_sha256": "2eeb83e170328a884f976ae5d906ea42c28a124a017959f1ce10cadb665c106b",
+    "driver_archive_bytes": 155107,
+    "driver_original_files_equal_archive_content_and_executable_modes": 55,
+    "driver_license": "ISC",
+    "driver_source_modified": false,
+    "owned_port_downstream_patches_applied": false,
+    "owned_port_downstream_patch_count_pending_ARM_qualification": 9
+  },
+  "native_kernel": {
+    "buildkernel_exit": 0,
+    "original_and_candidate_source_entries_checked_pre_post": 115681,
+    "original_bootstrap_and_observed_host_unchanged": true,
+    "kernel_bytes": 19931936,
+    "kernel_sha256": "34e923c631d645cc8cbc211031af0a7f41bd6f07d30a89738a92e7d44402fac6",
+    "default_product_profile_changed": false
+  },
+  "native_driver": {
+    "target": "FreeBSD aarch64, OSVERSION 1600031",
+    "original_make_object_setup_exit": 0,
+    "original_make_module_build_exit": 0,
+    "driver_files_checked_pre_post": 55,
+    "kernel_source_header_entries_checked_pre_post": 36893,
+    "exact_generated_kernel_headers_checked_pre_post": 303,
+    "selected_kernel_unchanged": true,
+    "observed_tools_host_and_installed_make_framework_unchanged": true,
+    "module_bytes": 97488,
+    "module_sha256": "ac57af63b7e723b9da975cf0df5be20d53b858f5d946c6d9ac1fbbd54b6455e0",
+    "bootstrap_source_provenance": "Observed native build resources and source-built kernel tools are retained; full canonical source/toolchain admission remains open."
+  },
+  "actual_module_namespace": {
+    "builtin_SDIOfirmware_crypto_symbols_present": {
+      "sdio_enable_func": true,
+      "sdio_read_1": true,
+      "firmware_get": true,
+      "crypto_dispatch": true,
+      "rijndael_set_key": true
+    },
+    "products": {
+      "if_brcmfmac.ko": {
+        "bytes": 97488,
+        "sha256": "ac57af63b7e723b9da975cf0df5be20d53b858f5d946c6d9ac1fbbd54b6455e0",
+        "undefined_symbols": 135,
+        "missing_from_actual_kernel_and_selected_modules": [],
+        "weak_undefined": []
+      },
+      "wlan.ko": {
+        "bytes": 590600,
+        "sha256": "84f403269bbedb46f4aabc51a8c2aeb3a543466de14cab16e6ddc356f3f951c8",
+        "undefined_symbols": 159,
+        "missing_from_actual_kernel_and_selected_modules": [],
+        "weak_undefined": []
+      },
+      "wlan_ccmp.ko": {
+        "bytes": 53144,
+        "sha256": "b2f44488003ef8f5a24c661920235473c3a7fae3b8a0686bed78e61acb7e23e8",
+        "undefined_symbols": 26,
+        "missing_from_actual_kernel_and_selected_modules": [],
+        "weak_undefined": []
+      }
+    }
+  },
+  "independent_VM_controls": {
+    "platform": "Generic ARM64 QEMU/KVM UEFI, 2 CPUs, 1 GiB RAM",
+    "fixture_image_bytes": 443581952,
+    "fixture_image_sha256": "beaf90cefe3a0347d6514c98ab23e707ba783f01638d98b609f0766a3b08bc07",
+    "native_readonly_image_readback_GPT_FAT_and_trace_map_passed": true,
+    "actual_boot_kernel_sha256": "34e923c631d645cc8cbc211031af0a7f41bd6f07d30a89738a92e7d44402fac6",
+    "driver_idle_load_unload_cycles": 2,
+    "actual_registered_frontends": [
+      "pci/if_brcmfmac",
+      "sdiob/if_brcmfmac"
+    ],
+    "matching_WLAN_and_WPA2_CCMP_modules_loaded_and_unloaded": true,
+    "kernel_file_registry_restored": true,
+    "network_interfaces_unchanged": true,
+    "duplicate_SDIO_CAM_firmware_crypto_modules_loaded": false,
+    "owned_QEMU_actual_exit_observed": true,
+    "terminal_unit_state": "inactive/dead, MainPID 0, Result success",
+    "scope": "No Broadcom or SDIO hardware is emulated. These controls establish idle kernel/module compatibility, not radio operation or installed package acceptance."
+  },
+  "observed_warnings_and_failures": {
+    "driver_CTF": "The original standalone kmod lacks .SUNW_ctf; two kernel CTF-load warnings occurred. CTF/DTrace qualification remains open.",
+    "initial_readback": "The initial staging observer asserted a byte disagreement before retaining the raw readback. Three later reads of that same file match, and the new staging observer captures and verifies every module readback. The original disagreement remains unclassified.",
+    "binary_IO_renewal": {
+      "distinct_4MiB_fixtures": 3,
+      "independent_readbacks": 9,
+      "all_bytes_equal": true,
+      "scope": "Does not identify or repair the initial observation discrepancy."
+    }
+  },
+  "remaining": [
+    "Investigate initial unclassified module readback; qualify diagnostic CTF/DTrace.",
+    "Qualify all nine existing owned-port patches, actual ARM pkg production and independent installed-package consumers.",
+    "Physical BCM2711 firmware properties, power/GPIO/pinmux and ACPI SDIO enumeration.",
+    "Correct board firmware/NVRAM/CLM, WiFi association/traffic/error recovery.",
+    "Native SD and Ethernet regression with the selected MMCCAM profile; all Pi/full-memory and complete installed product qualification.",
+    "Canonical source/toolchain/SDK/lifecycle admission, separate human authority review and full release acceptance."
+  ],
+  "retention": "Original driver sources, generated work/products, command output and failures retained privately. Native source/work/product archives and VM runtime archive independently reopened. Private diagnostic image is not a new operator Pi image or publication."
+}

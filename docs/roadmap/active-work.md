@@ -1,5 +1,22 @@
 # Source development work
 
+### [ ] RPI-SDIO-001 — Qualify Pi 4 Wi-Fi and native media with MMCCAM
+
+- **Owner:** Broadcom SDIO, native MMC/CAM and Pi firmware services.
+- **Development controls:** Original GENERIC-MMCCAM builds and boots in a
+  generic ARM64 UEFI guest. The pinned unmodified native Broadcom driver builds
+  with the exact kernel options, registers both bus frontends and passes two
+  idle load/unload cycles with matching WLAN/CCMP modules. Original source,
+  generated headers, host files and kernel products remain unchanged.
+- **Evidence:** [Compatibility guide](../pi4-sdio-wifi.md) and
+  [scoped record](../../verification/pi4-mmccam-brcmfmac-20261122.json).
+- **Open gates:** Investigate the unclassified initial readback disagreement;
+  qualify module CTF/DTrace, all existing owned-port patches and ARM package
+  consumers, physical SDIO/power/firmware/Wi-Fi, native SD/Ethernet regression,
+  recovery, source/toolchain provenance and canonical lifecycle/release acceptance.
+- **Boundary:** No change to the default product kernel profile and no physical
+  Wi-Fi or installed-package acceptance from these generic VM controls.
+
 ### [ ] RPI-MBOX-001 — Qualify the BCM2711 ACPI property mailbox
 
 - **Owner:** Pi 4 firmware services and Broadcom platform prerequisites.
