@@ -1,0 +1,151 @@
+{
+  "schema": "daemonarchy/sdhci-combined-completion-development@1",
+  "status": "scoped-native-development-not-release-admission",
+  "work_id": "SDHCI-COMPLETION-001",
+  "original_sdhci_sha256": "ddab51abfe32732bbd743a9f3439e9a8e78f19802053524ae4f69d82e0d71c52",
+  "candidate_sdhci_sha256": "038be97c2cf968d00fad38559fc121c02c4f05a62123a8f3ee2207fc7cb1bbc6",
+  "focused_controls": {
+    "native_freebsd_arm64": {
+      "candidate": {
+        "passed": 19,
+        "failed": 0,
+        "compile_exit": 0,
+        "test_exit": 0
+      },
+      "original": {
+        "passed": 9,
+        "failed": 10,
+        "compile_exit": 0,
+        "test_exit": 1
+      }
+    },
+    "native_freebsd_amd64": {
+      "candidate": {
+        "passed": 19,
+        "failed": 0,
+        "compile_exit": 0,
+        "test_exit": 0
+      },
+      "original": {
+        "passed": 9,
+        "failed": 10,
+        "compile_exit": 0,
+        "test_exit": 1
+      }
+    },
+    "linux_clang18_asan_ubsan": {
+      "candidate": {
+        "passed": 19,
+        "failed": 0,
+        "compile_exit": 0,
+        "test_exit": 0
+      },
+      "original": {
+        "passed": 9,
+        "failed": 10,
+        "compile_exit": 0,
+        "test_exit": 1
+      }
+    }
+  },
+  "native_build": {
+    "base": "f4eb2cff7f8b5c511c448f0158f071105d19aaf5",
+    "overlays": {
+      "sys/cam/mmc/mmc_xpt.c": {
+        "sha256": "a4ae66dd15083571677fb74b6e76b346f044a40e253d7ed6157f3125c125ea21",
+        "bytes": 37649
+      },
+      "sys/dev/mmc/mmcreg.h": {
+        "sha256": "2ddac854f75af987842dbed2df962876a3e7679b3feea93a116bb4241430fc26",
+        "bytes": 26133
+      },
+      "sys/dev/sdhci/sdhci.c": {
+        "sha256": "038be97c2cf968d00fad38559fc121c02c4f05a62123a8f3ee2207fc7cb1bbc6",
+        "bytes": 87003
+      }
+    },
+    "kernel_sha256": "929bf42482b25927d39c14f1d56a2cfeccccf6f824ae390f01f6b76519afcdad",
+    "kernel_bytes": 19936016,
+    "modules": [
+      "sdhci",
+      "sdhci_pci"
+    ],
+    "full_review_head_or_all_module_qualification": false,
+    "source_nodes_unchanged_each": 115681,
+    "original_bootstrap_nodes_unchanged": 1113,
+    "worker_kernel_tools_unchanged": true,
+    "free_space_floor_GiB": 110
+  },
+  "runtime": {
+    "controller": "observed private patched QEMU10.2.4, virt-8.2 machine compatibility",
+    "canonical_toolchain_admission": false,
+    "kernel_file_bytes_and_running_build_identity_checked": true,
+    "global_and_slot_quirks": 0,
+    "read_sizes_bytes": [
+      512,
+      4096,
+      65536,
+      262144,
+      524288,
+      1048576
+    ],
+    "all_read_sizes_match": true,
+    "guest_full_card_read_before_and_after_bytes": 67108864,
+    "bounded_write_bytes": 1048576,
+    "write_offset_bytes": 4194304,
+    "all_other_bytes_unchanged": true,
+    "postshutdown_card_sha256": "85a8c3e4f8079b566816314af04f0ae155db7b1095343a61bc0dd68ad4dd130a",
+    "actual_pid_exit_observed": true,
+    "unit_terminal": true,
+    "old_model_same_kernel_control": {
+      "model": "installed QEMU8.2.2",
+      "same_new_kernel_sha256": "929bf42482b25927d39c14f1d56a2cfeccccf6f824ae390f01f6b76519afcdad",
+      "read_sizes_through_512KiB_match": true,
+      "one_MiB_read_fails_with_EIO": true,
+      "actual_pid_exit_observed": true,
+      "card_unchanged": true,
+      "unit_terminal": true
+    }
+  },
+  "open_gates": [
+    "original model restart defect",
+    "physical Pi native SD and SDIO",
+    "all Pi Ethernet",
+    "Wi-Fi and Broadcom traffic",
+    "MMCCAM discovery warning",
+    "performance",
+    "canonical unit and SDK ownership/admission",
+    "per-unit packages and lifecycle receipt",
+    "documentation authority review",
+    "installer/update/rollback",
+    "full release acceptance"
+  ],
+  "private_two_host_custody": {
+    "native_kernel_evidence": {
+      "bytes": 3911680,
+      "sha256": "614f6c070f6f2b57bf87973d13cbcb9f19273b7a4dfc46c48e736be458965411",
+      "decoded_bytes": 16574464
+    },
+    "selected_kernel_debug_modules": {
+      "bytes": 82063360,
+      "sha256": "7d85bda3dc444741c8cf03815e8a2d870b4bf8cf47bde2c24c689caf7591a6e3",
+      "decoded_bytes": 202097152
+    },
+    "model_and_failed_boot": {
+      "bytes": 114202820,
+      "sha256": "7b67706a2ee2688593a5aabf8a144df95ac5626ac1e26fd6d714812c1926ae84",
+      "decoded_bytes": 1133680640
+    },
+    "runtime_replay": {
+      "bytes": 213412020,
+      "sha256": "beb48c2509578639f91b6bf61b68b4237e2fed17028586981c99f9c5460b5c19",
+      "decoded_bytes": 1712547840
+    }
+  },
+  "canonical_verification": {
+    "locks_current": 5,
+    "documentation_authority": "stale-refused",
+    "receipt": "refused",
+    "sdk_or_lifecycle_self_admission": false
+  }
+}

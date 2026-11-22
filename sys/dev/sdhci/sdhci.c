@@ -2352,8 +2352,9 @@ sdhci_data_irq(struct sdhci_slot *slot, uint32_t intmask)
 		} else
 			sdhci_transfer_pio(slot);
 	}
-	/* Handle DMA border. */
-	if (intmask & SDHCI_INT_DMA_END) {
+	/* A completed transfer must not reload the DMA bounce buffer. */
+	if ((intmask & (SDHCI_INT_DMA_END | SDHCI_INT_DATA_END)) ==
+	    SDHCI_INT_DMA_END) {
 		data = slot->curcmd->data;
 		sdma_bbufsz = slot->sdma_bbufsz;
 
