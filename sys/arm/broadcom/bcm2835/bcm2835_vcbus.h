@@ -67,6 +67,8 @@
 #define	BCM28XX_ARM_IO_SIZE		0x01000000
 
 bool bcm283x_vcbus_is_supported(void);
+/* Call only for a validated BCM2849 ACPI mailbox resource. */
+int bcm283x_vcbus_init_acpi(bus_addr_t mailbox_base);
 vm_paddr_t bcm283x_armc_to_vcbus(vm_paddr_t pa);
 vm_paddr_t bcm283x_vcbus_to_armc(vm_paddr_t vca);
 bus_addr_t bcm283x_dmabus_peripheral_lowaddr(void);

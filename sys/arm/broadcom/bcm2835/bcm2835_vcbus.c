@@ -33,6 +33,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/errno.h>
 #include <sys/systm.h>
 
 #include <dev/ofw/openfirm.h>
@@ -182,6 +183,31 @@ static struct bcm283x_memory_soc_cfg {
 };
 
 static struct bcm283x_memory_soc_cfg *booted_soc_memcfg;
+
+int
+bcm283x_vcbus_init_acpi(bus_addr_t mailbox_base)
+{
+	struct bcm283x_memory_soc_cfg *cfg;
+	u_int i;
+
+	/*
+	 * BCM2849 is shared across firmware generations.  Only the BCM2711
+	 * resource is qualified here; never infer a DMA map from the HID alone.
+	 * Its legacy VideoCore DMA window is the lowest 1 GiB of SDRAM.
+	 */
+	if (mailbox_base != BCM2838_ARM_IO_BASE + 0xb880)
+		return (ENXIO);
+	for (i = 0; i < nitems(bcm283x_memory_configs); i++) {
+		cfg = &bcm283x_memory_configs[i];
+		if (strcmp(cfg->soc_compat, "brcm,bcm2711") != 0)
+			continue;
+		if (booted_soc_memcfg != NULL && booted_soc_memcfg != cfg)
+			return (EBUSY);
+		booted_soc_memcfg = cfg;
+		return (0);
+	}
+	return (ENXIO);
+}
 
 static struct bcm283x_memory_soc_cfg *
 bcm283x_find_current_memcfg(void)
