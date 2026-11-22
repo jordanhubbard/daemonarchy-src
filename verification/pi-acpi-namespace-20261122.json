@@ -164,5 +164,15 @@
     "AML_evaluated_by_capture": false,
     "physical_Pi_acceptance": false,
     "scope": "Private generic ARM64 UEFI fixture; original GENERIC F4 kernel, no Pi firmware, desktop or physical radio acceptance."
+  },
+  "additional_generic_UEFI_profile": {
+    "image_product_input_commit": "1a37e928027b8aceb7c6029753b73039a2541807",
+    "virtual_RAM_GiB": 4,
+    "virtual_CPUs": 4,
+    "kernel_allocation_cap_GiB": 3,
+    "actual_DSDT_above_4GiB_captured": true,
+    "actual_DSDT_sha256": "3ee3114cddc684887220cbdd4dfb1afb424eb1753f2f16ed52d5a55674bcdbc8",
+    "all_29_slot_index_and_state_files_persisted_after_poweroff": true,
+    "scope": "Actual composed desktop image in generic ARM64 UEFI; no physical Pi namespace or hardware acceptance."
   }
 }
