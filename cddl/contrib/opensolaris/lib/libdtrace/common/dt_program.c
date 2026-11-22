@@ -440,9 +440,19 @@ dt_header_decl(dt_idhash_t *dhp, dt_ident_t *idp, void *data)
 	if (fprintf(infop->dthi_out, ");\n") < 0)
 		return (dt_set_errno(dtp, errno));
 
+	/*
+	 * On arm64, dt_modtext() removes the call without changing the return
+	 * register.  Pass zero in the first argument register, which is also
+	 * the integer return register.  This works for both calls and tails.
+	 * Select the ABI in the generated header, including cross builds.
+	 */
 	if (fprintf(infop->dthi_out,
-	    "extern int __dtraceenabled_%s___%s(void);\n",
-	    infop->dthi_pfname, fname) < 0)
+	    "#if defined(__aarch64__)\n"
+	    "extern int __dtraceenabled_%s___%s(int);\n"
+	    "#else\n"
+	    "extern int __dtraceenabled_%s___%s(void);\n"
+	    "#endif\n",
+	    infop->dthi_pfname, fname, infop->dthi_pfname, fname) < 0)
 		return (dt_set_errno(dtp, errno));
 
 	return (0);
@@ -505,8 +515,15 @@ dt_header_probe(dt_idhash_t *dhp, dt_ident_t *idp, void *data)
 
 	if (!infop->dthi_empty) {
 		if (fprintf(infop->dthi_out,
+		    "#if defined(__aarch64__)\n"
 		    "#define\t%s_%s_ENABLED() \\\n"
-		    "\t__dtraceenabled_%s___%s()\n",
+		    "\t__dtraceenabled_%s___%s(0)\n"
+		    "#else\n"
+		    "#define\t%s_%s_ENABLED() \\\n"
+		    "\t__dtraceenabled_%s___%s()\n"
+		    "#endif\n",
+		    infop->dthi_pmname, mname,
+		    infop->dthi_pfname, fname,
 		    infop->dthi_pmname, mname,
 		    infop->dthi_pfname, fname) < 0)
 			return (dt_set_errno(dtp, errno));
