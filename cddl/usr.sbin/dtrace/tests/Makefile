@@ -10,11 +10,10 @@ TESTS_SUBDIRS+= i386
 TESTS_SUBDIRS+= amd64
 .endif
 
-.PATH:		${SRCTOP}/tests
-KYUAFILE=	yes
-
 .PATH:		${.CURDIR}/tools
 SCRIPTSDIR=	${TESTSDIR}
 SCRIPTS=	dtest.sh
+
+ATF_TESTS_SH+=	dtrace_header_test
 
 .include <bsd.test.mk>
