@@ -1,5 +1,25 @@
 # Source development work
 
+### [ ] RPI-MBOX-001 — Qualify the BCM2711 ACPI property mailbox
+
+- **Owner:** Pi 4 firmware services and Broadcom platform prerequisites.
+- **Direction:** Attach the original property mailbox to the validated BCM2711
+  ACPI resource, including firmware without an IRQ, while preserving FDT support.
+- **Implementation:** BCM2711-only resource/DMA-domain selection, bounded polling,
+  paired DMA synchronization and error propagation; retain an in-flight allocation
+  and refuse new requests after an uncertain firmware completion.
+- **Development evidence:** Sixteen sanitized production-function controls pass
+  on native FreeBSD ARM64 and Linux; three original-property safety assertions
+  fail in a native counterfactual. Exact candidate files compile/link natively
+  and produce a complete GENERIC kernel that boots in generic UEFI guests.
+  See [the mailbox guide](../pi4-acpi-mailbox.md) and
+  [scoped record](../../verification/pi4-acpi-mailbox-20261122.json).
+- **Open gates:** Physical attachment and read-only firmware request, real error
+  recovery, FDT/ARM32 regression, GPIO/power/MMCCAM/SDIO/Wi-Fi, acceleration,
+  source/toolchain admission and canonical lifecycle/release acceptance.
+- **Review:** Documentation authority review remains separate and pending;
+  do not refresh its marker as a consequence of these native controls.
+
 ### [ ] SRC-UNIT-001 — Qualify original application/library/header composition
 
 - **Owner:** Source unit contracts and retained native lifecycle binding.
