@@ -50,6 +50,7 @@ the GitHub CLI may otherwise select the fork's FreeBSD upstream automatically.
 - [ACPI xHCI DMA reachability with full system RAM](pi4-acpi-xhci-dma.md)
 - [ARM64 direct-map lookup during mapping updates](arm64-dmap-lookup.md)
 - [PL011 receive overflow and interrupt progress](pl011-rx-overflow.md)
+- [Bounded SDIO initialization in MMC CAM](mmccam-sdio-initialization.md)
 
 - [Pinned FreeBSD CI bootstrap and asset custody](freebsd-vm-ci-bootstrap.md)
 
