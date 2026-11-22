@@ -48,6 +48,7 @@ the GitHub CLI may otherwise select the fork's FreeBSD upstream automatically.
 - [BCM2712 translated RAM busdma](pi5-translated-ram-busdma.md)
 - [Selected BCM2712 PCIe2 frontend preparation](pi5-pcie2-frontend.md)
 - [ACPI xHCI DMA reachability with full system RAM](pi4-acpi-xhci-dma.md)
+- [Bounded ACPI namespace discovery](pi-acpi-namespace.md)
 - [ARM64 direct-map lookup during mapping updates](arm64-dmap-lookup.md)
 - [PL011 receive overflow and interrupt progress](pl011-rx-overflow.md)
 

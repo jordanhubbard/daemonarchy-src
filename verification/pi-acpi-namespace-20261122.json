@@ -1,0 +1,102 @@
+{
+  "schema": "daemonarchy/acpi-namespace-development@1",
+  "date": "2026-11-22",
+  "scope": "Bounded opt-in firmware-table capture and offline controller; no AML, hardware driver acceptance, SDK or lifecycle admission.",
+  "source_input_commit": "c570c3823db548311e6d4d90d2b6e3b2e3f37117",
+  "product_input_commit": "27fe82c6311b08af14ba6da07b2a950768a4422c",
+  "selected_source_sha256": {
+    "stand/efi/loader/boottrace.c": "5af08a1b0e8d6d9459694d830277978fba1f23e67e459374d2b35a3f21ffd20c",
+    "stand/efi/loader/boottrace_acpi.c": "4a8e503a48a0a77d21c69713cfb131d96838a274a46bb86eb7a37bee919958c0",
+    "stand/efi/loader/boottrace_acpi.h": "c8cc80629278ae1d3ac2186b0346cbbc6ca5e9c986b7bf5797eed976229687e1",
+    "tools/daemonarchy/tests/boottrace-acpi-namespace.c": "d4200bae1967391ddb726e4bd2d111b2cbeefbdc9765f23742caa59392f0f657",
+    "tools/daemonarchy/tests/boottrace-acpi-namespace.py": "4537a90ec742b2194be67585b272a06ee7aaf94bb5ef3642da8c3bf6e54455a5"
+  },
+  "native_function_controls": {
+    "platform": "FreeBSD 16.0-CURRENT arm64",
+    "cases": 24,
+    "address_and_undefined_behavior_sanitizers": true,
+    "original_source_and_host_unchanged": true,
+    "compiler_sha256": "0463ac5e77544d1dcae9a28c69b1506ab2091367a0c5441414ef5ec948a49ba5",
+    "binary_sha256": "4d68e22a0bac70ad525699d09cbeb29f3750b7285808fb1e8a63702a3f74d07b",
+    "complete_original_archive": {
+      "bytes": 1982634,
+      "sha256": "8251fefe76d4c4ebbd0ce33bedbd6ccecc28dfc41a1725330811904c8b09894b",
+      "native_platform": "FreeBSD 16.0-CURRENT arm64",
+      "independent_original_sources_and_binary_reopened": true,
+      "cases": 24,
+      "sanitized": true
+    }
+  },
+  "controller_controls": {
+    "original_boottrace_tools_suite_exit": 0,
+    "tests": 33,
+    "ACPI_cases": 10,
+    "current_owned_main_source_unchanged": true,
+    "shell_syntax": "passed"
+  },
+  "full_native_loader": {
+    "original_stand_build_exit": 0,
+    "independent_native_product_review": true,
+    "producer_failure_classification": "Post-build observer searched for loader.efi; actual original make targets are loader_lua.efi, loader_4th.efi and loader_simp.efi. Original failed result retained; no rebuild or artifact rewrite.",
+    "all_original_and_candidate_source_entries_before_after": 115681,
+    "original_source_built_bootstrap_nodes_unchanged": 7172,
+    "host_unchanged": true,
+    "actual_lua_loader_links_namespace_reader": true,
+    "products": [
+      {
+        "bytes": 1260460,
+        "sha256": "746481e1f1dd22d438a88dea47e404e79eb87e52edbbb9c14bbc31e3598c494a",
+        "name": "loader_4th.efi",
+        "actual_PE_machine": "AArch64",
+        "actual_optional_header": "PE32+"
+      },
+      {
+        "bytes": 1389068,
+        "sha256": "90d61e8cd9a9c77290506ca724e130c46c754260b218c9b3d11d8c22954c54fa",
+        "name": "loader_lua.efi",
+        "actual_PE_machine": "AArch64",
+        "actual_optional_header": "PE32+"
+      },
+      {
+        "bytes": 1193208,
+        "sha256": "4942c77829a80d1b97a92758ea6fcba7cc0bd083214f5cf9392a6c2f564935f5",
+        "name": "loader_simp.efi",
+        "actual_PE_machine": "AArch64",
+        "actual_optional_header": "PE32+"
+      }
+    ],
+    "exact_EFI_boot": "pending",
+    "source_base_revision": "f4eb2cff7f8b5c511c448f0158f071105d19aaf5",
+    "selected_source_overlays_sha256": {
+      "stand/efi/loader/boottrace.c": {
+        "sha256": "5af08a1b0e8d6d9459694d830277978fba1f23e67e459374d2b35a3f21ffd20c"
+      },
+      "stand/efi/loader/boottrace_acpi.c": {
+        "sha256": "4a8e503a48a0a77d21c69713cfb131d96838a274a46bb86eb7a37bee919958c0"
+      },
+      "stand/efi/loader/boottrace_acpi.h": {
+        "sha256": "c8cc80629278ae1d3ac2186b0346cbbc6ca5e9c986b7bf5797eed976229687e1"
+      }
+    },
+    "complete_native_work_and_failure_custody": "Archiving; independent full-archive readback pending. Original work and failed attempts retained."
+  },
+  "failed_attempts_retained": [
+    "Linux default Clang future GCC-install-dir diagnostic refused under Werror before source compilation; explicit installed Clang18 passed.",
+    "Native function-control first invocation used absent python3 alias; observed python3.12 used without installing anything.",
+    "Complete native loader first invocation refused MAKEOBJDIRPREFIX on the command line and private parent permissions, before source compilation; corrected isolated second build returned zero.",
+    "First product controller test omitted re import; corrected complete suite passed."
+  ],
+  "canonical_verification": {
+    "source_locks_current": 5,
+    "product_locks_current": 8,
+    "authority": "stale; human review marker unchanged",
+    "receipt": "refused; no current earned receipt"
+  },
+  "remaining": [
+    "Exact-image boot/write/readback and independent complete native work-archive review",
+    "Physical Pi namespace capture",
+    "GPIO, power and pin sequencing, actual SDIO discovery and Wi-Fi association/traffic/recovery",
+    "Native SD and Ethernet regression across all Pi platforms",
+    "Full source/ports/toolchain provenance, canonical units, SDK/lifecycle admission and release acceptance"
+  ]
+}

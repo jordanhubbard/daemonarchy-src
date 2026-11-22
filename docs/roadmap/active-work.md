@@ -662,3 +662,16 @@ an SDK. Existing malformed AMD records and their strict refusal remain retained.
 - **Admission boundary:** Require candidate tests and native/hosted review gates
   before landing. Reliable renewed full capture, canonical ownership and per-unit
   packaging/lifecycle remain separate open requirements.
+
+### [ ] RPI-ACPI-NS-001 — Capture bounded Pi ACPI namespace tables before kernel entry
+
+- **Priority:** P1
+- **Owner:** EFI discovery and Pi device qualification
+- **Direction:** Preserve actual DSDT and SSDT bytes for offline wiring inspection before adding SDIO and GPIO policy.
+- **Conclusion:** A fixed-child flag alone cannot distinguish the reference firmware SDIO controller from its physical SD socket; collect actual namespace evidence while preserving normal boot and old media.
+- **Depends on:** none
+- **Implementation:**
+  - [x] Add validated FADT DSDT pointer selection, sixteen ordered SSDT slots, explicit incomplete outcomes and exact preallocated-slot admission; never evaluate AML.
+- **Evidence:**
+  - [x] 24 sanitized reader/slot cases pass on Linux and native FreeBSD ARM64. Original stand build and three independent AArch64 EFI product checks pass; 115,681 source entries and 7,172 original bootstrap nodes remain unchanged.
+  - [ ] Exact-image boot/write/readback, physical capture, complete archive review, human authority and canonical lifecycle qualification remain open. See [the scoped guide](../pi-acpi-namespace.md).
