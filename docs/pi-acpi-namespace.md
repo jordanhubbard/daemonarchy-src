@@ -56,8 +56,16 @@ loader's namespace-reader symbol. All 115,681 original/candidate source entries,
 preservation checks. A failed invocation and an incorrect post-build filename
 observer remain retained separately from the successful native build.
 
+The exact private image boots the new Lua loader and original matching kernel
+in a generic ARM64 UEFI guest. Its actual DSDT validates, and all 29 capture,
+index and state files match byte for byte on the returned disk after power-off.
+This guest supplies no SSDTs; the multiple-SSDT positive cases remain covered
+by the native production-reader controls. The VM powers off cleanly and its
+frozen base remains unchanged. Complete native source/work/products and failed
+attempts are archived and independently reopened against the selected inputs.
+
 The [dated record](../verification/pi-acpi-namespace-20261122.json) binds these
-scoped products and controls. Exact-image boot/write/readback, physical Pi
-namespace capture, SDIO/GPIO integration, human authority review and canonical
-source/toolchain/lifecycle admission remain separate gates. Existing operator
-images and the physical Pi desktop remain unchanged while those checks run.
+scoped products and controls. Physical Pi namespace capture, SDIO/GPIO
+integration, human authority review and canonical source/toolchain/lifecycle
+admission remain separate gates. Existing operator images and the physical Pi
+desktop remain unchanged while those checks run.
