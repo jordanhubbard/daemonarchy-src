@@ -1,0 +1,33 @@
+{
+  "schema": "daemonarchy/pi4-acpi-sd-candidate@1",
+  "source_base": "8b6683faa65adf855b5f9745266b577e1a24a316",
+  "driver_source_sha256": "e86ff625495a26cc25cdcb1044535b5e3686c2a7d36902ac41783f60dadf7b08",
+  "host_control_sha256": "0c00adee969a867a6c51209e4ad05156b15907a1d75fd1d951c9e91bf74811c1",
+  "hardware_ID": "BRCME88C",
+  "native": {
+    "os": "FreeBSD 16.0-CURRENT",
+    "architecture": "arm64",
+    "compiler": "FreeBSD Clang 21.1.8",
+    "build": "original standalone sdhci_acpi module target with current source headers",
+    "exit": 0,
+    "module_sha256": "b791ea7457956e5dd857a1960e852a9a7d5b0f640af810c9664310540f0d9c64",
+    "live_module_loaded": false
+  },
+  "controls": {
+    "production_attach_read_cleanup": "passed with Clang 18 ASan and UBSan",
+    "coverage": [
+      "DMA/UHS capability suppression",
+      "firmware capability masks",
+      "global force-DMA override refusal",
+      "unrelated controller capability preservation",
+      "IRQ/memory/init/interrupt setup failure unwinding"
+    ]
+  },
+  "limitations": [
+    "Physical Pi4 native SD attach and card I/O not yet exercised",
+    "PIO and fixed 3.3V are bootstrap behavior; ACPI DMA translation and voltage switching are not implemented",
+    "Older BCM2847 legacy controller is not claimed by this SDHCI attachment",
+    "No Pi5, CM4/Pi400 or other Pi variant qualification inferred",
+    "No canonical SDK, lifecycle or release qualification inferred"
+  ]
+}
