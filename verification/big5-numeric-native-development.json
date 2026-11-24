@@ -1,0 +1,106 @@
+{
+  "schema": "daemonarchy/big5-numeric-native-development@1",
+  "observed_at_utc": "2026-11-24T13:32:51.046105+00:00",
+  "work_id": "SRC-LOCALE-002",
+  "native_tested_source_revision": "8b8fc0a3821068d78aee2801fedbf43c16a8d137",
+  "base_revision": "759e93f1bbc79103eda36077e7c28d17317f15c8",
+  "production_change": "Add the retained zh_TW.Big5.src to the original share/numericdef Makefile LOCALES list. No numeric definitions changed.",
+  "numeric_source_sha256": "4f63a8ea9de5c67caa7292972700fa3268674e615c2e2c099edf35e2fdf3f52d",
+  "installed_numeric_product": {
+    "sha256": "af7d7da0efb1c5a5518cfd149e27974a30134a6fbcd00bf4f16923b7e1c14229",
+    "bytes": 8,
+    "mode": "0444",
+    "decimal_point_bytes": "a144",
+    "thousands_separator_bytes": "a141",
+    "grouping": 3
+  },
+  "source_scope": "835 exact selected original source members. Full original implementation remains retained; selected closure is not complete tree or canonical ownership admission.",
+  "native_execution": "Original numeric make obj/all/install and original selected newlocale_test build/private-install target. Direct actual ATF execution; not a Kyua or full libc suite claim.",
+  "architectures": [
+    {
+      "architecture": "arm64",
+      "native_producer_result_sha256": "e3dd74a3dc1b522f2ed82be9aad05a52b3016984c9fe3edbcb882c6ec3a13230",
+      "installed_test_binary_sha256": "225db76b8223e8e5538a7957a47473a467203f38706fccefd251aadf7cefd90a",
+      "baseline_cases": {
+        "passed": [
+          "newlocale_c_posix_cu8_test"
+        ],
+        "expected_regression_failures": [
+          "newlocale_big5_test",
+          "setlocale_big5_test"
+        ]
+      },
+      "candidate_cases": {
+        "passed": [
+          "newlocale_c_posix_cu8_test",
+          "newlocale_big5_test",
+          "setlocale_big5_test"
+        ],
+        "failed": 0,
+        "skipped": 0
+      },
+      "all_original_numeric_payloads_preserved": 230,
+      "only_added_installed_product": "usr/share/locale/zh_TW.Big5/LC_NUMERIC",
+      "normal_private_installation": true,
+      "archive_sha256": "50f7abbd7df1fa56ee3978a21ec188231cb97cf0a3447e811e3d38d336c24b4e",
+      "archive_bytes": 3974848,
+      "inventory_sha256": "c274ac6f006c5020412d2740907654d8f7cda33176065f4761dbc368a04f3787",
+      "all_archived_nodes_independently_verified_on_two_hosts": 2989,
+      "all_bodies_types_modes_owners_flags_nsmtime_literal_links_hardlinks_gzipCRC_verified": true,
+      "base_global_locales_and_observed_SDK_unchanged": true
+    },
+    {
+      "architecture": "amd64",
+      "native_producer_result_sha256": "062ed1870399ad3c5c4990b01528b15dc0f397bf67e6be3a4d7e8e0e5de25855",
+      "installed_test_binary_sha256": "9b6e3430ab6d4b4f7a5fcf26fd52803f5921a4a5155ba4db1215ab092c33cc90",
+      "baseline_cases": {
+        "passed": [
+          "newlocale_c_posix_cu8_test"
+        ],
+        "expected_regression_failures": [
+          "newlocale_big5_test",
+          "setlocale_big5_test"
+        ]
+      },
+      "candidate_cases": {
+        "passed": [
+          "newlocale_c_posix_cu8_test",
+          "newlocale_big5_test",
+          "setlocale_big5_test"
+        ],
+        "failed": 0,
+        "skipped": 0
+      },
+      "all_original_numeric_payloads_preserved": 230,
+      "only_added_installed_product": "usr/share/locale/zh_TW.Big5/LC_NUMERIC",
+      "normal_private_installation": true,
+      "archive_sha256": "f44d31ac8567429b46a9ff6ac68470b76c472894ffc353a386d9575e7b066bed",
+      "archive_bytes": 3957548,
+      "inventory_sha256": "56d27acc572a3a0d34b27a9dd04e923cd924fa2142429122a8bdd76b8a1a4a4e",
+      "all_archived_nodes_independently_verified_on_two_hosts": 2772,
+      "all_bodies_types_modes_owners_flags_nsmtime_literal_links_hardlinks_gzipCRC_verified": true,
+      "base_global_locales_and_observed_SDK_unchanged": true
+    }
+  ],
+  "dependent_Bash_original_tests": {
+    "architecture": "arm64",
+    "unchanged_glob_driver_fails_original_and_passes_actual_installed_numeric_product": true,
+    "unchanged_Unicode_case_original_fails_8_of_1770_candidate_passes_1770": true,
+    "private_case_aliases": "The original GNU tests request zh_TW.big5 and zh_TW.BIG5; private aliases resolve to actual zh_TW.Big5 and its installed original numeric product. No global alias or test edits.",
+    "Bash_binary_sha256": "2b24d31d2d4a6fdb3f2d5894df866887b150cf03ebe624a9ac9bb9f9e9e5bc73",
+    "full_Bash_suite_pass": false
+  },
+  "validation": {
+    "original_FreeBSD_checkstyle_errors": 0,
+    "original_FreeBSD_checkstyle_warnings": 0,
+    "source_authority_pass": true,
+    "five_committed_locks_current": true,
+    "lifecycle_missing_configured_test_receipt": true
+  },
+  "remaining": [
+    "Matching current full world/kernel/pkgbase and dependent package qualification",
+    "Canonical Component, SDK, TCB and Standard lifecycle admission",
+    "Product media, hardware and release acceptance"
+  ],
+  "no_release_or_native_SDK_admission_claimed": true
+}

@@ -671,6 +671,8 @@ an SDK. Existing malformed AMD records and their strict refusal remain retained.
 - **Conclusion:** The original numeric definition is present but omitted from LOCALES, making LC_ALL and newlocale LC_ALL_MASK fail.
 - **Depends on:** none
 - **Implementation:**
-  - [ ] Add the missing locale build entry and native regression while retaining original definitions and tests.
+  - [x] Add the missing locale build entry and native regression while retaining original definitions and tests.
 - **Evidence:**
-  - [ ] Require original private build/install, failing baseline and passing corrected category loading on allocated native workers.
+  - [x] Original numeric build and private installation on native arm64 and amd64; both new ATF cases fail with original data and pass with the restored category. The unchanged C/POSIX/C.UTF-8 case passes in both variants.
+  - [ ] Include the change in matching current world/pkgbase and renew dependent package and release acceptance.
+- **Native record:** [Big5 numeric category](../../verification/big5-numeric-native-development.json). The installed definition retains its original Big5 numeric characters. All existing numeric payloads are unchanged; only the missing category and its directory are added. Complete source/object/stage/result archives are independently member-verified on two hosts. Unchanged GNU Bash glob and 1,770 Unicode checks pass against the actual private-installed category with private case aliases for the GNU tests. These checks do not qualify the full Bash suite, libc, canonical SDK or release.
