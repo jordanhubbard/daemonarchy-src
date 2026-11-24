@@ -74,21 +74,28 @@ SYSCTL_STRING(_compat_linux, OID_AUTO, emul_path, CTLFLAG_RWTUN,
     linux_emul_path, sizeof(linux_emul_path),
     "Linux runtime environment path");
 
+/*
+ * Do not prevent execution if altroot is non-existent or is not a
+ * directory.
+ */
 int
 linux_pwd_onexec(struct thread *td)
 {
 	struct nameidata nd;
 	int error;
 
+	/*
+	 * We never want the native altroot, in particular, for the
+	 * linux_emul_path lookup.
+	 */
+	pwd_altroot_clear(td);
+
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, linux_emul_path);
 	error = namei(&nd);
-	if (error != 0) {
-		/* Do not prevent execution if altroot is non-existent. */
-		pwd_altroot(td, NULL);
+	if (error != 0)
 		return (0);
-	}
 	NDFREE_PNBUF(&nd);
-	pwd_altroot(td, nd.ni_vp);
+	(void)pwd_altroot(td, nd.ni_vp);
 	vrele(nd.ni_vp);
 	return (0);
 }
@@ -97,7 +104,7 @@ void
 linux_pwd_onexec_native(struct thread *td)
 {
 
-	pwd_altroot(td, NULL);
+	pwd_altroot_clear(td);
 }
 
 void
