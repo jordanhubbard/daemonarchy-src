@@ -1,3 +1,5 @@
+.include <src.opts.mk>
+
 PROG=	localedef
 SRCS=	charmap.c \
 	collate.c \
@@ -23,5 +25,8 @@ CFLAGS+=	-I${.CURDIR}/bootstrap
 .endif
 CFLAGS+=	-I${SRCTOP}/lib/libc/locale
 CFLAGS+=	-I${SRCTOP}/lib/libc/stdtime
+
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

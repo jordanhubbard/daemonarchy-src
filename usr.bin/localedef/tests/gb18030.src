@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause
+LC_CTYPE
+upper <A>;<UPPER_G>;<UPPER_L>
+lower <a>;<LOWER_G>;<LOWER_L>
+tolower (<A>,<a>);(<UPPER_G>,<LOWER_G>);(<UPPER_L>,<LOWER_L>)
+toupper (<a>,<A>);(<LOWER_G>,<UPPER_G>);(<LOWER_L>,<UPPER_L>)
+END LC_CTYPE
+
+LC_MESSAGES
+yesexpr "^[yY]"
+noexpr "^[nN]"
+yesstr "<UPPER_L>"
+nostr "no"
+END LC_MESSAGES
