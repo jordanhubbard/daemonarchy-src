@@ -4,6 +4,9 @@
 /* Define to the optind value to reset getopt processing */
 #define GETOPT_OPTIND_RESET_VALUE 1
 
+/* Define to 1 if you have the 'clock_gettime' function. */
+#undef HAVE_CLOCK_GETTIME
+
 /* define if the compiler supports basic C++20 syntax */
 #define HAVE_CXX20 1
 
@@ -119,7 +122,7 @@
 #define PACKAGE_NAME "Kyua"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "Kyua 0.15.1"
+#define PACKAGE_STRING "Kyua 0.15.2"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "kyua"
@@ -128,7 +131,7 @@
 #define PACKAGE_URL "https://github.com/freebsd/kyua/"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "0.15.1"
+#define PACKAGE_VERSION "0.15.2"
 
 /* Define to 1 if all of the C89 standard headers exist (not just the ones
    required in a freestanding environment). This macro is provided for
@@ -136,4 +139,4 @@
 #define STDC_HEADERS 1
 
 /* Version number of package */
-#define VERSION "0.15.1"
+#define VERSION "0.15.2"

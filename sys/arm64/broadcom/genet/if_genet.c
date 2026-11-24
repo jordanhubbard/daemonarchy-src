@@ -34,6 +34,8 @@
  */
 
 #include "opt_device_polling.h"
+#include "opt_platform.h"
+#include "opt_acpi.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -59,15 +61,23 @@
 
 #include <machine/bus.h>
 
+#ifdef FDT
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#endif
+#ifdef DEV_ACPI
+#include <contrib/dev/acpica/include/acpi.h>
+#include <dev/acpica/acpivar.h>
+#endif
 
 #define __BIT(_x)	(1 << (_x))
 #include "if_genetreg.h"
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
+#ifdef FDT
 #include <dev/mii/mii_fdt.h>
+#endif
 
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -115,6 +125,7 @@ static int gen_tx_hdr_min = 56;		/* ether_header + ip6_hdr + icmp6_hdr */
 SYSCTL_INT(_hw_genet, OID_AUTO, tx_hdr_min, CTLFLAG_RW,
     &gen_tx_hdr_min, 0, "header to add to packets with ether header only");
 
+#ifdef FDT
 static struct ofw_compat_data compat_data[] = {
 	{ "brcm,genet-v1",		1 },
 	{ "brcm,genet-v2",		2 },
@@ -124,6 +135,7 @@ static struct ofw_compat_data compat_data[] = {
 	{ "brcm,bcm2711-genet-v5",	5 },
 	{ NULL,				0 }
 };
+#endif
 
 enum {
 	_RES_MAC,		/* what to call this? */
@@ -172,6 +184,7 @@ struct gen_softc {
 	device_t		dev;
 	device_t		miibus;
 	mii_contype_t		phy_mode;
+	bool			acpi;
 
 	struct callout		stat_ch;
 	struct task		link_task;
@@ -233,6 +246,7 @@ static void gen_tick(void *softc);
 static int
 gen_probe(device_t dev)
 {
+#ifdef FDT
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
@@ -241,6 +255,9 @@ gen_probe(device_t dev)
 
 	device_set_desc(dev, "RPi4 Gigabit Ethernet");
 	return (BUS_PROBE_DEFAULT);
+#else
+	return (ENXIO);
+#endif
 }
 
 static int
@@ -253,7 +270,10 @@ gen_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-	sc->type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+#ifdef FDT
+	if (!sc->acpi)
+		sc->type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+#endif
 
 	if (bus_alloc_resources(dev, gen_spec, sc->res) != 0) {
 		device_printf(dev, "cannot allocate resources for device\n");
@@ -296,6 +316,10 @@ gen_attach(device_t dev)
 
 	/* Setup ethernet interface */
 	sc->ifp = if_alloc(IFT_ETHER);
+	if (sc->ifp == NULL) {
+		error = ENOMEM;
+		goto fail;
+	}
 	if_setsoftc(sc->ifp, sc);
 	if_initname(sc->ifp, device_get_name(dev), device_get_unit(dev));
 	if_setflags(sc->ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
@@ -366,11 +390,20 @@ static void
 gen_destroy(struct gen_softc *sc)
 {
 
+	if (sc->ih != NULL) {
+		bus_teardown_intr(sc->dev, sc->res[_RES_IRQ1], sc->ih);
+		sc->ih = NULL;
+	}
+	if (sc->ih2 != NULL) {
+		bus_teardown_intr(sc->dev, sc->res[_RES_IRQ2], sc->ih2);
+		sc->ih2 = NULL;
+	}
+	if (mtx_initialized(&sc->mtx)) {
+		callout_drain(&sc->stat_ch);
+		taskqueue_drain(taskqueue_swi, &sc->link_task);
+	}
 	device_delete_children(sc->dev);
-	bus_teardown_intr(sc->dev, sc->res[_RES_IRQ1], sc->ih);
-	bus_teardown_intr(sc->dev, sc->res[_RES_IRQ2], sc->ih2);
 	gen_bus_dma_teardown(sc);
-	callout_drain(&sc->stat_ch);
 	if (mtx_initialized(&sc->mtx))
 		mtx_destroy(&sc->mtx);
 	bus_release_resources(sc->dev, gen_spec, sc->res);
@@ -417,29 +450,45 @@ static int
 gen_get_phy_mode(device_t dev)
 {
 	struct gen_softc *sc;
-	phandle_t node;
 	mii_contype_t type;
-	int error = 0;
+	char mode[32];
+	ssize_t length;
 
 	sc = device_get_softc(dev);
-	node = ofw_bus_get_node(dev);
-	type = mii_fdt_get_contype(node);
-
+	type = MII_CONTYPE_UNKNOWN;
+	if (sc->acpi) {
+		memset(mode, 0, sizeof(mode));
+		length = device_get_property(dev, "phy-mode", mode,
+		    sizeof(mode) - 1, DEVICE_PROP_BUFFER);
+		if (length <= 0 || length >= sizeof(mode) ||
+		    memchr(mode, '\0', length) != NULL) {
+			device_printf(dev, "missing or malformed ACPI phy-mode\n");
+			return (ENXIO);
+		}
+		if (strcmp(mode, "rgmii") == 0)
+			type = MII_CONTYPE_RGMII;
+		else if (strcmp(mode, "rgmii-id") == 0)
+			type = MII_CONTYPE_RGMII_ID;
+		else if (strcmp(mode, "rgmii-rxid") == 0)
+			type = MII_CONTYPE_RGMII_RXID;
+		else if (strcmp(mode, "rgmii-txid") == 0)
+			type = MII_CONTYPE_RGMII_TXID;
+	}
+#ifdef FDT
+	else
+		type = mii_fdt_get_contype(ofw_bus_get_node(dev));
+#endif
 	switch (type) {
 	case MII_CONTYPE_RGMII:
 	case MII_CONTYPE_RGMII_ID:
 	case MII_CONTYPE_RGMII_RXID:
 	case MII_CONTYPE_RGMII_TXID:
 		sc->phy_mode = type;
-		break;
+		return (0);
 	default:
-		device_printf(dev, "unknown phy-mode '%s'\n",
-		    mii_fdt_contype_to_name(type));
-		error = ENXIO;
-		break;
+		device_printf(dev, "unsupported PHY connection type %d\n", type);
+		return (ENXIO);
 	}
-
-	return (error);
 }
 
 static bool
@@ -447,19 +496,25 @@ gen_get_eaddr(device_t dev, struct ether_addr *eaddr)
 {
 	struct gen_softc *sc;
 	uint32_t maclo, machi, val;
+#ifdef FDT
 	phandle_t node;
+#endif
 
 	sc = device_get_softc(dev);
 
-	node = ofw_bus_get_node(dev);
-	if (OF_getprop(node, "mac-address", eaddr->octet,
-	    ETHER_ADDR_LEN) != -1 ||
-	    OF_getprop(node, "local-mac-address", eaddr->octet,
-	    ETHER_ADDR_LEN) != -1 ||
-	    OF_getprop(node, "address", eaddr->octet, ETHER_ADDR_LEN) != -1)
-		return (true);
+#ifdef FDT
+	if (!sc->acpi) {
+		node = ofw_bus_get_node(dev);
+		if (OF_getprop(node, "mac-address", eaddr->octet,
+		    ETHER_ADDR_LEN) != -1 ||
+		    OF_getprop(node, "local-mac-address", eaddr->octet,
+		    ETHER_ADDR_LEN) != -1 ||
+		    OF_getprop(node, "address", eaddr->octet, ETHER_ADDR_LEN) != -1)
+			return (true);
 
-	device_printf(dev, "No Ethernet address found in fdt!\n");
+		device_printf(dev, "No Ethernet address found in fdt!\n");
+	}
+#endif
 	maclo = machi = 0;
 
 	val = RD4(sc, GENET_SYS_RBUF_FLUSH_CTRL);
@@ -480,7 +535,7 @@ gen_get_eaddr(device_t dev, struct ether_addr *eaddr)
 		eaddr->octet[3] = (maclo >> 24) & 0xff;
 		eaddr->octet[4] = machi & 0xff;
 		eaddr->octet[5] = (machi >> 8) & 0xff;
-		return (true);
+		return (!ETHER_IS_MULTICAST(eaddr->octet));
 	}
 }
 
@@ -671,6 +726,8 @@ gen_bus_dma_teardown(struct gen_softc *sc)
 
 	if (sc->tx_buf_tag != NULL) {
 		for (i = 0; i < TX_DESC_COUNT; i++) {
+			if (sc->tx_ring_ent[i].map == NULL)
+				continue;
 			error = bus_dmamap_destroy(sc->tx_buf_tag,
 			    sc->tx_ring_ent[i].map);
 			sc->tx_ring_ent[i].map = NULL;
@@ -689,6 +746,8 @@ gen_bus_dma_teardown(struct gen_softc *sc)
 
 	if (sc->rx_buf_tag != NULL) {
 		for (i = 0; i < RX_DESC_COUNT; i++) {
+			if (sc->rx_ring_ent[i].map == NULL)
+				continue;
 			error = bus_dmamap_destroy(sc->rx_buf_tag,
 			    sc->rx_ring_ent[i].map);
 			sc->rx_ring_ent[i].map = NULL;
@@ -1855,7 +1914,73 @@ static driver_t gen_driver = {
 	sizeof(struct gen_softc),
 };
 
+#ifdef FDT
 DRIVER_MODULE(genet, simplebus, gen_driver, 0, 0);
+SIMPLEBUS_PNP_INFO(compat_data);
+#endif
+
+#ifdef DEV_ACPI
+static char *gen_acpi_ids[] = { "BCM6E4E", NULL };
+
+static int
+gen_acpi_probe(device_t dev)
+{
+	int result;
+
+	if (acpi_disabled("genet"))
+		return (ENXIO);
+	result = ACPI_ID_PROBE(device_get_parent(dev), dev, gen_acpi_ids, NULL);
+	if (result > 0)
+		return (result);
+	device_set_desc(dev, "BCM2711 Gigabit Ethernet (ACPI)");
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+gen_acpi_attach(device_t dev)
+{
+	struct gen_softc *sc;
+	ACPI_HANDLE handle, parent, object;
+	ACPI_STATUS status;
+	unsigned depth;
+
+	/*
+	 * GENET uses physical 40-bit DMA addresses. The Pi4 ETH0 node is
+	 * outside the translated GDV0 bus. Refuse an ancestor DMA window
+	 * until this frontend can represent its constraints/translation.
+	 */
+	handle = acpi_get_handle(dev);
+	for (depth = 0; depth < 64; depth++, handle = parent) {
+		status = AcpiGetParent(handle, &parent);
+		if (status == AE_NULL_ENTRY || status == AE_NOT_FOUND)
+			break;
+		if (ACPI_FAILURE(status))
+			return (ENXIO);
+		status = AcpiGetHandle(parent, "_DMA", &object);
+		if (status != AE_NOT_FOUND) {
+			device_printf(dev, "unsupported ancestor DMA window\n");
+			return (EOPNOTSUPP);
+		}
+	}
+	if (depth == 64)
+		return (E2BIG);
+	sc = device_get_softc(dev);
+	sc->acpi = true;
+	sc->type = 5;
+	return (gen_attach(dev));
+}
+
+static device_method_t gen_acpi_methods[] = {
+	DEVMETHOD(device_probe, gen_acpi_probe),
+	DEVMETHOD(device_attach, gen_acpi_attach),
+	DEVMETHOD_END
+};
+
+DEFINE_CLASS_1(genet, gen_acpi_driver, gen_acpi_methods,
+    sizeof(struct gen_softc), gen_driver);
+DRIVER_MODULE(genet, acpi, gen_acpi_driver, 0, 0);
+ACPI_PNP_INFO(gen_acpi_ids);
+#endif
 DRIVER_MODULE(miibus, genet, miibus_driver, 0, 0);
 MODULE_DEPEND(genet, ether, 1, 1, 1);
 MODULE_DEPEND(genet, miibus, 1, 1, 1);

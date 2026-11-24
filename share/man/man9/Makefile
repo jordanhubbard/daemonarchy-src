@@ -964,6 +964,7 @@ MLINKS+=cpuset.9 CPUSET_T_INITIALIZER.9 \
 	cpuset.9 CPU_EMPTY.9 \
 	cpuset.9 CPU_ISFULLSET.9 \
 	cpuset.9 CPU_FFS.9 \
+	cpuset.9 CPU_FFS_AT.9 \
 	cpuset.9 CPU_COUNT.9 \
 	cpuset.9 CPU_SUBSET.9 \
 	cpuset.9 CPU_OVERLAP.9 \
@@ -2470,7 +2471,8 @@ MLINKS+=vm_page_alloc.9 vm_page_alloc_after.9 \
 	vm_page_alloc.9 vm_page_alloc_noobj.9 \
 	vm_page_alloc.9 vm_page_alloc_noobj_contig.9 \
 	vm_page_alloc.9 vm_page_alloc_noobj_contig_domain.9 \
-	vm_page_alloc.9 vm_page_alloc_noobj_domain.9
+	vm_page_alloc.9 vm_page_alloc_noobj_domain.9 \
+	vm_page_alloc.9 vm_page_alloc_noobj_domainset.9
 MLINKS+=vm_page_bits.9 vm_page_clear_dirty.9 \
 	vm_page_bits.9 vm_page_dirty.9 \
 	vm_page_bits.9 vm_page_is_valid.9 \

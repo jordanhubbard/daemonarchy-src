@@ -44,6 +44,7 @@
 #include <sys/sysctl.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/fbio.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filio.h>
@@ -82,6 +83,7 @@
 #include <linux/backlight.h>
 
 #include "backlight_if.h"
+#include "fb_if.h"
 #include "pcib_if.h"
 
 /* -------------------------------------------------------------------------- */
@@ -560,6 +562,19 @@ lkpinew_pci_dev(device_t dev)
 	return (pdev);
 }
 
+/*
+ * Linux drops the reference on the "from" device of the pci_get_*() iterators
+ * once the next device has been looked up.  Only do it for the devices which
+ * were created by lkpinew_pci_dev(); the other ones belong to the bus.
+ */
+static void
+lkpi_pci_put_from(struct pci_dev *from)
+{
+
+	if (from != NULL && from->dev.release == lkpinew_pci_dev_release)
+		pci_dev_put(from);
+}
+
 struct pci_dev *
 lkpi_pci_get_class(unsigned int class, struct pci_dev *from)
 {
@@ -571,6 +586,7 @@ lkpi_pci_get_class(unsigned int class, struct pci_dev *from)
 		devfrom = from->dev.bsddev;
 
 	dev = pci_find_class_from(class >> 16, (class >> 8) & 0xFF, devfrom);
+	lkpi_pci_put_from(from);
 	if (dev == NULL)
 		return (NULL);
 
@@ -589,6 +605,7 @@ lkpi_pci_get_base_class(unsigned int baseclass, struct pci_dev *from)
 		devfrom = from->dev.bsddev;
 
 	dev = pci_find_base_class_from(baseclass, devfrom);
+	lkpi_pci_put_from(from);
 	if (dev == NULL)
 		return (NULL);
 
@@ -707,6 +724,14 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
 	return (0);
 
 out_err:
+	/*
+	 * As on Linux when a probe fails, release the devres actions.  Waiting
+	 * for the last reference to go away is wrong: devres actions (e.g. the
+	 * drm_dev_put() of devm_drm_dev_alloc()) may hold references on this
+	 * very device, which then never gets released, nor does the object
+	 * which holds the reference.
+	 */
+	lkpi_devres_release_free_list(&pdev->dev);
 	put_device(&pdev->dev);
 	return (-error);
 }
@@ -2528,6 +2553,23 @@ linux_backlight_device_unregister(struct backlight_device *bd)
 	free(bd, M_DEVBUF);
 }
 
+static struct fb_info *
+lkpi_fb_helper_getinfo(device_t dev)
+{
+	struct pci_dev *pdev;
+	device_t fbd;
+
+	pdev = device_get_softc(dev);
+	if (pdev->pdrv == NULL || !pdev->pdrv->isdrm)
+		return (NULL);
+
+	fbd = device_find_child(dev, "fbd", -1);
+	if (fbd == NULL)
+		return (NULL);
+
+	return (device_get_ivars(fbd));
+}
+
 /* -------------------------------------------------------------------------- */
 /* Native bus attachment glue. */
 
@@ -2550,5 +2592,9 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(backlight_update_status,	lkpi_backlight_update_status),
 	DEVMETHOD(backlight_get_status,		lkpi_backlight_get_status),
 	DEVMETHOD(backlight_get_info,		lkpi_backlight_get_info),
+
+	/* Framebuffer service methods */
+	DEVMETHOD(fb_getinfo,			lkpi_fb_helper_getinfo),
+
 	DEVMETHOD_END
 };

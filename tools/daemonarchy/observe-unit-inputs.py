@@ -278,13 +278,15 @@ def parse_meta(data, scope):
     require(commands and cwd and Path(cwd).is_absolute() and target, "metadata command/cwd/target is incomplete")
     version, closed = None, False
     process_cwd, accesses, mutations, exits = {}, [], [], []
-    unresolved = []
-    for line in body.decode().splitlines():
+    unresolved, unresolved_mutations, annotations = [], [], []
+    pending_annotation = possible_write = None
+    for line_number, line in enumerate(body.decode().splitlines(), 1):
         if not line:
             continue
         require(not closed, "metadata contains records after its closing trailer")
         if line.startswith("#"):
             if line.strip() == "# Bye bye":
+                require(pending_annotation is None, "unpaired filemon openat annotation")
                 closed = True
             continue
         if line.startswith("V "):
@@ -294,10 +296,32 @@ def parse_meta(data, scope):
             continue
         require(version is not None, "filemon event precedes its version")
         fields = line.split(" ",2)
-        require(len(fields) == 3 and fields[0] in set("CEFRWXDLMS") and fields[1].isdigit(), "unknown or malformed filemon event")
+        require(len(fields) == 3 and fields[0] in set("ACEFRWXDLMS") and fields[1].isdigit(), "unknown or malformed filemon event")
         op, pid, rest = fields[0], int(fields[1]), fields[2]
+        hint = None
+        possible_pair = False
+        if pending_annotation is not None:
+            require(op in {"R", "W"} and pid == pending_annotation["pid"],
+                    "filemon openat annotation lacks its following access")
+            operand = pending_annotation["relative_operand"]
+            require(rest == operand or rest.endswith("/" + operand),
+                    "filemon openat access differs from its relative operand")
+            hint = pending_annotation
+            pending_annotation = None
+        elif (possible_write is not None and op == "W"
+                and (pid, rest) == possible_write[:2]):
+            hint = possible_write[2]
+            possible_pair = True
+        possible_write = (pid, rest, hint) if hint is not None and op == "R" else None
         current = process_cwd.get(pid,cwd)
-        if op == "F":
+        if op == "A":
+            require(version == 5 and rest and not Path(rest).is_absolute()
+                    and not any(ord(c) < 32 for c in rest),
+                    "unsupported filemon openat annotation")
+            pending_annotation = {"pid":pid, "relative_operand":rest,
+                                  "line":line_number, "path_may_be_inaccurate":True}
+            annotations.append(pending_annotation)
+        elif op == "F":
             require(rest.isdigit(), "malformed fork event")
             process_cwd[int(rest)] = current
         elif op == "C":
@@ -308,25 +332,53 @@ def parse_meta(data, scope):
             require(len(status) in (1,2) and all(re.fullmatch(r"-?[0-9]+", n) for n in status), "malformed exit event")
             exits.append({"pid":pid,"status":status})
         elif op in {"L","M"}:
-            # The raw protocol has no unambiguous separator for two space-bearing paths.
-            paths=rest.split()
-            require(len(paths)==2, "ambiguous filemon link/rename path; do not skip the edge")
-            mutations.append({"operation":op,"pid":pid,"cwd":current,"paths":paths})
+            # FreeBSD V5 adds framing quotes, without shell quoting or escaping.
+            # A quote-space-quote inside either operand is still ambiguous.
+            if version == 5:
+                require(rest.startswith("'") and rest.endswith("'"),
+                        "ambiguous filemon link/rename path framing")
+                paths = rest[1:-1].split("' '")
+            else:
+                paths = rest.split()
+            require(len(paths) == 2 and all(paths)
+                    and not any(ord(c) < 32 for path in paths for c in path),
+                    "ambiguous filemon link/rename path; do not skip the edge")
+            record = {"operation":op,"pid":pid,"cwd":current,
+                      "paths":paths,"raw_paths":rest}
+            mutations.append(record)
+            if op == "L":
+                # L does not distinguish hard links, linkat or symbolic links.
+                unresolved_mutations.append({**record,"reason":"filemon-link-kind-unrecorded"})
+            elif any(not Path(path).is_absolute() for path in paths):
+                unresolved_mutations.append({**record,"reason":"relative-mutation-native-resolution-required"})
         else:
             record={"operation":op,"pid":pid,"cwd":current,"path":rest}
             require(rest and not any(ord(c)<32 for c in rest), "unsupported filemon path")
-            if not Path(rest).is_absolute():
-                unresolved.append({"path":rest,"cwd":current,"reason":"relative-or-dirfd-native-resolution-required"})
-            if op in {"R","E","S"} or op=="W" and version<=3:
+            if hint is not None:
+                record["directory_fd_annotation"] = hint
+                record["possible_read_write_pair"] = possible_pair
+            is_input = op in {"R","E","S"} or op == "W" and version <= 3
+            reason = ("filemon-dirfd-namecache-path-unverified" if hint is not None
+                      else "relative-or-dirfd-native-resolution-required")
+            unresolved_record = {"operation":op,"pid":pid,"path":rest,"cwd":current,"reason":reason}
+            if hint is not None:
+                unresolved_record["directory_fd_annotation"] = hint
+            if is_input:
                 accesses.append(record)
+                if hint is not None or not Path(rest).is_absolute():
+                    unresolved.append(unresolved_record)
             if op in {"W","D"}:
                 mutations.append(record)
+                if hint is not None or not Path(rest).is_absolute():
+                    unresolved_mutations.append(unresolved_record)
+    require(pending_annotation is None, "unpaired filemon openat annotation")
     require(version is not None and closed and accesses, "filemon metadata is truncated or has no actual inputs")
     return {"schema":"daemonarchy/source-action-trace-observation@1","scope":scope,"meta_sha256":digest(data),
             "commands":commands,"cwd":cwd,"target":target,"filemon_version":version,
             "input_accesses":accesses,"mutations":mutations,"process_exits":exits,
             "environment_identity":digest("\n".join(environment).encode()) if environment else None,
             "allowlisted_environment":public_environment,"unresolved_inputs":unresolved,
+            "unresolved_mutations":unresolved_mutations,"directory_fd_annotations":annotations,
             "input_bytes_captured":False,"canonical_ownership_registered":False,"native_profile_admitted":False,
             "cache_admission":False,"recursive_closure_complete":False,
             "remaining_gates":["join actual accesses to sealed canonical input bytes/owners", "trace ignore/environment policy admission",

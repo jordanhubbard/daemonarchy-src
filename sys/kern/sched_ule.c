@@ -1033,7 +1033,7 @@ tdq_lock_pair(struct tdq *one, bool one_locked, struct tdq *two)
 				return;
 			/*
 			 * That did not work. Release 'one' to acquire both
-			 * locks in the proper order as we may need to sleep
+			 * locks in the proper order as we may need to spin
 			 * (most probably, as 'two' has just been seen locked).
 			 */
 			TDQ_UNLOCK(one);
@@ -1423,6 +1423,7 @@ SCHED_STAT_DEFINE(pickcpu_affinity, "Picked cpu based on affinity");
 SCHED_STAT_DEFINE(pickcpu_lowest, "Selected lowest load");
 SCHED_STAT_DEFINE(pickcpu_local, "Migrated to current cpu");
 SCHED_STAT_DEFINE(pickcpu_migration, "Selection may have caused migration");
+SCHED_STAT_DEFINE(pickcpu_onecpu, "Cpuset allows a single cpu");
 
 static int
 sched_pickcpu(struct thread *td, int flags)
@@ -1431,7 +1432,7 @@ sched_pickcpu(struct thread *td, int flags)
 	struct td_sched *ts;
 	struct tdq *tdq;
 	cpuset_t *mask;
-	int cpu, pri, r, self, intr;
+	int cpu, cpu_ffs, pri, r, self, intr;
 
 	self = PCPU_GET(cpuid);
 	ts = td_get_sched(td);
@@ -1444,6 +1445,17 @@ sched_pickcpu(struct thread *td, int flags)
 	 */
 	if ((flags & SRQ_OURSELF) || !THREAD_CAN_MIGRATE(td))
 		return (ts->ts_cpu);
+	/*
+	 * A thread whose cpuset holds one cpu can only run there, so skip
+	 * the topology search.
+	 */
+	mask = &td->td_cpuset->cs_mask;
+	cpu_ffs = CPU_FFS(mask);
+	MPASS(cpu_ffs > 0);
+	if (cpu_ffs == CPU_SETSIZE || CPU_FFS_AT(mask, cpu_ffs) == 0) {
+		SCHED_STAT_INC(pickcpu_onecpu);
+		return (cpu_ffs - 1);
+	}
 	/*
 	 * Prefer to run interrupt threads on the processors that generate
 	 * the interrupt.
@@ -1509,7 +1521,6 @@ llc:
 	if (ccg == cpu_top)
 		ccg = NULL;
 	cpu = -1;
-	mask = &td->td_cpuset->cs_mask;
 	pri = td->td_priority;
 	r = TD_IS_RUNNING(td);
 	/*
@@ -2329,8 +2340,8 @@ sched_switch_migrate(struct tdq *tdq, struct thread *td, int flags)
 	 * thread to be lock-unblocked (see there why).  If we dropped the
 	 * current runqueue lock, we would have to re-acquire it after putting
 	 * the thread into our remote CPU's runqueue (i.e., the source CPU for
-	 * the steal) before finally reaching cpu_wait() which lock-unblocks the
-	 * thread.  This would create a "hidden" and arbitrary additional
+	 * the steal) before finally reaching cpu_switch() which lock-unblocks
+	 * the thread.  This would create a "hidden" and arbitrary additional
 	 * lock-ordering dependency between the source and destination locks of
 	 * tdq_move() on one hand, and our current runqueue's lock on the other
 	 * hand, sometimes violating the lock ordering established by

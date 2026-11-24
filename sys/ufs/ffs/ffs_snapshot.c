@@ -33,26 +33,25 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_quota.h"
 
-#include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
-#include <sys/gsb_crc32.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/conf.h>
 #include <sys/fcntl.h>
-#include <sys/proc.h>
-#include <sys/namei.h>
-#include <sys/sched.h>
-#include <sys/stat.h>
+#include <sys/gsb_crc32.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/namei.h>
+#include <sys/proc.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
+#include <sys/sched.h>
+#include <sys/stat.h>
+#include <sys/taskqueue.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
@@ -2199,18 +2198,15 @@ ffs_bp_snapblk(struct vnode *devvp, struct buf *bp)
 void
 ffs_bdflush(struct bufobj *bo, struct buf *bp)
 {
-	struct thread *td;
-	struct vnode *vp, *devvp;
+	struct vnode *devvp;
 	struct buf *nbp;
 	int bp_bdskip;
 
 	if (bo->bo_dirty.bv_cnt <= dirtybufthresh)
 		return;
 
-	td = curthread;
-	vp = bp->b_vp;
 	devvp = bo2vnode(bo);
-	KASSERT(vp == devvp, ("devvp != vp %p %p", bo, bp));
+	KASSERT(bp->b_vp == devvp, ("devvp != vp %p %p", bo, bp));
 
 	VI_LOCK(devvp);
 	bp_bdskip = ffs_bp_snapblk(devvp, bp);
@@ -2218,7 +2214,7 @@ ffs_bdflush(struct bufobj *bo, struct buf *bp)
 		bdwriteskip++;
 	VI_UNLOCK(devvp);
 	if (bo->bo_dirty.bv_cnt > dirtybufthresh + 10 && !bp_bdskip) {
-		(void) VOP_FSYNC(vp, MNT_NOWAIT, td);
+		mntfs_fsync_delayed(devvp);
 		altbufferflushes++;
 	} else {
 		BO_LOCK(bo);
@@ -2244,7 +2240,7 @@ ffs_bdflush(struct bufobj *bo, struct buf *bp)
 			}
 			if (bp_bdskip) {
 				VI_LOCK(devvp);
-				if (!ffs_bp_snapblk(vp, nbp)) {
+				if (!ffs_bp_snapblk(devvp, nbp)) {
 					VI_UNLOCK(devvp);
 					BO_LOCK(bo);
 					BUF_UNLOCK(nbp);

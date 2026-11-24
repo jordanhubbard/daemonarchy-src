@@ -60,6 +60,15 @@ CTFFLAGS+= -g
 
 _debuginstall:
 .if ${MK_DEBUG_FILES} != "no" && defined(DEBUGFILE)
+# PROGS sub-makes can install debug files concurrently in one object directory.
+# Give each payload its own metadata while preserving the public entry point.
+_debuginstall: ${DEBUGFILE}._debuginstall
+.if target(_proginstall)
+.ORDER: _proginstall ${DEBUGFILE}._debuginstall
+.elif target(_libinstall)
+.ORDER: _libinstall ${DEBUGFILE}._debuginstall
+.endif
+${DEBUGFILE}._debuginstall:
 .if defined(DEBUGMKDIR)
 	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dbg} -d ${DESTDIR}${DEBUGFILEDIR}
 .endif

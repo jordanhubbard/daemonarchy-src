@@ -119,7 +119,7 @@ static void	filecaps_copy_finish(const struct filecaps *src,
 		    struct filecaps *dst, u_long *ioctls);
 static u_long 	*filecaps_free_prep(struct filecaps *fcaps);
 static void	filecaps_free_finish(u_long *ioctls);
-
+static void	pdescfree_tail(struct proc *p, struct pwddesc *pdp);
 static struct pwd *pwd_alloc(void);
 
 /*
@@ -2582,22 +2582,39 @@ fdunshare(struct thread *td)
 }
 
 /*
+ * Used by the caller to replace its own p_pd while no other writer
+ * exists.  old_pdp must be the current value, and its share and
+ * reference are consumed.
+ */
+void
+pdswap(struct proc *p, struct pwddesc *new_pdp, struct pwddesc *old_pdp)
+{
+	MPASS(p->p_pd == old_pdp);
+
+	/* Make the initialized copy visible before the pointer to it. */
+	atomic_store_rel_ptr((volatile uintptr_t *)&p->p_pd,
+	    (uintptr_t)new_pdp);
+	pdescfree_tail(p, old_pdp);
+}
+
+/*
  * Unshare a pwddesc structure.
  */
 void
 pdunshare(struct thread *td)
 {
-	struct pwddesc *pdp;
+	struct pwddesc *old_pdp, *new_pdp;
 	struct proc *p;
 
 	p = td->td_proc;
+	old_pdp = p->p_pd;
+
 	/* Not shared. */
-	if (refcount_load(&p->p_pd->pd_sharecount) == 1)
+	if (refcount_load(&old_pdp->pd_sharecount) == 1)
 		return;
 
-	pdp = pdcopy(p->p_pd);
-	pdescfree(td);
-	p->p_pd = pdp;
+	new_pdp = pdcopy(old_pdp);
+	pdswap(p, new_pdp, old_pdp);
 }
 
 /*
@@ -2861,6 +2878,20 @@ fdescfree(struct thread *td)
 	fdescfree_fds(td, fdp);
 }
 
+static void
+pdescfree_tail(struct proc *p, struct pwddesc *pdp)
+{
+	/*
+	 * The p_pd store must be visible before the process lock is
+	 * observed unlocked, see the comment above fdhold().
+	 */
+	atomic_thread_fence_seq_cst();
+	PROC_WAIT_UNLOCKED(p);
+
+	(void)refcount_release(&pdp->pd_sharecount);
+	pddrop(pdp);
+}
+
 void
 pdescfree(struct thread *td)
 {
@@ -2872,14 +2903,10 @@ pdescfree(struct thread *td)
 	MPASS(pdp != NULL);
 
 	/*
-	 * Check pdhold for an explanation.
+	 * Check pdhold() for an explanation.
 	 */
 	atomic_store_ptr(&p->p_pd, NULL);
-	atomic_thread_fence_seq_cst();
-	PROC_WAIT_UNLOCKED(p);
-
-	(void)refcount_release(&pdp->pd_sharecount);
-	pddrop(pdp);
+	pdescfree_tail(p, pdp);
 }
 
 /*
@@ -3233,6 +3260,7 @@ fget_remote(struct thread *td, struct proc *p, int fd, struct filecaps *fcaps,
 	struct file *fp;
 	int error;
 	bool copied __diagused;
+	bool drop_fp;
 
 	/*
 	 * Both fcaps and fd_flags must be either requested together,
@@ -3248,10 +3276,21 @@ fget_remote(struct thread *td, struct proc *p, int fd, struct filecaps *fcaps,
 	PROC_UNLOCK(p);
 	if (fdp == NULL)
 		return (ENOENT);
+	drop_fp = false;
 	FILEDESC_SLOCK(fdp);
 	if (refcount_load(&fdp->fd_refcnt) != 0) {
 		fp = fget_noref(fdp, fd);
-		if (fp != NULL && fhold(fp)) {
+		error = fp != NULL && fhold(fp) ? 0 : EBADF;
+	} else {
+		error = ENOENT;
+	}
+	if (error == 0) {
+		PROC_LOCK(p);
+		/* Guard against a race with rfork(RFCFDG). */
+		if (fdp != atomic_load_ptr(&p->p_fd))
+			error = EBADF;
+		PROC_UNLOCK(p);
+		if (error == 0) {
 			*fpp = fp;
 			if (fd_flags != NULL) {
 				*fd_flags = fde_to_fd_flags(fdp->fd_ofiles[fd].
@@ -3262,14 +3301,13 @@ fget_remote(struct thread *td, struct proc *p, int fd, struct filecaps *fcaps,
 				    &fdp->fd_ofiles[fd].fde_caps, fcaps, true);
 				MPASS(copied);
 			}
-			error = 0;
 		} else {
-			error = EBADF;
+			drop_fp = true;
 		}
-	} else {
-		error = ENOENT;
 	}
 	FILEDESC_SUNLOCK(fdp);
+	if (drop_fp)
+		fdrop(fp, td);
 	fddrop(fdp);
 	return (error);
 }
@@ -4398,37 +4436,50 @@ pwd_chdir(struct thread *td, struct vnode *vp)
 }
 
 /*
- * Process is transitioning to/from a non-native ABI.
+ * Set the alternative root directory for the process.
+ *
+ * A non-NULL altroot_vp enables the alternative root and uses
+ * altroot_vp for it.  NULL disables it by setting the alternative
+ * root to the process root directory.
  */
-void
+int
 pwd_altroot(struct thread *td, struct vnode *altroot_vp)
 {
 	struct pwddesc *pdp;
 	struct pwd *newpwd, *oldpwd;
+	struct vnode *vp;
 
+	if (altroot_vp != NULL && altroot_vp->v_type != VDIR)
+		return (ENOTDIR);
 	newpwd = pwd_alloc();
 	pdp = td->td_proc->p_pd;
 	PWDDESC_XLOCK(pdp);
 	oldpwd = PWDDESC_XLOCKED_LOAD_PWD(pdp);
-	if (altroot_vp != NULL) {
-		/*
-		 * Native process to a non-native ABI.
-		 */
-
-		vrefact(altroot_vp);
-		newpwd->pwd_adir = altroot_vp;
+	vp = altroot_vp != NULL ? altroot_vp : oldpwd->pwd_rdir;
+	if (vp != oldpwd->pwd_adir) {
+		vrefact(vp);
+		newpwd->pwd_adir = vp;
+		pwd_fill(oldpwd, newpwd);
+		pwd_set(pdp, newpwd);
+		newpwd = NULL;
 	} else {
-		/*
-		 * Non-native process to the native ABI.
-		 */
-
-		vrefact(oldpwd->pwd_rdir);
-		newpwd->pwd_adir = oldpwd->pwd_rdir;
+		oldpwd = NULL;
 	}
-	pwd_fill(oldpwd, newpwd);
-	pwd_set(pdp, newpwd);
 	PWDDESC_XUNLOCK(pdp);
-	pwd_drop(oldpwd);
+	if (oldpwd != NULL)
+		pwd_drop(oldpwd);
+	if (newpwd != NULL)
+		pwd_drop(newpwd);
+	return (0);
+}
+
+void
+pwd_altroot_clear(struct thread *td)
+{
+	int error __diagused;
+
+	error = pwd_altroot(td, NULL);
+	KASSERT(error == 0, ("%s: pwd_altroot failed: %d", __func__, error));
 }
 
 /*
@@ -4972,8 +5023,10 @@ export_vnode_to_sb(struct vnode *vp, int fd, int fflags,
 {
 	int error;
 
-	if (efbuf->remainder == 0)
+	if (efbuf->remainder == 0) {
+		vrele(vp);
 		return (ENOMEM);
+	}
 	if (efbuf->pdp != NULL)
 		PWDDESC_XUNLOCK(efbuf->pdp);
 	export_vnode_to_kinfo(vp, fd, fflags, &efbuf->kif, efbuf->flags);
@@ -4998,24 +5051,13 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen,
 	struct export_fd_buf *efbuf;
 	struct vnode *cttyvp, *textvp, *tracevp;
 	struct pwd *pwd;
+	struct session *sess;
 	int error, i;
 	cap_rights_t rights;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	_PHOLD(p);
 
-	/* ktrace vnode */
-	tracevp = ktr_get_tracevp(p, true);
-	/* text vnode */
-	textvp = p->p_textvp;
-	if (textvp != NULL)
-		vrefact(textvp);
-	/* Controlling tty. */
-	cttyvp = NULL;
-	if (p->p_pgrp != NULL && p->p_pgrp->pg_session != NULL) {
-		cttyvp = p->p_pgrp->pg_session->s_ttyvp;
-		if (cttyvp != NULL)
-			vrefact(cttyvp);
-	}
 	fdp = fdhold(p);
 	pdp = pdhold(p);
 	PROC_UNLOCK(p);
@@ -5028,15 +5070,39 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen,
 	efbuf->flags = flags;
 
 	error = 0;
-	if (tracevp != NULL)
+	PROC_LOCK(p);
+	tracevp = ktr_get_tracevp(p, true);
+	if (tracevp != NULL) {
+		PROC_UNLOCK(p);
 		error = export_vnode_to_sb(tracevp, KF_FD_TYPE_TRACE,
 		    FREAD | FWRITE, efbuf);
-	if (error == 0 && textvp != NULL)
+		PROC_LOCK(p);
+	}
+	if (error == 0 && (textvp = p->p_textvp) != NULL) {
+		vrefact(textvp);
+		PROC_UNLOCK(p);
 		error = export_vnode_to_sb(textvp, KF_FD_TYPE_TEXT, FREAD,
 		    efbuf);
-	if (error == 0 && cttyvp != NULL)
+		PROC_LOCK(p);
+	}
+	while (error == 0) {
+		if (p->p_pgrp == NULL || (sess = p->p_session) == NULL)
+			break;
+		SESS_LOCK(sess);
+		if ((cttyvp = sess->s_ttyvp) == NULL) {
+			SESS_UNLOCK(sess);
+			break;
+		}
+		vrefact(cttyvp);
+		SESS_UNLOCK(sess);
+		PROC_UNLOCK(p);
 		error = export_vnode_to_sb(cttyvp, KF_FD_TYPE_CTTY,
 		    FREAD | FWRITE, efbuf);
+		PROC_LOCK(p);
+		break;
+	}
+	_PRELE(p);
+	PROC_UNLOCK(p);
 	if (error != 0 || pdp == NULL || fdp == NULL)
 		goto fail;
 	efbuf->fdp = fdp;
@@ -5062,12 +5128,19 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen,
 			error = export_vnode_to_sb(pwd->pwd_jdir,
 			    KF_FD_TYPE_JAIL, FREAD, efbuf);
 		}
+		/* alt root directory */
+		if (error == 0 && pwd->pwd_adir != NULL &&
+		    pwd->pwd_adir != pwd->pwd_rdir) {
+			vrefact(pwd->pwd_adir);
+			error = export_vnode_to_sb(pwd->pwd_adir,
+			    KF_FD_TYPE_ALTROOT, FREAD, efbuf);
+		}
 	}
 	PWDDESC_XUNLOCK(pdp);
-	if (error != 0)
-		goto fail;
 	if (pwd != NULL)
 		pwd_drop(pwd);
+	if (error != 0)
+		goto fail;
 	FILEDESC_SLOCK(fdp);
 	if (refcount_load(&fdp->fd_refcnt) == 0)
 		goto skip;

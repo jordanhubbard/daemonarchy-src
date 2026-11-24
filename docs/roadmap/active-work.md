@@ -603,3 +603,120 @@ resume and final source/compiler/product admission remain open.
   retained wheel and native dependency closure must also pass on the candidate
   kernel. Whole-wheel success, exact-head CI, selected-main native products and
   final release acceptance remain distinct qualification requirements.
+
+
+### [ ] FILEMON-SYNC-001 — Finalize native trace logs before readback
+
+- **GitHub issue:** [#102](https://github.com/jordanhubbard/daemonarchy-src/issues/102), milestone **1.6.0**.
+- **Priority:** P1; original filemon and native source/action observation integrity.
+- **Direction:** Provide synchronous log finalization before a reader rewinds the
+  output file description shared with the kernel writer. Preserve upstream
+  source, existing clients and filemon record format 5.
+- **Baseline:** A pipe-coordinated native probe keeps an inherited device
+  descriptor open after its parent closes. The log lacks its footer until that
+  final reference closes. Rewinding before release lets the late kernel write
+  overwrite the original header. The ordinary-close control remains intact.
+  No sleep, kernel replacement or modification of build products is involved.
+- **Implementation:**
+  - [x] Prepare an additive finalize ioctl using existing process detachment and
+    locked log-close operations, with native regressions for inherited
+    descriptors, rewind safety, repeated finalization and a still-live target.
+  - [x] Build and qualify the actual changed module and matching make client on
+    an isolated, allocated diagnostic VM; retain the failing baseline.
+- **Native controls:** Frozen source `42c936dca810` compiles the original ATF
+  tests, module and matched bmake on FreeBSD amd64 and arm64. Independent
+  post-build checks retain all 115,626 Git entries, modes and 152 literal links
+  on each worker. On the separate amd64 diagnostic VM, the identical test
+  binary yields one legacy pass and three new-case failures with the original
+  module, then four passes without skips with the changed module. A clean
+  reboot separates the modules because filemon explicitly rejects ordinary
+  unload; no forced unload was used. The matched bmake produces 32 real ELF
+  objects with complete raw metadata envelopes, and numeric syscall tracing
+  verifies 32 finalize requests and 32 successful returns. All 14 original
+  bmake metadata-focused unit tests pass. Arm64 runtime with the changed
+  module and renewed full aggregate capture remain unqualified. Original
+  unload and symbolic-trace-observer failures are retained privately.
+- **Evidence boundary:** The source100 amd64 aggregate and original byte verifier
+  pass all five phases. Separate artifact/source/pkg/kernel checks pass, but its
+  independent trace review fails on two malformed non-compilation records among
+  113,241 retained blobs. Those records and the original failure remain retained;
+  aggregate success does not supply a complete dependency graph or SDK admission.
+  The paired arm64 run passes its independent artifact and raw-trace review;
+  canonical unit coverage, SDK/lifecycle and release admission remain separate.
+- **Required renewal:** Require all new native cases without skips, a real make
+  metadata control using the changed API, original caller compatibility and
+  exact-head CI. Renew reliable native observation before canonical action-graph
+  admission. Do not normalize corrupt records or infer complete dependencies
+  from the earlier aggregate.
+
+The renewed source104 amd64 run completes all five phases and its byte verifier,
+but strict review again refuses two malformed records, among 113,252 retained
+blobs. Separate checks pass all 538 artifacts, 524 package records and their
+dependencies, complete source payloads, and matching kernel/module packages and
+sets. Those successes do not qualify the failed trace set.
+
+The install rules have a separate metadata collision: parallel `PROGS`
+sub-makes share `_proginstall.meta` and `_debuginstall.meta`. On the same native
+make/module pair, barrier-coordinated original install recipes reproduce two
+corrupt shared files. Candidate per-payload recipe targets produce four distinct,
+valid traces and byte-identical installed programs and debug files. The generic
+install entry points remain aliases, and the existing ordering is retained.
+`tools/daemonarchy/test_install_metadata.sh` also fails against the original
+rules and passes with the candidate. Its script payloads test installation and
+metadata; they do not establish compilation or runtime qualification. Four
+additional native cases pass for debug-disabled programs, a single program,
+library installation and direct generic entry points, including instrumented
+before/after hooks and program-to-debug ordering. Renewed complete capture and
+exact-head integration gates remain open. No canonical graph or SDK admission
+is implied.
+
+Full native-suite preparation also exposed a hosted-probe restriction that
+required reports inside source. External absolute reports are now supported
+while preserving guest-relative transport for repository-local reports and the
+canonical-path guard. Three path regressions pass on the controller; complete
+native execution of all 165 existing cases and these three additions on source
+`789350ff4180` yields 166 passes, two fixture failures and no skips. The fake
+guest required an unavailable `python3` alias, and its timeout assertion omitted
+the documented BSD expiration status. The fixture now binds the actual test
+interpreter and requires positive startup, ignored SIGTERM and FIFO EOF within
+the original deadline. Both original bound cases pass natively with the updated
+fixture; the Linux bound-test class also passes. Complete native-suite renewal
+on the combined revision remains required. The original preparation refusal
+and failed full-suite run remain retained.
+
+
+### Explicit make client for renewed filemon capture
+
+Source PR #103 lands synchronous finalization without replacing installed worker
+tools. The aggregate controller still needs an explicit matching make client:
+`--make` selects a resolved executable and binds its SHA-256, size and mode in
+the plan. All phase and release queries, the filemon provider probe and worker
+version observation use that client. Before/after command checks refuse changed
+bytes or mode; a command's actual zero exit remains recorded if its postcheck
+refuses acceptance. The default installed-make plan retains its prior identity.
+
+This is preparation for renewed native observation. It does not load the changed
+module, qualify an aggregate trace, resolve the canonical action graph or admit
+an SDK. Existing malformed AMD records and their strict refusal remain retained.
+
+
+### FILEMON-PATHS-001 — Preserve native trace path semantics
+
+- **Tracker:** [source issue #105](https://github.com/jordanhubbard/daemonarchy-src/issues/105).
+- **Problem:** The retained reader rejects valid V5 directory-FD annotations and
+  includes native link/rename framing quotes in reported filenames. Following
+  `A`, even an absolute namecache path may be inaccurate; `L` leaves the actual
+  link syscall kind unspecified.
+- **Candidate:** Preserve annotations and access association as unresolved facts,
+  decode only unambiguous native quote framing without shell unescaping, and
+  separate unresolved mutations from read-input candidates. Keep the original
+  byte identities and strict truncation/late-record refusals. Do not open recorded
+  paths or infer native SDK, canonical dependency or cache admission.
+- **Retained native replay:** All 64,837 independently reviewed ARM64 buildworld
+  records (1,423,148,147 raw bytes) parse with 1,590 annotations, 9,141,337 read/exec
+  candidates and 170,121 mutations. Every metadata blob is processed with its
+  original bytes unchanged. The resulting 128,615 unresolved inputs and 136,045 unresolved mutations remain
+  explicit; these counts do not qualify a complete action graph or input bytes.
+- **Admission boundary:** Require candidate tests and native/hosted review gates
+  before landing. Reliable renewed full capture, canonical ownership and per-unit
+  packaging/lifecycle remain separate open requirements.

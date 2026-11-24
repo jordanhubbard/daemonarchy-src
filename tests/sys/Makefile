@@ -16,6 +16,7 @@ TESTS_SUBDIRS+=		${_cpuctl}
 TESTS_SUBDIRS+=		devrandom
 TESTS_SUBDIRS+=		fifo
 TESTS_SUBDIRS+=		file
+TESTS_SUBDIRS+=		filemon
 TESTS_SUBDIRS+=		fs
 TESTS_SUBDIRS+=		geom
 TESTS_SUBDIRS+=		kern

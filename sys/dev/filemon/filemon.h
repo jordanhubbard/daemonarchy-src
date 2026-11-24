@@ -30,5 +30,8 @@
 #define FILEMON_SET_FD		_IOWR('S', 1, int)
 #define FILEMON_SET_PID		_IOWR('S', 2, pid_t)
 
+/* Finalize the current log, including with inherited device descriptors. */
+#define FILEMON_FLUSH_IOCTL	_IO('S', 3)
+
 #define FILEMON_VERSION		5	/* output format
 					   (bump when adding record types) */

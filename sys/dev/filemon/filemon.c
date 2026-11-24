@@ -407,6 +407,15 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 		}
 		break;
 
+	/*
+	 * Finish the log before userland rewinds the shared output descriptor.
+	 */
+	case FILEMON_FLUSH_IOCTL:
+		filemon_untrack_processes(filemon);
+		filemon_close_log(filemon);
+		error = filemon->error;
+		break;
+
 	default:
 		error = EINVAL;
 		break;

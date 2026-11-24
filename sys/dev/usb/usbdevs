@@ -746,6 +746,7 @@ vendor SUNPLUS		0x1bcf	Sunplus Innovation Technology Inc.
 vendor WAGO		0x1be3  WAGO Kontakttechnik GmbH.
 vendor TELIT		0x1bc7  Telit
 vendor IONICS		0x1c0c	Ionics PlugComputer
+vendor HUMANWARE	0x1c71	HumanWare
 vendor LONGCHEER	0x1c9e	Longcheer Holdings, Ltd.
 vendor MPMAN		0x1cae	MpMan
 vendor DRESDENELEKTRONIK 0x1cf1 dresden elektronik
@@ -2644,6 +2645,9 @@ product HUAWEI E5573Cs322_ACM	0x1442	LTE AP modem ACM mode
 
 /* HUAWEI 3com products */
 product HUAWEI3COM WUB320G	0x0009	Aolynk WUB320g
+
+/* HumanWare products */
+product HUMANWARE APEX		0xc004	BrailleNote Apex
 
 /* IBM Corporation */
 product IBM USBCDROMDRIVE	0x4427	USB CD-ROM Drive
@@ -5017,6 +5021,7 @@ product WCH2 CH9102SER		0x55d4	CH9102 USB Serial
 product WCH2 CH341SER_3		0x7522	CH341/CH340 USB-Serial Bridge
 product WCH2 CH341SER		0x7523	CH341/CH340 USB-Serial Bridge
 product WCH2 U2M		0x752d	CH345 USB2.0-MIDI
+product WCH2 WCHLINK		0x8010	WCH-Link Serial Bridge
 
 /* West Mountain Radio products */
 product WESTMOUNTAIN RIGBLASTER_ADVANTAGE	0x0003	RIGblaster Advantage

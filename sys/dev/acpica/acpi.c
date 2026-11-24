@@ -168,6 +168,8 @@ static int	acpi_isa_get_compatid(device_t dev, uint32_t *cids, int count);
 static ACPI_STATUS acpi_device_scan_cb(ACPI_HANDLE h, UINT32 level,
 		    void *context, void **retval);
 static ACPI_STATUS acpi_find_dsd(struct acpi_device *ad);
+static ACPI_STATUS acpi_ad_get_prop(struct acpi_device *ad,
+		    const char *propname, const ACPI_OBJECT **value);
 static void	acpi_platform_osc(device_t dev);
 static void	acpi_probe_children(device_t bus);
 static void	acpi_probe_order(ACPI_HANDLE handle, int *order);
@@ -1546,6 +1548,47 @@ acpi_sysres_alloc(device_t dev)
 }
 
 /*
+ * A system container can repeat an immediate namespace child's _CRS window
+ * (for example, GDV1 and its BCM2711 eMMC2 child).  Both can be flattened onto
+ * acpi0.  Reserving the container's copy first prevents a later-pass child
+ * driver from allocating its own resource.  Give an exact duplicate to the
+ * enabled child; retain all other container reservations.
+ */
+static bool
+acpi_syscont_child_resource(device_t bus, device_t container,
+    const struct resource_list_entry *rle)
+{
+    struct resource_list_entry *entry;
+    struct acpi_device *ad;
+    ACPI_HANDLE handle, child_handle;
+    device_t child;
+
+    if ((rle->type != SYS_RES_MEMORY && rle->type != SYS_RES_IOPORT) ||
+	rle->count == 0 || rle->end < rle->start ||
+	rle->count - 1 != rle->end - rle->start)
+	return (false);
+    handle = acpi_get_handle(container);
+    if (handle == NULL || !acpi_MatchHid(handle, "ACPI0004"))
+	return (false);
+
+    child_handle = NULL;
+    while (ACPI_SUCCESS(AcpiGetNextObject(ACPI_TYPE_DEVICE, handle,
+	child_handle, &child_handle))) {
+	child = acpi_get_device(child_handle);
+	if (child == NULL || device_get_parent(child) != bus ||
+	    !device_is_enabled(child))
+	    continue;
+	ad = device_get_ivars(child);
+	STAILQ_FOREACH(entry, &ad->ad_rl, link) {
+	    if (entry->type == rle->type && entry->start == rle->start &&
+		entry->end == rle->end && entry->count == rle->count)
+		return (true);
+	}
+    }
+    return (false);
+}
+
+/*
  * Reserve declared resources for active devices found during the
  * namespace scan once the boot-time attach of devices has completed.
  *
@@ -1592,6 +1635,9 @@ acpi_reserve_resources(device_t dev)
 	     * if ECDT is present.
 	     */
 	    if (rle->res != NULL)
+		continue;
+
+	    if (acpi_syscont_child_resource(dev, children[i], rle))
 		continue;
 
 	    /*
@@ -2000,12 +2046,16 @@ static ACPI_STATUS
 acpi_device_get_prop(device_t bus, device_t dev, const char *propname,
     const ACPI_OBJECT **value)
 {
+	return (acpi_ad_get_prop(device_get_ivars(dev), propname, value));
+}
+
+static ACPI_STATUS
+acpi_ad_get_prop(struct acpi_device *ad, const char *propname,
+    const ACPI_OBJECT **value)
+{
 	const ACPI_OBJECT *pkg, *name, *val;
-	struct acpi_device *ad;
 	ACPI_STATUS status;
 	int i;
-
-	ad = device_get_ivars(dev);
 
 	if (ad == NULL || propname == NULL)
 		return (AE_BAD_PARAMETER);
@@ -2028,7 +2078,10 @@ acpi_device_get_prop(device_t bus, device_t dev, const char *propname,
 		val = &pkg->Package.Elements[1];
 		if (name->Type != ACPI_TYPE_STRING)
 			continue;
-		if (strncmp(propname, name->String.Pointer, name->String.Length) == 0) {
+		if (name->String.Pointer != NULL &&
+		    strlen(propname) == name->String.Length &&
+		    strncmp(propname, name->String.Pointer,
+		    name->String.Length) == 0) {
 			if (value != NULL)
 				*value = val;
 
@@ -2103,10 +2156,22 @@ static ssize_t
 acpi_bus_get_prop(device_t bus, device_t child, const char *propname,
     void *propvalue, size_t size, device_property_type_t type)
 {
+	return (acpi_ad_get_property(device_get_ivars(child), propname,
+	    propvalue, size, type));
+}
+
+/*
+ * Return a _DSD property of the device described by ad, for buses whose
+ * children are ACPI devices but whose ivars are not a struct acpi_device.
+ */
+ssize_t
+acpi_ad_get_property(struct acpi_device *ad, const char *propname,
+    void *propvalue, size_t size, device_property_type_t type)
+{
 	ACPI_STATUS status;
 	const ACPI_OBJECT *obj;
 
-	status = acpi_device_get_prop(bus, child, propname, &obj);
+	status = acpi_ad_get_prop(ad, propname, &obj);
 	if (ACPI_FAILURE(status))
 		return (-1);
 
@@ -2161,7 +2226,7 @@ acpi_bus_get_prop(device_t bus, device_t child, const char *propname,
 
 			h = acpi_GetReference(NULL,
 			    __DECONST(ACPI_OBJECT *, obj));
-			memcpy(propvalue, h, sizeof(ACPI_HANDLE));
+			memcpy(propvalue, &h, sizeof(ACPI_HANDLE));
 		}
 		return (sizeof(ACPI_HANDLE));
 	default:

@@ -28,6 +28,7 @@
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/mount.h>
+#include <sys/taskqueue.h>
 #include <sys/vnode.h>
 
 /*
@@ -46,8 +47,20 @@ mntfs_reclaim(struct vop_reclaim_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 
+	vp->v_data = NULL;
 	dev_rel(vp->v_rdev);
 	return (0);
+}
+
+void
+mntfs_fsync_task(void *arg, int pending)
+{
+	struct vnode *devvp;
+
+	devvp = arg;
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
+	(void)vn_fsync_buf(devvp, MNT_NOWAIT);
+	VOP_UNLOCK(devvp);
 }
 
 struct vop_vector mntfs_vnodeops = {
@@ -77,7 +90,8 @@ mntfs_allocvp(struct mount *mp, struct vnode *ovp)
 
 	getnewvnode("mntfs", mp, &mntfs_vnodeops, &vp);
 	vp->v_type = VCHR;
-	vp->v_data = NULL;
+	vp->v_data = mp;
+	mp->mnt_bdflush_task.ta_context = vp;
 	dev_ref(dev);
 	vp->v_rdev = dev;
 
@@ -93,4 +107,17 @@ mntfs_freevp(struct vnode *vp)
 	ASSERT_VOP_ELOCKED(vp, "mntfs_freevp");
 	vgone(vp);
 	vput(vp);
+}
+
+void
+mntfs_fsync_delayed(struct vnode *vp)
+{
+	struct mount *mp;
+
+	if (vp->v_op == &mntfs_vnodeops) {
+		mp = vp->v_data;
+		taskqueue_enqueue(taskqueue_thread, &mp->mnt_bdflush_task);
+	} else {
+		(void)VOP_FSYNC(vp, MNT_NOWAIT, curthread);
+	}
 }

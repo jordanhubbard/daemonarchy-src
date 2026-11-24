@@ -287,6 +287,11 @@ realinstall: _proginstall _debuginstall
 .ORDER: beforeinstall _proginstall _debuginstall
 _proginstall:
 .if defined(PROG)
+# Recursive PROGS builds share an object directory.  Keep the install entry
+# point, but record each program's commands in a distinct meta file.
+_proginstall: ${PROG}._proginstall
+.ORDER: beforeinstall ${PROG}._proginstall
+${PROG}._proginstall:
 	${INSTALL} ${TAG_ARGS} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${BINDIR}/${PROGNAME}
 .endif

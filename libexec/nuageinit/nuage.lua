@@ -322,11 +322,11 @@ local function adduser(pwd)
 	if root then
 		cmd = cmd .. "-R " .. root .. " "
 	end
-	local f = io.popen(cmd .. " usershow " .. shell_escape(pwd.name) .. " -7 2> /dev/null")
+	local f = io.popen(cmd .. " usershow -n " .. shell_escape(pwd.name) .. " -7 2> /dev/null")
 	local pwdstr = f:read("*a")
 	f:close()
 	if pwdstr:len() ~= 0 then
-		return pwdstr:match("%a+:.+:%d+:%d+:.*:(.*):.*")
+		return pwdstr:match("[^:]*:[^:]*:%d+:%d+:[^:]*:([^:]*):")
 	end
 	if not pwd.gecos then
 		pwd.gecos = pwd.name .. " User"
@@ -420,7 +420,7 @@ local function addgroup(grp)
 	if root then
 		cmd = cmd .. "-R " .. root .. " "
 	end
-	local f = io.popen(cmd .. " groupshow " .. shell_escape(grp.name) .. " 2> /dev/null")
+	local f = io.popen(cmd .. " groupshow -n " .. shell_escape(grp.name) .. " 2> /dev/null")
 	local grpstr = f:read("*a")
 	f:close()
 	if grpstr:len() ~= 0 then
@@ -673,7 +673,7 @@ local function exec_change_password(user, password, type, expire)
 			postcmd = " -w random"
 		end
 	end
-	cmd = cmd .. "usermod " .. shell_escape(user) .. postcmd
+	cmd = cmd .. "usermod -n " .. shell_escape(user) .. postcmd
 	if expire then
 		cmd = cmd .. " -p 1"
 	else
