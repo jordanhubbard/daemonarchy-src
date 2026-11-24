@@ -662,3 +662,15 @@ an SDK. Existing malformed AMD records and their strict refusal remain retained.
 - **Admission boundary:** Require candidate tests and native/hosted review gates
   before landing. Reliable renewed full capture, canonical ownership and per-unit
   packaging/lifecycle remain separate open requirements.
+
+### [ ] SRC-LOCALE-002 — Install the original Big5 numeric category
+
+- **Priority:** P1
+- **Owner:** FreeBSD locale data
+- **Direction:** Build and install the retained zh_TW.Big5 numeric definition through the original Makefile and qualify complete locale loading.
+- **Conclusion:** The original numeric definition is present but omitted from LOCALES, making LC_ALL and newlocale LC_ALL_MASK fail.
+- **Depends on:** none
+- **Implementation:**
+  - [ ] Add the missing locale build entry and native regression while retaining original definitions and tests.
+- **Evidence:**
+  - [ ] Require original private build/install, failing baseline and passing corrected category loading on allocated native workers.

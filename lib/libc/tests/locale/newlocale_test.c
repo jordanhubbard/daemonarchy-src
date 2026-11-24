@@ -27,7 +27,11 @@
 
 #include <sys/param.h>
 
+#include <limits.h>
 #include <locale.h>
+#include <stdlib.h>
+#include <string.h>
+#include <wchar.h>
 
 #include <atf-c.h>
 
@@ -103,9 +107,58 @@ ATF_TC_BODY(newlocale_c_posix_cu8_test, tc)
 	do_locale_switch("C.UTF-8", "POSIX");
 }
 
+static void
+check_big5_numeric(void)
+{
+	const struct lconv *lc;
+	const char input[] = "\xa4\x40";
+	char output[MB_LEN_MAX];
+	mbstate_t state = { 0 };
+	wchar_t wc;
+
+	lc = localeconv();
+	ATF_CHECK_STREQ(lc->decimal_point, "\xa1\x44");
+	ATF_CHECK_STREQ(lc->thousands_sep, "\xa1\x41");
+	ATF_CHECK_EQ(lc->grouping[0], 3);
+	ATF_CHECK_EQ(lc->grouping[1], '\0');
+	ATF_REQUIRE_EQ(MB_CUR_MAX, 2);
+	ATF_REQUIRE_EQ(mbrtowc(&wc, input, sizeof(input) - 1, &state), 2);
+	memset(&state, 0, sizeof(state));
+	ATF_REQUIRE_EQ(wcrtomb(output, wc, &state), 2);
+	ATF_CHECK_EQ(memcmp(input, output, sizeof(input) - 1), 0);
+}
+
+/* The numeric definition must be installed with the other Big5 categories. */
+ATF_TC_WITHOUT_HEAD(newlocale_big5_test);
+ATF_TC_BODY(newlocale_big5_test, tc)
+{
+	locale_t loc, previous;
+
+	loc = newlocale(LC_ALL_MASK, "zh_TW.Big5", NULL);
+	ATF_REQUIRE_MSG(loc != NULL, "cannot load the complete Big5 locale");
+	previous = uselocale(loc);
+	ATF_REQUIRE(previous != NULL);
+	check_lparts("zh_TW.Big5");
+	check_big5_numeric();
+	ATF_REQUIRE(uselocale(previous) != NULL);
+	freelocale(loc);
+}
+
+ATF_TC_WITHOUT_HEAD(setlocale_big5_test);
+ATF_TC_BODY(setlocale_big5_test, tc)
+{
+
+	ATF_REQUIRE_MSG(setlocale(LC_ALL, "zh_TW.Big5") != NULL,
+	    "cannot load the complete Big5 locale");
+	check_big5_numeric();
+	ATF_REQUIRE(setlocale(LC_ALL, "C") != NULL);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, newlocale_c_posix_cu8_test);
+	ATF_TP_ADD_TC(tp, newlocale_big5_test);
+	ATF_TP_ADD_TC(tp, setlocale_big5_test);
 
 	return (atf_no_error());
 }
