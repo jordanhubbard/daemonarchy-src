@@ -179,6 +179,7 @@ arm64/vmm/vmm_vhe_exception.S			optional vmm		\
 	dependency	"$S/arm64/vmm/vmm_hyp_exception.S"
 arm64/vmm/io/vgic.c				optional vmm
 arm64/vmm/io/vgic_v3.c				optional vmm
+arm64/vmm/io/vgic_v5.c				optional vmm
 arm64/vmm/io/vgic_if.m				optional vmm
 arm64/vmm/io/vtimer.c				optional vmm
 dev/vmm/vmm_dev.c				optional vmm
@@ -308,7 +309,7 @@ dev/dpaa2/memac_mdio_fdt.c			optional soc_nxp_ls dpaa2 fdt
 dev/dpaa2/memac_mdio_if.m			optional soc_nxp_ls dpaa2 acpi | soc_nxp_ls dpaa2 fdt
 
 # Synopsys DesignWare Ethernet Controller
-dev/dwc/if_dwc_rk.c				optional fdt dwc_rk soc_rockchip_rk3328 | fdt dwc_rk soc_rockchip_rk3399
+dev/dwc/if_dwc_rk.c				optional fdt dwc_rk soc_rockchip_rk3328 | fdt dwc_rk soc_rockchip_rk3399 | fdt dwc_rk soc_rockchip_rk3568
 dev/dwc/if_dwc_socfpga.c			optional fdt dwc_socfpga
 
 dev/enetc/enetc_mdio.c				optional enetc soc_nxp_ls
@@ -404,9 +405,9 @@ dev/ice/ice_fwlog.c				optional ice pci \
 dev/ice/ice_rdma.c				optional ice pci \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
 dev/ice/irdma_if.m				optional ice pci \
-	compile-with "${NORMAL_M} -I$S/dev/ice"
+	dependency "$S/tools/makeobjops.awk" compile-with "${NORMAL_M} -I$S/dev/ice"
 dev/ice/irdma_di_if.m				optional ice pci \
-	compile-with "${NORMAL_M} -I$S/dev/ice"
+	dependency "$S/tools/makeobjops.awk" compile-with "${NORMAL_M} -I$S/dev/ice"
 dev/ice/ice_ddp_common.c			optional ice pci \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
 dev/ice/ice_iov.c	optional	ice pci pci_iov \
@@ -789,7 +790,7 @@ arm64/qoriq/clk/ls1028a_flexspi_clk.c		optional clk soc_nxp_ls fdt
 arm64/qoriq/clk/ls1046a_clkgen.c		optional clk soc_nxp_ls fdt
 arm64/qoriq/clk/ls1088a_clkgen.c		optional clk soc_nxp_ls fdt
 arm64/qoriq/clk/lx2160a_clkgen.c		optional clk soc_nxp_ls fdt
-arm64/qoriq/clk/qoriq_clk_pll.c			optional clk soc_nxp_ls
+arm64/qoriq/clk/qoriq_clk_pll.c			optional clk soc_nxp_ls fdt
 arm64/qoriq/clk/qoriq_clkgen.c			optional clk soc_nxp_ls fdt
 dev/ahci/ahci_fsl_fdt.c				optional soc_nxp_ls ahci fdt
 dev/flash/flexspi/flex_spi.c    		optional clk flex_spi soc_nxp_ls fdt
