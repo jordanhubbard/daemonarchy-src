@@ -370,9 +370,12 @@ struct pwddesc *pdcopy(struct pwddesc *pdp);
 void	pdescfree(struct thread *td);
 struct pwddesc *pdinit(struct pwddesc *pdp, bool keeplock);
 struct pwddesc *pdshare(struct pwddesc *pdp);
+void	pdswap(struct proc *p, struct pwddesc *new_pdp,
+	    struct pwddesc *old_pdp);
 void	pdunshare(struct thread *td);
 
-void	pwd_altroot(struct thread *td, struct vnode *altroot_vp);
+int	pwd_altroot(struct thread *td, struct vnode *altroot_vp);
+void	pwd_altroot_clear(struct thread *td);
 void	pwd_chdir(struct thread *td, struct vnode *vp);
 int	pwd_chroot(struct thread *td, struct vnode *vp);
 int	pwd_chroot_chdir(struct thread *td, struct vnode *vp);
