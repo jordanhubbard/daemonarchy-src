@@ -44,8 +44,12 @@ set_variable_body()
 	    sysrc -f "${SYSRC_CONF}" test_enable=YES
 	atf_check -o inline:'test_enable="YES"\n' cat "${SYSRC_CONF}"
 	# Change set variable
-	atf_check -o inline:"test_enable: YES -> YES\n" \
+	atf_check -o inline:"test_enable: YES (unchanged)\n" \
 	    sysrc -f "${SYSRC_CONF}" test_enable=YES
+	atf_check -o inline:"test_enable (unchanged)\n" \
+	    sysrc -f "${SYSRC_CONF}" -N test_enable=YES
+	atf_check -o empty \
+	    sysrc -f "${SYSRC_CONF}" -qN test_enable=YES
 	atf_check -o inline:'test_enable="YES"\n' cat "${SYSRC_CONF}"
 	atf_check -o inline:"test_enable: YES -> NO\n" \
 	    sysrc -f "${SYSRC_CONF}" test_enable=NO
@@ -55,6 +59,38 @@ set_variable_body()
 	    sysrc -f "${SYSRC_CONF}" test2_enable=""
 	atf_check -o inline:'test_enable="NO"\ntest2_enable=""\n' \
 	    cat "${SYSRC_CONF}"
+	# Already NULL
+	atf_check -o inline:"test2_enable:  (unchanged)\n" \
+	    sysrc -f "${SYSRC_CONF}" test2_enable=""
+	atf_check -o inline:"test2_enable (unchanged)\n" \
+	    sysrc -f "${SYSRC_CONF}" -N test2_enable=""
+	atf_check -o inline:'test_enable="NO"\ntest2_enable=""\n' \
+	    cat "${SYSRC_CONF}"
+}
+
+atf_test_case pin_default cleanup
+pin_default_head()
+{
+	atf_set "descr" "Pin a defaults-only value into the target file"
+}
+pin_default_body()
+{
+	RC_DEFAULTS="${PWD}/rc_defaults.conf"
+	echo 'test_enable="NO"' > "${RC_DEFAULTS}"
+	export RC_DEFAULTS
+
+	# Record the default in the target. Do not report it unchanged
+	atf_check -o inline:"test_enable: NO -> NO\n" \
+	    sysrc -f "${SYSRC_CONF}" test_enable=NO
+	atf_check -o inline:'test_enable="NO"\n' cat "${SYSRC_CONF}"
+	# Stored outside the defaults file
+	atf_check -o inline:"test_enable: NO (unchanged)\n" \
+	    sysrc -f "${SYSRC_CONF}" test_enable=NO
+	atf_check -o inline:'test_enable="NO"\n' cat "${SYSRC_CONF}"
+}
+pin_default_cleanup()
+{
+	unset RC_DEFAULTS
 }
 
 atf_test_case remove_variable_x_flag
@@ -89,8 +125,10 @@ append_list_body()
 	atf_check -o inline:"test_list:  -> item1\n" \
 	    sysrc -f "${SYSRC_CONF}" test_list+=item1
 	atf_check -o inline:'test_list="item1"\n' cat "${SYSRC_CONF}"
-	atf_check -o inline:"test_list: item1 -> item1\n" \
+	atf_check -o inline:"test_list: item1 (unchanged)\n" \
 	    sysrc -f "${SYSRC_CONF}" test_list+=item1
+	atf_check -o inline:"test_list (unchanged)\n" \
+	    sysrc -f "${SYSRC_CONF}" -N test_list+=item1
 	atf_check -o inline:'test_list="item1"\n' cat "${SYSRC_CONF}"
 	atf_check -o inline:"test_list: item1 -> item1 item2\n" \
 	    sysrc -f "${SYSRC_CONF}" test_list+=item2
@@ -113,7 +151,7 @@ subtract_list_body()
 	atf_check -o inline:"test_list: item1 -> \n" \
 	    sysrc -f "${SYSRC_CONF}" test_list-=item1
 	atf_check -o inline:'test_list=""\n' cat "${SYSRC_CONF}"
-	atf_check -o inline:"test_list:  -> \n" \
+	atf_check -o inline:"test_list:  (unchanged)\n" \
 	    sysrc -f "${SYSRC_CONF}" test_list-=item3
 	atf_check -o inline:'test_list=""\n' cat "${SYSRC_CONF}"
 
@@ -234,31 +272,41 @@ c_flag_body()
 
 	# Test rc variable assignment
 	atf_check sysrc -f "${SYSRC_CONF}" -c test_enable=NO
-	atf_check -s exit:1 sysrc -f "${SYSRC_CONF}" -c test_enable=YES
-	atf_check -s exit:1 sysrc -f "${SYSRC_CONF}" -c noexist=YES
+	atf_check -s exit:1 -e inline:"sysrc: test_enable: value differs\n" \
+	    sysrc -f "${SYSRC_CONF}" -c test_enable=YES
+	atf_check -s exit:1 -e inline:"sysrc: noexist: not currently set\n" \
+	    sysrc -f "${SYSRC_CONF}" -c noexist=YES
 
 	# Test appending rc variables
 	atf_check sysrc -f "${SYSRC_CONF}" -c test_list+=item1
-	atf_check -s exit:1 sysrc -f "${SYSRC_CONF}" -c test_list+=item3
-	atf_check -s exit:1 sysrc -f "${SYSRC_CONF}" -c noexist+=item1
+	atf_check -s exit:1 -e inline:"sysrc: test_list: value differs\n" \
+	    sysrc -f "${SYSRC_CONF}" -c test_list+=item3
+	atf_check -s exit:1 -e inline:"sysrc: noexist: not currently set\n" \
+	    sysrc -f "${SYSRC_CONF}" -c noexist+=item1
 	atf_check sysrc -f "${SYSRC_CONF}" -c test_enable=NO test_list+=item1
-	atf_check -s exit:1 \
+	atf_check -s exit:1 -e inline:"sysrc: test_enable: value differs\n" \
 	    sysrc -f "${SYSRC_CONF}" -c test_enable=YES test_list+=item1
-	atf_check -s exit:1 \
+	atf_check -s exit:1 -e inline:"sysrc: test_list: value differs\n" \
 	    sysrc -f "${SYSRC_CONF}" -c test_enable=NO test_list+=item3
-	atf_check -s exit:1 \
+	msg="sysrc: test_enable: value differs"
+	msg="$msg\nsysrc: test_list: value differs\n"
+	atf_check -s exit:1 -e inline:"$msg" \
 	    sysrc -f "${SYSRC_CONF}" -c test_enable=YES test_list+=item3
 
 	# Test subracting rc variables
 	atf_check sysrc -f "${SYSRC_CONF}" -c test_list-=item3
-	atf_check -s exit:1 sysrc -f "${SYSRC_CONF}" -c test_list-=item1
-	atf_check -s exit:1 sysrc -f "${SYSRC_CONF}" -c noexist-=item1
+	atf_check -s exit:1 -e inline:"sysrc: test_list: value differs\n" \
+	    sysrc -f "${SYSRC_CONF}" -c test_list-=item1
+	atf_check -s exit:1 -e inline:"sysrc: noexist: not currently set\n" \
+	    sysrc -f "${SYSRC_CONF}" -c noexist-=item1
 	atf_check sysrc -f "${SYSRC_CONF}" -c test_enable=NO test_list-=item3
-	atf_check -s exit:1 \
+	atf_check -s exit:1 -e inline:"sysrc: test_enable: value differs\n" \
 	    sysrc -f "${SYSRC_CONF}" -c test_enable=YES test_list-=item3
-	atf_check -s exit:1 \
+	atf_check -s exit:1 -e inline:"sysrc: test_list: value differs\n" \
 	    sysrc -f "${SYSRC_CONF}" -c test_enable=NO test_list-=item1
-	atf_check -s exit:1 \
+	msg="sysrc: test_enable: value differs"
+	msg="$msg\nsysrc: test_list: value differs\n"
+	atf_check -s exit:1 -e inline:"$msg" \
 	    sysrc -f "${SYSRC_CONF}" -c test_enable=YES test_list-=item1
 }
 
@@ -273,13 +321,13 @@ c_flag_quoting_body()
 
 	# PR 299413: the expanded value is " -J 15"
 	printf '%s\n' 'cron_flags="$cron_flags -J 15"' > "${SYSRC_CONF}"
-	msg="${SYSRC_CONF}: cron_flags: already set to"
+	msg="sysrc: ${SYSRC_CONF}: cron_flags: already set to"
 	msg="$msg \`\$cron_flags -J 15'"
-	atf_check -o inline:"$msg\n" \
+	atf_check -e inline:"$msg\n" \
 	    sysrc -f "${SYSRC_CONF}" -v -c 'cron_flags=$cron_flags -J 15'
-	msg="${SYSRC_CONF}: cron_flags: would change from"
+	msg="sysrc: ${SYSRC_CONF}: cron_flags: would change from"
 	msg="$msg \`\$cron_flags -J 15' to \`\$cron_flags -J 16'"
-	atf_check -s exit:1 -o inline:"$msg\n" \
+	atf_check -s exit:1 -e inline:"$msg\n" \
 	    sysrc -f "${SYSRC_CONF}" -v -c 'cron_flags=$cron_flags -J 16'
 
 	# Same raw text in the other quote forms
@@ -292,18 +340,18 @@ c_flag_quoting_body()
 
 	# Dollar quotes keep their quote marks
 	printf '%s\n' 'cron_flags=$"%s: file not found"' > "${SYSRC_CONF}"
-	msg="${SYSRC_CONF}: cron_flags: already set to"
+	msg="sysrc: ${SYSRC_CONF}: cron_flags: already set to"
 	msg="$msg \`\$\"%s: file not found\"'"
-	atf_check -o inline:"$msg\n" \
+	atf_check -e inline:"$msg\n" \
 	    sysrc -f "${SYSRC_CONF}" -v -c 'cron_flags=$"%s: file not found"'
-	atf_check -s exit:1 \
+	atf_check -s exit:1 -e inline:"sysrc: cron_flags: value differs\n" \
 	    sysrc -f "${SYSRC_CONF}" -c 'cron_flags=$%s: file not found'
 	printf '%s\n' "cron_flags=\$'a\\tb'" > "${SYSRC_CONF}"
-	msg="${SYSRC_CONF}: cron_flags: already set to"
+	msg="sysrc: ${SYSRC_CONF}: cron_flags: already set to"
 	msg="$msg \`\$'a\\\\tb''"
-	atf_check -o inline:"$msg\n" \
+	atf_check -e inline:"$msg\n" \
 	    sysrc -f "${SYSRC_CONF}" -v -c "cron_flags=\$'a\\tb'"
-	atf_check -s exit:1 \
+	atf_check -s exit:1 -e inline:"sysrc: cron_flags: value differs\n" \
 	    sysrc -f "${SYSRC_CONF}" -c 'cron_flags=$a\tb'
 }
 
@@ -379,6 +427,85 @@ F_flag_body()
 	    -f ${sysrc2_conf} -F test_enable test_list
 }
 
+atf_test_case F_flag_assign
+F_flag_assign_head()
+{
+	atf_set "descr" "Under -F, compare values and display the file"
+}
+F_flag_assign_body()
+{
+	local msg
+
+	echo 'p="x"' > "${SYSRC_CONF}"
+
+	# Value matches. Show the file and do not rewrite it
+	atf_check -o inline:"p: ${SYSRC_CONF} (unchanged)\n" \
+	    sysrc -F -f "${SYSRC_CONF}" p=x
+	atf_check -o inline:'p="x"\n' cat "${SYSRC_CONF}"
+
+	# -c compares the value, not the path
+	atf_check sysrc -F -c -f "${SYSRC_CONF}" p=x
+	msg="sysrc: ${SYSRC_CONF}: p: already set to \`x'"
+	atf_check -e inline:"$msg\n" \
+	    sysrc -F -v -c -f "${SYSRC_CONF}" p=x
+	msg="sysrc: ${SYSRC_CONF}: p: would change from \`x' to \`y'"
+	atf_check -s exit:1 -e inline:"$msg\n" \
+	    sysrc -F -v -c -f "${SYSRC_CONF}" p=y
+
+	# A value equal to the path is a real assignment
+	msg="p: ${SYSRC_CONF} -> ${SYSRC_CONF}"
+	atf_check -o inline:"$msg\n" \
+	    sysrc -F -f "${SYSRC_CONF}" "p=${SYSRC_CONF}"
+	atf_check -o inline:"p=\"${SYSRC_CONF}\"\n" cat "${SYSRC_CONF}"
+
+	# Now the stored value is the path, so this is unchanged
+	atf_check -o inline:"p: ${SYSRC_CONF} (unchanged)\n" \
+	    sysrc -F -f "${SYSRC_CONF}" "p=${SYSRC_CONF}"
+	atf_check -o inline:"p=\"${SYSRC_CONF}\"\n" cat "${SYSRC_CONF}"
+}
+
+atf_test_case rc_conf_files_glob cleanup
+rc_conf_files_glob_head()
+{
+	atf_set "descr" "rc_conf_files globs expand for boot, -f, and RC_CONFS"
+}
+rc_conf_files_glob_body()
+{
+	local extra files
+
+	mkdir rc.conf.d
+	extra="${PWD}/rc.conf.d/extra.conf"
+	printf '%s\n' 'base="from-rc"' > "${PWD}/rc.conf"
+	printf '%s\n' 'gvar="from-glob"' > "$extra"
+
+	RC_DEFAULTS="${PWD}/rc_defaults.conf"
+	cat > "${RC_DEFAULTS}" << EOF
+source_rc_confs() {
+	local i
+	for i in \${rc_conf_files}; do
+		[ -r "\$i" ] && . "\$i"
+	done
+}
+rc_conf_files="${PWD}/rc.conf ${PWD}/rc.conf.d/*.conf"
+EOF
+	export RC_DEFAULTS
+
+	atf_check -o inline:"${PWD}/rc.conf\n${extra}\n" sysrc -l
+	atf_check -o inline:'gvar: from-glob\n' sysrc gvar
+	# -f and RC_CONFS carry the rc_conf_files value, glob included
+	files=$( sysrc -nD rc_conf_files )
+	atf_check -o inline:'gvar: from-glob\n' sysrc -f "$files" gvar
+	atf_check -o inline:'gvar: from-glob\n' \
+	    env RC_CONFS="$files" sysrc gvar
+	atf_check -o inline:'gvar: from-glob -> NEW\n' sysrc gvar=NEW
+	atf_check -o inline:'gvar="NEW"\n' cat "$extra"
+	atf_check -o inline:'base="from-rc"\n' cat "${PWD}/rc.conf"
+}
+rc_conf_files_glob_cleanup()
+{
+	unset RC_DEFAULTS
+}
+
 atf_test_case r_flag
 r_flag_head()
 {
@@ -416,8 +543,7 @@ r_flag_body()
 	    cat "${SYSRC_CONF}"
 
 	# Appending a token already present does not duplicate it
-	msg="test_flags: \$test_flags -J 16 extra ->"
-	msg="$msg \$test_flags -J 16 extra"
+	msg="test_flags: \$test_flags -J 16 extra (unchanged)"
 	atf_check -o inline:"$msg\n" \
 	    sysrc -f "${SYSRC_CONF}" -r test_flags+=extra
 
@@ -465,9 +591,9 @@ strappend_body()
 
 	# -c reports the result and does not write
 	printf '%s\n' 'cron_flags="$cron_flags"' > "${SYSRC_CONF}"
-	msg="${SYSRC_CONF}: cron_flags: would change from"
+	msg="sysrc: ${SYSRC_CONF}: cron_flags: would change from"
 	msg="$msg \`\$cron_flags' to \`\$cron_flags -J 15'"
-	atf_check -s exit:1 -o inline:"$msg\n" \
+	atf_check -s exit:1 -e inline:"$msg\n" \
 	    sysrc -f "${SYSRC_CONF}" -v -c 'cron_flags.=-J 15'
 	atf_check -o inline:'cron_flags="$cron_flags"\n' \
 	    cat "${SYSRC_CONF}"
@@ -484,10 +610,78 @@ strappend_body()
 	    sysrc -f "${SYSRC_CONF}" 'cron_flags+=-J 15'
 }
 
+atf_test_case set_variable_newline
+set_variable_newline_head()
+{
+	atf_set "descr" "Assignment values may contain a newline"
+}
+set_variable_newline_body()
+{
+	local val
+
+	printf '%s\n' 'test_enable="NO"' 'others_enable="YES"' > "${SYSRC_CONF}"
+	val=$(printf 'YES\nNOX')
+	val="${val%X}"
+
+	atf_check -o inline:"test_enable: NO -> YES
+NO
+" sysrc -f "${SYSRC_CONF}" "test_enable=$val"
+
+	printf '%s\n' 'test_enable="YES' 'NO"' 'others_enable="YES"' > expected
+	atf_check -o file:expected cat "${SYSRC_CONF}"
+
+	atf_check -o inline:"YES
+NO
+" sysrc -f "${SYSRC_CONF}" -nr test_enable
+
+	# A new variable is appended. The neighbor stays.
+	printf '%s\n' 'keep=1' > "${SYSRC_CONF}"
+	atf_check -o inline:"fresh:  -> YES
+NO
+" sysrc -f "${SYSRC_CONF}" "fresh=$val"
+	printf '%s\n' 'keep=1' 'fresh="YES' 'NO"' > expected
+	atf_check -o file:expected cat "${SYSRC_CONF}"
+
+	# A quote that would break the string does not replace the file
+	printf '%s\n' 'test_enable="YES' 'NO"' 'others_enable="YES"' \
+	    > "${SYSRC_CONF}"
+	cp "${SYSRC_CONF}" saved
+	val=$(printf 'YE"S\nNOX')
+	val="${val%X}"
+	atf_check -s exit:1 -e match:"syntax errors" \
+	    sysrc -f "${SYSRC_CONF}" "test_enable=$val"
+	atf_check -o file:saved cat "${SYSRC_CONF}"
+}
+
+atf_test_case set_variable_backslash
+set_variable_backslash_head()
+{
+	atf_set "descr" "A value ending in a backslash can be replaced"
+}
+set_variable_backslash_body()
+{
+	# "C:\\" stores the value C:\ and the closer is not escaped
+	printf '%s\n' 'bar="C:\\"' 'keep=1' > "${SYSRC_CONF}"
+	atf_check -o inline:'bar: C:\ -> NEW\n' \
+	    sysrc -f "${SYSRC_CONF}" bar=NEW
+	printf '%s\n' 'bar="NEW"' 'keep=1' > expected
+	atf_check -o file:expected cat "${SYSRC_CONF}"
+
+	# A later value ending in a backslash belongs to that later name
+	printf '%s\n' 'aa="old"' 'bb="C:\\"' > "${SYSRC_CONF}"
+	atf_check -o inline:'aa: old -> NEW\n' \
+	    sysrc -f "${SYSRC_CONF}" aa=NEW
+	printf '%s\n' 'aa="NEW"' 'bb="C:\\"' > expected
+	atf_check -o file:expected cat "${SYSRC_CONF}"
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case check_variable
 	atf_add_test_case set_variable
+	atf_add_test_case pin_default
+	atf_add_test_case set_variable_newline
+	atf_add_test_case set_variable_backslash
 	atf_add_test_case remove_variable_x_flag
 	atf_add_test_case append_list
 	atf_add_test_case strappend
@@ -500,5 +694,7 @@ atf_init_test_cases()
 	atf_add_test_case d_flag
 	atf_add_test_case f_flag
 	atf_add_test_case F_flag
+	atf_add_test_case F_flag_assign
+	atf_add_test_case rc_conf_files_glob
 	atf_add_test_case r_flag
 }
