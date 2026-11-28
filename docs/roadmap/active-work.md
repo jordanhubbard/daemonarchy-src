@@ -662,3 +662,39 @@ an SDK. Existing malformed AMD records and their strict refusal remain retained.
 - **Admission boundary:** Require candidate tests and native/hosted review gates
   before landing. Reliable renewed full capture, canonical ownership and per-unit
   packaging/lifecycle remain separate open requirements.
+
+### [ ] MMCCAM-SDIO-001 — Wait for SDIO readiness before publishing I/O functions
+
+- **Priority:** high
+- **Owner:** FreeBSD MMC CAM source
+- **Direction:** Bound CMD5 selected-voltage initialization, preserve memory-card fallback, and retain native build and production-excerpt controls before physical Broadcom qualification.
+- **Conclusion:** Corrected actual-header controls pass all 36 cases on native ARM64/AMD64 and Linux sanitizers; the original 35 shared cases compile and fail 28. A fresh full native GENERIC-MMCCAM build and current-kernel generic UEFI 1 MiB PIO read/write pass, with independent 64 MiB postshutdown byte preservation. Physical SDIO/Wi-Fi, default DMA and locked-discovery diagnostics remain open; no lifecycle or release admission.
+- **Depends on:** none
+- **Implementation:**
+  - [ ] sys/cam/mmc/mmc_xpt.c; sys/dev/mmc/mmcreg.h; tools/daemonarchy/test_mmccam_sdio_init.py; tools/daemonarchy/test_mmccam_sdio_init.c
+- **Evidence:**
+  - [ ] docs/mmccam-sdio-initialization.md; verification/mmccam-sdio-init-20261122.json
+
+### [ ] MMCCAM-SDMA-001 — Investigate SDHCI DMA timeouts on emulated CAM memory cards
+
+- **Priority:** high
+- **Owner:** FreeBSD SDHCI and MMC CAM source
+- **Direction:** Retain the matched generic UEFI candidate and prior-kernel runs, compare PIO, and distinguish controller emulation from CAM and SDMA behavior before changing production DMA policy.
+- **Conclusion:** The first CMD5 candidate and prior F4 MMCCAM kernel both enumerate the QEMU SD memory card but fail large DMA reads with a controller timeout. A prior-kernel single-sector read passes. The corrected current kernel passes 1 MiB PIO read/write and independent 64 MiB postshutdown preservation. PIO does not qualify default DMA or throughput; this investigation remains open.
+- **Depends on:** none
+- **Implementation:**
+  - [ ] Diagnose DMA progress and multi-block completion using the retained native kernels and disposable QEMU SDHCI fixture; preserve default production policy.
+- **Evidence:**
+  - [ ] docs/mmccam-sdio-initialization.md; verification/mmccam-sdio-init-20261122.json
+
+### [ ] MMCCAM-DISCOVERY-001 — Remove sleepable allocation from locked MMC CAM discovery
+
+- **Priority:** high
+- **Owner:** FreeBSD MMC CAM discovery source
+- **Direction:** Preserve the actual WITNESS stack and reproduce the existing discovery allocation under the SD slot mutex before choosing nonblocking allocation or moving allocation outside the lock.
+- **Conclusion:** Both the prior F4 kernel and the first CMD5 candidate emit an uma_zalloc_debug warning through xpt_alloc_ccb and mmccam_start_discovery while the SD slot mutex is held. Their guests continue booting. This warning precedes CMD5 and remains separate from the handshake change.
+- **Depends on:** none
+- **Implementation:**
+  - [ ] Review mmccam_start_discovery and SDHCI card-task locking and failure/retry ownership; retain original source and the current default policy until independently tested.
+- **Evidence:**
+  - [ ] docs/mmccam-sdio-initialization.md; verification/mmccam-sdio-init-20261122.json

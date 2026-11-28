@@ -1,0 +1,275 @@
+{
+  "schema": "daemonarchy-mmccam-sdio-development-v1",
+  "work_id": "MMCCAM-SDIO-001",
+  "source_review_base": "761fa6f25685266e19ce820fb96c9285280a571a",
+  "status": "actual-header-focused-native-kernel-and-current-PIO-controls-pass-physical-and-release-gates-open",
+  "scope": "Standalone retained-source development controls. No canonical SDK, lifecycle, physical controller or WiFi admission.",
+  "production_inputs": {
+    "sys/cam/mmc/mmc_xpt.c": "a4ae66dd15083571677fb74b6e76b346f044a40e253d7ed6157f3125c125ea21",
+    "sys/dev/mmc/mmcreg.h": "2ddac854f75af987842dbed2df962876a3e7679b3feea93a116bb4241430fc26",
+    "sys/cam/mmc/mmc.h": "fd3c2fe051abbb6aa48597c06af0e02c041807d07576809b40810eaa638c3dd2"
+  },
+  "test_inputs": {
+    "tools/daemonarchy/test_mmccam_sdio_init.py": "e2f1285a39d69b90ecb8ae97b1ab3c7cfa2e3339fa3ad067936c04947094292a",
+    "tools/daemonarchy/test_mmccam_sdio_init.c": "42694ff2db09d3c526bfb675da6ebf0730f9ea51dcd49307f3c54817bdf6331b"
+  },
+  "controls": {
+    "linux_clang18_asan_ubsan": {
+      "compile_exit": 0,
+      "test_exit": 0,
+      "passed": 36,
+      "failed": 0
+    },
+    "linux_original_asan_ubsan": {
+      "compile_exit": 0,
+      "test_exit": 1,
+      "passed": 7,
+      "failed": 28
+    },
+    "freebsd_arm64_candidate": {
+      "compile_exit": 0,
+      "test_exit": 0,
+      "passed": 36,
+      "failed": 0
+    },
+    "freebsd_arm64_original": {
+      "compile_exit": 0,
+      "test_exit": 1,
+      "passed": 7,
+      "failed": 28
+    },
+    "freebsd_amd64_candidate": {
+      "compile_exit": 0,
+      "test_exit": 0,
+      "passed": 36,
+      "failed": 0
+    },
+    "freebsd_amd64_original": {
+      "compile_exit": 0,
+      "test_exit": 1,
+      "passed": 7,
+      "failed": 28
+    }
+  },
+  "native_kernel": {
+    "status": "complete",
+    "base": "f4eb2cff7f8b5c511c448f0158f071105d19aaf5",
+    "overlays": [
+      "sys/cam/mmc/mmc_xpt.c",
+      "sys/dev/mmc/mmcreg.h"
+    ],
+    "exact_full_review_head_build": false,
+    "scope": "Fresh private full build after actual CARD_FEATURE definitions exposed the first candidate mask error; first native work retained intact.",
+    "build_exit": 0,
+    "kernel_bytes": 19935720,
+    "kernel_sha256": "319bf966ea92e7408ad33d4734dba4746663bced6cea82a3413b7a20bb8fe90c",
+    "original_source_entries_before_and_after": 115681,
+    "candidate_source_entries_before_and_after": 115681,
+    "private_source_built_bootstrap_nodes": 1113,
+    "original_bootstrap_unchanged": true,
+    "original_host_files_unchanged": true,
+    "postguard_error": false
+  },
+  "retained_failures": [
+    "Original baseline r1 compiled but stopped on a harness trap after the premature state transition. Revised harness preserves unselected actions and reports ordinary failed expectations.",
+    "First private object-directory ownership correction refused its scope assertion before mutation; the corrected operation assigns only the new private generated ancestors to builder. Initial make directory-write warning remains retained.",
+    "First QEMU fixture used a nonexistent explicit SD bus and exited before boot; fresh fixture uses the sole automatically selected SD bus.",
+    "Minimal image lacks uname and /rescue/dd aliases; corrected controls use hw.machine and the retained rescue multiplexer.",
+    "First variant queue placed a setting before its experiment header; parsing refused it before boot. Corrected fresh fixture retains the failed attempt.",
+    "Review found CARD_FEATURE_SDIO is an unparenthesized shift; first helper negated it without grouping, while the initial fixture defined it with parentheses. Current code groups both negations, and tests extract the unchanged actual feature header. Updated Werror controls reject the pre-fix candidate at compilation; this is separate from the original baseline27 failed expectations.",
+    "First64MiB PIO capture exceeded60sec while progressing; longer functional capture retained; no throughput pass inferred.",
+    "First PIO pipe write transferred65536 rather than1048576 bytes; the independent byte expectation failed. iflag=fullblock corrected the transport; actual full write, readback and postshutdown persistence then passed."
+  ],
+  "open": [
+    "Locked discovery allocation WITNESS warning: MMCCAM-DISCOVERY-001",
+    "Default SDHCI DMA multi-block timeout: MMCCAM-SDMA-001",
+    "Physical SDIO enumeration and firmware loading",
+    "WiFi association and traffic",
+    "Bus-width and clock negotiation",
+    "Physical Pi native SD and Ethernet regression",
+    "Other Broadcom devices",
+    "Canonical SDK and lifecycle admission",
+    "Integration and release acceptance"
+  ],
+  "custody": {
+    "kernel-evidence.tar.gz": {
+      "bytes": 4188160,
+      "sha256": "f1b7dc4e1f856b25071aa018b12ece9e1827a77c57ebf6cbfe40118d703457f3",
+      "regular_members": 15,
+      "decoded_bytes": 26341888
+    },
+    "amd64-native-controls-r3.tar.gz": {
+      "bytes": 81920,
+      "sha256": "ad202a59b1b138271ed44f99e9fcb0123bff2247bc9c6236ec1db7423f15b4f1",
+      "regular_members": 22,
+      "decoded_bytes": 288256
+    },
+    "arm64-native-controls-r3.tar.gz": {
+      "bytes": 81920,
+      "sha256": "fff73b0e4083ae0c3e62105772369e8006f669e913672a918cdcc508c3b6c059",
+      "regular_members": 22,
+      "decoded_bytes": 297984
+    },
+    "selected-kernel-products.tar.gz": {
+      "bytes": 86138880,
+      "sha256": "896cd75c7c6af8a02c18a9b6d0ccb4c34551a9cda42f6ddc14ad030023c4ff6a",
+      "regular_members": 19,
+      "decoded_bytes": 211379200
+    }
+  },
+  "custody_scope": "Selected native kernel, debug and module products, complete native evidence, and both native focused-control trees independently reopened on two physical filesystems. Original full F4 source and bootstrap copies remain retained in prior independently reopened custody archives; new full private native work remains on its allocated worker.",
+  "runtime": {
+    "candidate_dma": {
+      "kernel_sha256": "c25897e4335afcdd94eaed70bd000e69ce5d3c682adca70e9056abd69cbd03ea",
+      "CMD5_memory_fallback_and_enumeration": true,
+      "large_read": "EIO after SDHCI controller timeout",
+      "card_write_attempted": false,
+      "postshutdown_card_unchanged": true,
+      "guest_terminal": "inactive/MainPID=0/success"
+    },
+    "prior_kernel_dma": {
+      "kernel_sha256": "34e923c631d645cc8cbc211031af0a7f41bd6f07d30a89738a92e7d44402fac6",
+      "CMD5_memory_fallback_and_enumeration": true,
+      "one_sector_read": "pass",
+      "large_read": "EIO after SDHCI controller timeout",
+      "card_write_attempted": false,
+      "postshutdown_card_unchanged": true,
+      "guest_terminal": "inactive/MainPID=0/success"
+    },
+    "prior_kernel_scope": "F4 with three mailbox overlays and original CMD5 handling; generic QEMU exposes no matching Broadcom mailbox device. Not a two-file-only kernel counterfactual.",
+    "candidate_pio": {
+      "status": "first-native-candidate-control-passes-not-current-fixed-mask-runtime",
+      "kernel_sha256": "c25897e4335afcdd94eaed70bd000e69ce5d3c682adca70e9056abd69cbd03ea",
+      "actual_PIO_slot_verified": true,
+      "full_card_prewrite_read_bytes": 67108864,
+      "full_card_postwrite_read_bytes": 67108864,
+      "verified_write_offset": 4194304,
+      "verified_write_bytes": 1048576,
+      "all_other_bytes_unchanged": true,
+      "postshutdown_card_sha256": "85a8c3e4f8079b566816314af04f0ae155db7b1095343a61bc0dd68ad4dd130a",
+      "actual_pid_exit_and_terminal_success": true,
+      "scope": "Fixture-only BROKEN_DMA quirk4. First60sec capture timed out; longer functional observation completed without granting a throughput pass. Initial pipe short write failed its independent byte expectation; corrected iflag=fullblock wrote and read back exactly1MiB. Native source has since changed to fix the feature-mask expression; renew current-kernel runtime separately."
+    },
+    "discovery_warning": {
+      "candidate_and_prior_kernel_observed": true,
+      "message": "uma_zalloc_debug while SD slot mutex is held",
+      "path": "xpt_alloc_ccb -> mmccam_start_discovery",
+      "work_id": "MMCCAM-DISCOVERY-001",
+      "changed_by_this_patch": false
+    },
+    "current_fixed_mask_pio": {
+      "scope": "Current fixed-mask kernel, actual CMD5 memory fallback and bounded 1MiB PIO read/write in a fresh generic UEFI VM. Full64MiB backing file independently checked after shutdown. No SDIO radio, default DMA, throughput or physical Pi acceptance.",
+      "actual_qemu_argv_matches_launch": true,
+      "kernel_sha256": "319bf966ea92e7408ad33d4734dba4746663bced6cea82a3413b7a20bb8fe90c",
+      "actual_CMD5_memory_fallback_and_PIO_slot_observed": true,
+      "status": "current-kernel-CMD5-memory-fallback-one-MiB-PIO-and-independent-persistence-pass",
+      "guest_prewrite_read_bytes": 1048576,
+      "guest_postwrite_read_bytes": 1048576,
+      "write_offset": 4194304,
+      "write_bytes": 1048576,
+      "marker_sha256": "49a22ca76cbb285a3988147ae9cc2223d15b10c79dd4d3f1d8188b5a1ea3bdc3",
+      "independent_postshutdown_card_bytes": 67108864,
+      "all_other_card_bytes_unchanged": true,
+      "postshutdown_card_sha256": "85a8c3e4f8079b566816314af04f0ae155db7b1095343a61bc0dd68ad4dd130a",
+      "actual_pid_exit_observed": true,
+      "unit_terminal": "MainPID=0\nResult=success\nExecMainStatus=0\nActiveState=inactive\nSubState=dead\n",
+      "poweroff_ssh_exit": 255,
+      "default_DMA_and_throughput_admission": false
+    }
+  },
+  "canonical": {
+    "locks": "5 current",
+    "authority": "documentation_authority_review_stale",
+    "receipt": "missing; gate also refuses stale authority",
+    "new_driver_unit_admission": false,
+    "CI": "operator-disabled; no workflow dispatched",
+    "integration": "not merged"
+  },
+  "first_native_kernel": {
+    "status": "superseded-after-review-found-unparenthesized-feature-mask",
+    "base": "f4eb2cff7f8b5c511c448f0158f071105d19aaf5",
+    "overlays": [
+      "sys/cam/mmc/mmc_xpt.c",
+      "sys/dev/mmc/mmcreg.h"
+    ],
+    "exact_full_review_head_build": false,
+    "build_exit": 0,
+    "kernel_bytes": 19935720,
+    "kernel_sha256": "c25897e4335afcdd94eaed70bd000e69ce5d3c682adca70e9056abd69cbd03ea",
+    "original_source_entries_before_and_after": 115681,
+    "candidate_source_entries_before_and_after": 115681,
+    "private_source_built_bootstrap_nodes": 1113,
+    "original_bootstrap_unchanged": true,
+    "original_host_files_unchanged": true,
+    "postguard_error": false,
+    "tested_source_sha256": "09b97d9f9da0bf2007da9737bb6a66555fd8dc4b5e90e0add33852d9079b0839"
+  },
+  "runtime_custody": {
+    "bytes": 62654625,
+    "sha256": "5bca9ffe081e88a97d682e9a64037f86bfd64b1865b3431fbcc270ce41e21f48",
+    "decoded_bytes": 545812480,
+    "regular_files": 71,
+    "complete_member_and_gzip_review": true,
+    "two_physical_filesystems_independently_reopened": true
+  },
+  "first_candidate_custody": {
+    "amd64-native-controls-r2.tar.gz": {
+      "bytes": 71680,
+      "sha256": "31189bf7fd8d9b0a3056ab4f94f2f4c708d79831a30360630d01fab0043ca5dd",
+      "regular_members": 20,
+      "decoded_bytes": 270848
+    },
+    "kernel-evidence.tar.gz": {
+      "bytes": 4188160,
+      "sha256": "bdd2ee27ebffef526b265171db83fd01228c4c4f289a43084c04f0193aff7686",
+      "regular_members": 16,
+      "decoded_bytes": 26339840
+    },
+    "arm64-native-controls-r2.tar.gz": {
+      "bytes": 81920,
+      "sha256": "75bc72f28391f0471031cd67f3e0f8e6b3075551b25cf134b4040ab2fe0363e9",
+      "regular_members": 20,
+      "decoded_bytes": 280576
+    },
+    "selected-kernel-products.tar.gz": {
+      "bytes": 86138880,
+      "sha256": "097d68c93ab1779e1b9eed6313c40d359dbbe08fecdddd3f67968b82dcef3037",
+      "regular_members": 19,
+      "decoded_bytes": 211379200
+    }
+  },
+  "first_runtime_custody": {
+    "bytes": 205474718,
+    "sha256": "3f99321706138e96944177e2cedb40a5137624d8ba7991012f1bb51182595f60",
+    "decoded_bytes": 1930905600,
+    "regular_files": 320,
+    "complete_member_and_gzip_review": true,
+    "two_physical_filesystems_independently_reopened": true
+  },
+  "production_overlays": [
+    "sys/cam/mmc/mmc_xpt.c",
+    "sys/dev/mmc/mmcreg.h"
+  ],
+  "unchanged_actual_feature_header": "sys/cam/mmc/mmc.h",
+  "pre_macro_fix_compilation_control": {
+    "compiler": "Linux Clang 18 with ASan/UBSan and Werror",
+    "compile_exit": 1,
+    "scope": "First candidate rejected with actual legacy feature definitions; separate from the original baseline failed expectations."
+  },
+  "focused_control_scope": "Final actual-header inventory includes a reserved SDIO OCR bit also advertised by the shared host voltage mask; this independently exercises masking even when the host/card bits overlap.",
+  "final_focused_controls_custody": {
+    "arm64-native-controls-r4.tar.gz": {
+      "bytes": 81920,
+      "sha256": "f45ea5e591639cbd0f90a9bfdeae50e59fbdff3a09c28d33c2d2db6d7c415d8d",
+      "regular_members": 22,
+      "decoded_bytes": 301568
+    },
+    "amd64-native-controls-r4.tar.gz": {
+      "bytes": 81920,
+      "sha256": "686b8ee1a1e66fc697de19527b51b5038b34cb683218f4db1eafd0247494854e",
+      "regular_members": 22,
+      "decoded_bytes": 290304
+    }
+  },
+  "final_focused_controls_custody_scope": "Final 36-case actual-header candidate and 35-case original baseline trees independently reopened on both physical filesystems. Earlier 35-case controls remain retained separately."
+}
