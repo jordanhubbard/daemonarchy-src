@@ -1026,14 +1026,15 @@ nd6_timer(void *arg)
 					goto addrloop;
 				}
 			}
-		} else if ((ia6->ia6_flags & IN6_IFF_TENTATIVE) != 0) {
+		} else if ((ia6->ia6_flags & IN6_IFF_NEED_DAD) != 0) {
 			/*
-			 * Schedule DAD for a tentative address.  This happens
-			 * if the interface was down or not running
-			 * when the address was configured.
+			 * Schedule DAD for a tentative or optimistic address.
+			 * This happens if the interface was down or not
+			 * running when the address was configured.
 			 */
 			int delay;
 
+			in6_ifa_need_dad(ia6);
 			delay = arc4random() %
 			    (MAX_RTR_SOLICITATION_DELAY * hz);
 			nd6_dad_start((struct ifaddr *)ia6, delay);

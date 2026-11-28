@@ -958,13 +958,19 @@ copy_obj(char **start, char *end, void *_o, const char *msg, int i)
 	struct dn_id o;
 	union {
 		struct dn_link l;
-		struct dn_schk s;
+		struct dn_sch s;
 	} dn;
 	int have = end - *start;
 
 	memcpy(&o, _o, sizeof(o));
-	if (have < o.len || o.len == 0 || o.type == 0) {
+	if (o.len == 0 || o.type == 0) {
 		D("(WARN) type %d %s %d have %d need %d",
+		    o.type, msg, i, have, o.len);
+		return 1;
+	}
+	if (have < o.len) {
+		/* Expected with a range: userland retries with more space. */
+		DX(2, "type %d %s %d have %d need %d",
 		    o.type, msg, i, have, o.len);
 		return 1;
 	}
@@ -976,10 +982,12 @@ copy_obj(char **start, char *end, void *_o, const char *msg, int i)
 		dn.l.delay = dn.l.delay * 1000 / hz;
 		memcpy(*start, &dn.l, sizeof(dn.l));
 	} else if (o.type == DN_SCH) {
-		/* Set dn.s.sch.oid.id to the number of instances */
+		struct dn_schk *s = __containerof(_o, struct dn_schk, sch);
+
+		/* Set dn.s.oid.id to the number of instances */
 		memcpy(&dn.s, _o, sizeof(dn.s));
-		dn.s.sch.oid.id = (dn.s.sch.flags & DN_HAVE_MASK) ?
-		    dn_ht_entries(dn.s.siht) : (dn.s.siht ? 1 : 0);
+		dn.s.oid.id = (dn.s.flags & DN_HAVE_MASK) ?
+		    dn_ht_entries(s->siht) : (s->siht ? 1 : 0);
 		memcpy(*start, &dn.s, sizeof(dn.s));
 	} else
 		memcpy(*start, _o, o.len);
@@ -998,8 +1006,14 @@ copy_obj_q(char **start, char *end, void *_o, const char *msg, int i)
 	int have = end - *start;
 	int len = sizeof(struct dn_flow); /* see above comment */
 
-	if (have < len || o->len == 0 || o->type != DN_QUEUE) {
+	if (o->len == 0 || o->type != DN_QUEUE) {
 		D("ERROR type %d %s %d have %d need %d",
+			o->type, msg, i, have, len);
+		return 1;
+	}
+	if (have < len) {
+		/* Expected with a range: userland retries with more space. */
+		DX(2, "type %d %s %d have %d need %d",
 			o->type, msg, i, have, len);
 		return 1;
 	}
