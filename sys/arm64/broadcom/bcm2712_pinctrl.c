@@ -16,7 +16,7 @@
 
 /*
  * FreeBSD adaptation of OpenBSD bcmstbpinctrl.c revision 1.3 (2025/09/19).
- * Supports the BCM2712 D0 SD pins, not every BCM2712 pin function.
+ * Supports the BCM2712 C0/C1 and D0 SD pins, not every BCM2712 pin function.
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -42,7 +42,7 @@
 struct bcm2712_pinctrl_softc {
 	struct resource *mem;
 	struct mtx lock;
-	int aon;
+	int profile; /* bit 0: AON, bit 1: C0/C1 register layout */
 };
 
 static uint32_t
@@ -138,7 +138,7 @@ bcm2712_pin_parse(struct bcm2712_pinctrl_softc *sc, phandle_t node,
 			error = EINVAL;
 			break;
 		}
-		error = bcm2712_pin_plan(sc->aon, p, function, bias, ops, count,
+		error = bcm2712_pin_plan(sc->profile, p, function, bias, ops, count,
 		    BCM2712_MAX_OPS);
 		if (error != 0)
 			break;
@@ -186,7 +186,7 @@ bcm2712_pinctrl_set_flags(device_t dev, device_t gpio, uint32_t pin,
 	unsigned count;
 	pcell_t gpio_reg[2], widths[2];
 	int bias, error;
-	if (!sc->aon || !ofw_bus_is_compatible(gpio, "brcm,brcmstb-gpio") ||
+	if (!(sc->profile & 1) || !ofw_bus_is_compatible(gpio, "brcm,brcmstb-gpio") ||
 	    OF_parent(ofw_bus_get_node(gpio)) !=
 		OF_parent(ofw_bus_get_node(dev)))
 		return (EINVAL);
@@ -195,7 +195,7 @@ bcm2712_pinctrl_set_flags(device_t dev, device_t gpio, uint32_t pin,
 	    gpio_reg[0] != 0x7d517c00 || gpio_reg[1] != 0x40 ||
 	    OF_getencprop(ofw_bus_get_node(gpio), "brcm,gpio-bank-widths",
 		widths, sizeof(widths)) != sizeof(widths) ||
-	    widths[0] != 15 || widths[1] != 6)
+	    widths[0] != (sc->profile & 2 ? 17 : 15) || widths[1] != 6)
 		return (EINVAL);
 	if (pin < 2 || pin > 5)
 		return (EOPNOTSUPP);
@@ -222,12 +222,13 @@ bcm2712_pinctrl_set_flags(device_t dev, device_t gpio, uint32_t pin,
 		bias = 1;
 	snprintf(name, sizeof(name), "aon_gpio%u", pin);
 	count = 0;
-	error = bcm2712_pin_plan(1, name, pin == 5 ? "" : "gpio", bias, ops,
-	    &count, nitems(ops));
+	error = bcm2712_pin_plan(sc->profile, name, pin == 5 ? "" : "gpio",
+	    bias, ops, &count, nitems(ops));
 	if (error != 0)
 		return (error);
 	mtx_lock_spin(&sc->lock);
-	if (pin == 5 && ((bus_read_4(sc->mem, 0x0c) >> 20) & 0xf) != 4) {
+	if (pin == 5 && ((bus_read_4(sc->mem, 0x0c) >> 20) & 0xf) !=
+	    (sc->profile & 2 ? 6 : 4)) {
 		mtx_unlock_spin(&sc->lock);
 		return (EINVAL);
 	}
@@ -296,9 +297,11 @@ bcm2712_pinctrl_probe(device_t dev)
 {
 	if (!ofw_bus_status_okay(dev) ||
 	    (!ofw_bus_is_compatible(dev, "brcm,bcm2712d0-pinctrl") &&
-		!ofw_bus_is_compatible(dev, "brcm,bcm2712d0-aon-pinctrl")))
+		!ofw_bus_is_compatible(dev, "brcm,bcm2712d0-aon-pinctrl") &&
+		!ofw_bus_is_compatible(dev, "brcm,bcm2712c0-pinctrl") &&
+		!ofw_bus_is_compatible(dev, "brcm,bcm2712c0-aon-pinctrl")))
 		return (ENXIO);
-	device_set_desc(dev, "BCM2712 D0 SD pin control");
+	device_set_desc(dev, "BCM2712 SD pin control");
 	return (BUS_PROBE_DEFAULT);
 }
 static int
@@ -308,12 +311,18 @@ bcm2712_pinctrl_attach(device_t dev)
 	struct bcm2712_pin_op ops[BCM2712_MAX_OPS];
 	unsigned count;
 	int error, rid;
-	sc->aon = ofw_bus_is_compatible(dev, "brcm,bcm2712d0-aon-pinctrl");
+	sc->profile = ofw_bus_is_compatible(dev, "brcm,bcm2712d0-aon-pinctrl") ||
+	    ofw_bus_is_compatible(dev, "brcm,bcm2712c0-aon-pinctrl");
+	if (ofw_bus_is_compatible(dev, "brcm,bcm2712c0-pinctrl") ||
+	    ofw_bus_is_compatible(dev, "brcm,bcm2712c0-aon-pinctrl"))
+		sc->profile |= 2;
 	rid = 0;
 	sc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->mem == NULL)
 		return (ENXIO);
-	if (rman_get_size(sc->mem) < (sc->aon ? 0x1c : 0x20)) {
+	if (rman_get_size(sc->mem) <
+	    (sc->profile & 2 ? (sc->profile & 1 ? 0x20 : 0x30) :
+		(sc->profile & 1 ? 0x1c : 0x20))) {
 		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->mem);
 		return (ENXIO);
 	}
