@@ -1,0 +1,25 @@
+{
+  "schema": "daemonarchy/upstream-import-audit@2",
+  "observed": "2026-11-27T07:01:16.166598+00:00",
+  "repository": "daemonarchy-src",
+  "previous_owned_main": "6b8f7b5fc60fd9ebaf516b85d86b2d09c78621a4",
+  "upstream_reference": "https://git.FreeBSD.org/src.git/main",
+  "upstream_commit": "a972d2692bb789f9c79da4ee27dd3c32d3e3f349",
+  "merge_base": "05f2f4129779ccb0857b05ed38ea5b825bae0107",
+  "import_tree_before_this_evidence_file": "2d99ea4e8b43d23a2834463ff42db255c9ae86c5",
+  "complete_tree_file_entries": 115682,
+  "upstream_changed_paths": 3,
+  "fork_changed_paths": 650,
+  "path_inventory_includes_both_sides_of_renames": true,
+  "shared_changed_paths": [
+    "sys/arm/broadcom/bcm2835/bcm2835_fbd.c"
+  ],
+  "upstream_bytes_modes_and_deletions_exact_outside_fork_delta": true,
+  "fork_bytes_modes_and_deletions_exact_outside_upstream_delta": true,
+  "native_build_and_runtime_qualified": false,
+  "qualification_scope": "Complete source-tree import and preservation audit. Previous native receipts remain bound to original commits; native build/runtime, per-unit ownership/provenance, SDK and release acceptance remain open.",
+  "portable_controller_code_unchanged_since_tested_import": true,
+  "shared_path_review": "The upstream pixel-order/mailbox update is retained. Owned bcm2835_vcbus include and bcm283x_vcbus_is_supported probe guard remain unchanged; no conflicting hunk resolution was required.",
+  "preceding_import_audit": "verification/freebsd-main-sync-20261126-final-development.json",
+  "snapshot_scope": "Bounded final main snapshot observed 2026-11-27; kernel/world and physical Pi acceptance pending."
+}
