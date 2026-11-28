@@ -295,6 +295,7 @@ SUBDIR=	\
 	${_netgraph} \
 	${_nfe} \
 	nfscl \
+	${_nfsclrdma} \
 	nfscommon \
 	nfsd \
 	nfslockd \
@@ -578,6 +579,7 @@ _ibcore=	ibcore
 _ipoib=		ipoib
 _iser=		iser
 _mthca=		mthca
+_nfsclrdma=	nfsclrdma
 _rdma=		rdma
 .endif
 .endif
