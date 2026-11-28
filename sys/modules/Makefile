@@ -163,6 +163,7 @@ SUBDIR=	\
 	${_if_enc} \
 	if_epair \
 	${_genet} \
+	${_rp1} \
 	${_if_gif} \
 	${_if_gre} \
 	${_if_me} \
@@ -683,6 +684,7 @@ _mpi3mr=mpi3mr
 # Specific to the Raspberry Pi.
 .if ${MACHINE_CPUARCH} == "aarch64"
 _genet=		genet
+_rp1=		rp1
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "aarch64" || \
