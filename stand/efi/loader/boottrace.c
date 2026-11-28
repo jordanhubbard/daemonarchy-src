@@ -1635,6 +1635,28 @@ bt_acpi_emit(void *arg, const char *name, const void *data, size_t length,
 }
 
 static bool
+bt_acpi_namespace_slots(void)
+{
+	const struct bt_map_ent *entry;
+	char path[] = "\\ACPI\\SS00.BIN";
+	unsigned i;
+
+	entry = bt_map_find(&bt_mapv, "\\ACPI\\DSDT.BIN");
+	if (entry == NULL || entry->size != BT_ACPI_MAX)
+		return (false);
+	entry = bt_map_find(&bt_mapv, "\\ACPI\\SSOV.BIN");
+	if (entry == NULL || entry->size != BT_ACPI_MAX)
+		return (false);
+	for (i = 0; i < BT_ACPI_SSDTS; i++) {
+		path[9] = "0123456789ABCDEF"[i];
+		entry = bt_map_find(&bt_mapv, path);
+		if (entry == NULL || entry->size != BT_ACPI_MAX)
+			return (false);
+	}
+	return (true);
+}
+
+static bool
 bt_acpi_collect(EFI_FILE_PROTOCOL *root, unsigned epoch)
 {
 	static struct bt_acpi_context ctx;
@@ -1643,6 +1665,7 @@ bt_acpi_collect(EFI_FILE_PROTOCOL *root, unsigned epoch)
 	UINTN key;
 	UINT32 version;
 	void *address;
+	int error;
 
 	memset(&ctx, 0, sizeof(ctx));
 	ctx.root = root;
@@ -1664,8 +1687,15 @@ bt_acpi_collect(EFI_FILE_PROTOCOL *root, unsigned epoch)
 		EFI_GUID oldguid = ACPI_TABLE_GUID;
 		address = efi_get_table(&oldguid);
 	}
-	if (bt_acpi_snapshot((uintptr_t)address, bt_acpi_read, bt_acpi_emit,
-	    &ctx) != 0)
+	/* Old media has no namespace extents: never create files or fall back
+	 * to FAT writes for an extended capture on that media. */
+	if (bt_acpi_namespace_slots())
+		error = bt_acpi_namespace_snapshot((uintptr_t)address,
+		    bt_acpi_read, bt_acpi_emit, &ctx);
+	else
+		error = bt_acpi_snapshot((uintptr_t)address, bt_acpi_read,
+		    bt_acpi_emit, &ctx);
+	if (error != 0)
 		ctx.failed = true;
 	status = bt_stick_write(root, "\\ACPI\\INDEX.TXT", ctx.report, ctx.used);
 	if (!bt_raw || bt_ldr.verify != DBT_LV_OK || status != EFI_SUCCESS)

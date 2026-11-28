@@ -1,0 +1,178 @@
+{
+  "schema": "daemonarchy/acpi-namespace-development@1",
+  "date": "2026-11-22",
+  "scope": "Bounded opt-in firmware-table capture and offline controller; no AML, hardware driver acceptance, SDK or lifecycle admission.",
+  "source_input_commit": "c570c3823db548311e6d4d90d2b6e3b2e3f37117",
+  "product_input_commit": "27fe82c6311b08af14ba6da07b2a950768a4422c",
+  "selected_source_sha256": {
+    "stand/efi/loader/boottrace.c": "5af08a1b0e8d6d9459694d830277978fba1f23e67e459374d2b35a3f21ffd20c",
+    "stand/efi/loader/boottrace_acpi.c": "4a8e503a48a0a77d21c69713cfb131d96838a274a46bb86eb7a37bee919958c0",
+    "stand/efi/loader/boottrace_acpi.h": "c8cc80629278ae1d3ac2186b0346cbbc6ca5e9c986b7bf5797eed976229687e1",
+    "tools/daemonarchy/tests/boottrace-acpi-namespace.c": "d4200bae1967391ddb726e4bd2d111b2cbeefbdc9765f23742caa59392f0f657",
+    "tools/daemonarchy/tests/boottrace-acpi-namespace.py": "4537a90ec742b2194be67585b272a06ee7aaf94bb5ef3642da8c3bf6e54455a5"
+  },
+  "native_function_controls": {
+    "platform": "FreeBSD 16.0-CURRENT arm64",
+    "cases": 24,
+    "address_and_undefined_behavior_sanitizers": true,
+    "original_source_and_host_unchanged": true,
+    "compiler_sha256": "0463ac5e77544d1dcae9a28c69b1506ab2091367a0c5441414ef5ec948a49ba5",
+    "binary_sha256": "4d68e22a0bac70ad525699d09cbeb29f3750b7285808fb1e8a63702a3f74d07b",
+    "complete_original_archive": {
+      "bytes": 1982634,
+      "sha256": "8251fefe76d4c4ebbd0ce33bedbd6ccecc28dfc41a1725330811904c8b09894b",
+      "native_platform": "FreeBSD 16.0-CURRENT arm64",
+      "independent_original_sources_and_binary_reopened": true,
+      "cases": 24,
+      "sanitized": true
+    }
+  },
+  "controller_controls": {
+    "original_boottrace_tools_suite_exit": 0,
+    "tests": 33,
+    "ACPI_cases": 10,
+    "current_owned_main_source_unchanged": true,
+    "shell_syntax": "passed"
+  },
+  "full_native_loader": {
+    "original_stand_build_exit": 0,
+    "independent_native_product_review": true,
+    "producer_failure_classification": "Post-build observer searched for loader.efi; actual original make targets are loader_lua.efi, loader_4th.efi and loader_simp.efi. Original failed result retained; no rebuild or artifact rewrite.",
+    "all_original_and_candidate_source_entries_before_after": 115681,
+    "original_source_built_bootstrap_nodes_unchanged": 7172,
+    "host_unchanged": true,
+    "actual_lua_loader_links_namespace_reader": true,
+    "products": [
+      {
+        "bytes": 1260460,
+        "sha256": "746481e1f1dd22d438a88dea47e404e79eb87e52edbbb9c14bbc31e3598c494a",
+        "name": "loader_4th.efi",
+        "actual_PE_machine": "AArch64",
+        "actual_optional_header": "PE32+"
+      },
+      {
+        "bytes": 1389068,
+        "sha256": "90d61e8cd9a9c77290506ca724e130c46c754260b218c9b3d11d8c22954c54fa",
+        "name": "loader_lua.efi",
+        "actual_PE_machine": "AArch64",
+        "actual_optional_header": "PE32+"
+      },
+      {
+        "bytes": 1193208,
+        "sha256": "4942c77829a80d1b97a92758ea6fcba7cc0bd083214f5cf9392a6c2f564935f5",
+        "name": "loader_simp.efi",
+        "actual_PE_machine": "AArch64",
+        "actual_optional_header": "PE32+"
+      }
+    ],
+    "exact_EFI_boot": "passed: actual new Lua EFI booted in a fresh generic ARM64 UEFI guest",
+    "source_base_revision": "f4eb2cff7f8b5c511c448f0158f071105d19aaf5",
+    "selected_source_overlays_sha256": {
+      "stand/efi/loader/boottrace.c": {
+        "sha256": "5af08a1b0e8d6d9459694d830277978fba1f23e67e459374d2b35a3f21ffd20c"
+      },
+      "stand/efi/loader/boottrace_acpi.c": {
+        "sha256": "4a8e503a48a0a77d21c69713cfb131d96838a274a46bb86eb7a37bee919958c0"
+      },
+      "stand/efi/loader/boottrace_acpi.h": {
+        "sha256": "c8cc80629278ae1d3ac2186b0346cbbc6ca5e9c986b7bf5797eed976229687e1"
+      }
+    },
+    "complete_native_work_and_failure_custody": {
+      "independent_complete_archive_review": {
+        "archive_bytes": 1955384350,
+        "archive_sha256": "0a98c2627232f282978a12200d81d113230293af230f4757296e22dfbb62f269",
+        "all_members_read": 266805,
+        "logical_regular_file_bytes": 6759300602,
+        "hardlink_entries": 0,
+        "both_original_work_source_copies_verified": {
+          "1": 115681,
+          "2": 115681
+        },
+        "both_bootstrap_copies_verified": {
+          "1": 7172,
+          "2": 7172
+        },
+        "original_overlaid_files_verified": 3,
+        "all_three_actual_EFI_products_verified": true,
+        "native_metadata_independently_reopened": true,
+        "literal_links_modes_UID_GID_zero_flags_and_internal_hardlinks_verified": true,
+        "gzip_stream_finished_with_CRC_and_trailer": true
+      },
+      "second_physical_host_review": {
+        "healthy_separate_ext4_host": true,
+        "full_independent_archive_review": {
+          "archive_bytes": 1955384350,
+          "archive_sha256": "0a98c2627232f282978a12200d81d113230293af230f4757296e22dfbb62f269",
+          "all_members_read": 266805,
+          "logical_regular_file_bytes": 6759300602,
+          "hardlink_entries": 0,
+          "both_original_work_source_copies_verified": {
+            "1": 115681,
+            "2": 115681
+          },
+          "both_bootstrap_copies_verified": {
+            "1": 7172,
+            "2": 7172
+          },
+          "original_overlaid_files_verified": 3,
+          "all_three_actual_EFI_products_verified": true,
+          "native_metadata_independently_reopened": true,
+          "literal_links_modes_UID_GID_zero_flags_and_internal_hardlinks_verified": true,
+          "gzip_stream_finished_with_CRC_and_trailer": true
+        }
+      },
+      "metadata_comparison_scope": "All selected bootstrap node modes/UID/GID/zero flags/literals/internal hardlinks, and Git source bytes/executable bits/link kinds. Generated work also retained byte-exact under the original whole-archive SHA-256."
+    }
+  },
+  "failed_attempts_retained": [
+    "Linux default Clang future GCC-install-dir diagnostic refused under Werror before source compilation; explicit installed Clang18 passed.",
+    "Native function-control first invocation used absent python3 alias; observed python3.12 used without installing anything.",
+    "Complete native loader first invocation refused MAKEOBJDIRPREFIX on the command line and private parent permissions, before source compilation; corrected isolated second build returned zero.",
+    "First product controller test omitted re import; corrected complete suite passed.",
+    "First QEMU invocation exited before boot because the Unix control-socket pathname exceeded 108 bytes. Separate isolated second invocation used a short owned runtime socket; original failed unit, COW and journal retained."
+  ],
+  "canonical_verification": {
+    "source_locks_current": 5,
+    "product_locks_current": 8,
+    "authority": "stale; human review marker unchanged",
+    "receipt": "refused; no current earned receipt"
+  },
+  "remaining": [
+    "Physical Pi namespace capture",
+    "GPIO, power and pin sequencing, actual SDIO discovery and Wi-Fi association/traffic/recovery",
+    "Native SD and Ethernet regression across all Pi platforms",
+    "Full source/ports/toolchain provenance, canonical units, SDK/lifecycle admission and release acceptance"
+  ],
+  "exact_image_runtime": {
+    "image_bytes": 388007424,
+    "unqueued_native_image_sha256": "1cf01ad4ab0c806baa09fa6676e242e5c3111f0b56b516c05fdaa259862b6acd",
+    "queued_base_sha256": "4df6cb9644115090e2757e30f907d0fc10972989cdb896c99542c054ef2153c1",
+    "native_readonly_UFS_and_ESP_loader_kernel_scripts_and_Lua_match": true,
+    "Lua_files_checked": 19,
+    "all_18_additional_extents_exactly_preallocated": true,
+    "total_mapped_files": 229,
+    "actual_guest_kernel_sha256": "a8c493095a72afff329f1b51a67a2ff125c9d289dc6c8193d2b28643350991d6",
+    "actual_namespace_epoch": 1926467194,
+    "DSDT_sha256": "77348210dde8f59a7a028f81f93fe8c8df919e5f263d4789e1752cbe4cbc6e5d",
+    "captured_SSDT_count": 0,
+    "runtime_SSDT_positive_coverage": "No SSDTs supplied by this QEMU guest; multiple-SSDT behavior covered by the native production-reader controls.",
+    "all_29_capture_index_and_state_files_identical_after_poweroff": true,
+    "namespace_complete_within_fixed_capture_limits": true,
+    "own_VM_process_exit_and_unit_success_verified": true,
+    "frozen_base_unchanged": true,
+    "AML_evaluated_by_capture": false,
+    "physical_Pi_acceptance": false,
+    "scope": "Private generic ARM64 UEFI fixture; original GENERIC F4 kernel, no Pi firmware, desktop or physical radio acceptance."
+  },
+  "additional_generic_UEFI_profile": {
+    "image_product_input_commit": "1a37e928027b8aceb7c6029753b73039a2541807",
+    "virtual_RAM_GiB": 4,
+    "virtual_CPUs": 4,
+    "kernel_allocation_cap_GiB": 3,
+    "actual_DSDT_above_4GiB_captured": true,
+    "actual_DSDT_sha256": "3ee3114cddc684887220cbdd4dfb1afb424eb1753f2f16ed52d5a55674bcdbc8",
+    "all_29_slot_index_and_state_files_persisted_after_poweroff": true,
+    "scope": "Actual composed desktop image in generic ARM64 UEFI; no physical Pi namespace or hardware acceptance."
+  }
+}
