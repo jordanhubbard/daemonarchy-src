@@ -175,6 +175,8 @@ typedef struct {
 	int             restart;
 	uint32_t	host_ocr;
 	uint32_t	flags;
+	sbintime_t	sdio_started;
+	u_int		sdio_tries;
 #define PROBE_FLAG_ACMD_SENT	0x1 /* CMD55 is sent, card expects ACMD */
 #define PROBE_FLAG_HOST_CAN_DO_18V   0x2 /* Host can do 1.8V signaling */
 	uint8_t         acmd41_count; /* how many times ACMD41 has been issued */
@@ -499,6 +501,9 @@ static struct periph_driver probe_driver =
 PERIPHDRIVER_DECLARE(mmcprobe, probe_driver);
 
 #define	CARD_ID_FREQUENCY 400000 /* Spec requires 400kHz max during ID phase. */
+#define	SDIO_INIT_TIMEOUT SBT_1S
+#define	SDIO_INIT_MAX_TRIES 1000
+#define	SDIO_INIT_POLL_US 1000
 
 static void
 probe_periph_init(void)
@@ -531,6 +536,8 @@ mmcprobe_register(struct cam_periph *periph, void *arg)
 
 	softc->flags = 0;
 	softc->acmd41_count = 0;
+	softc->sdio_started = 0;
+	softc->sdio_tries = 0;
 	periph->softc = softc;
 	softc->periph = periph;
 	softc->action = PROBE_INVALID;
@@ -580,6 +587,64 @@ init_standard_ccb(union ccb *ccb, uint32_t cmd)
 }
 
 static void
+mmcprobe_sdio_restart(mmcprobe_softc *softc, struct mmc_params *mmcp)
+{
+
+	softc->sdio_started = 0;
+	softc->sdio_tries = 0;
+	mmcp->io_ocr = 0;
+	mmcp->sdio_func_count = 0;
+	mmcp->card_features &= ~(CARD_FEATURE_SDIO);
+}
+
+/* Only publish I/O functions after the selected-voltage CMD5 reports ready. */
+static probe_action
+mmcprobe_sdio_init_done(mmcprobe_softc *softc, struct mmc_params *mmcp,
+    const struct ccb_mmcio *mmcio)
+{
+	uint32_t response, compatible;
+	u_int functions;
+
+	mmcp->card_features &= ~(CARD_FEATURE_SDIO);
+	mmcp->sdio_func_count = 0;
+	if ((mmcio->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP ||
+	    mmcio->cmd.error != MMC_ERR_NONE)
+		goto memory_only;
+
+	response = mmcio->cmd.resp[0];
+	functions = R4_IO_NUM_FUNCTIONS(response);
+	compatible = response & R4_IO_OCR_MASK & softc->host_ocr;
+	/* A memory-only card may answer CMD5 with no I/O functions. */
+	if (functions == 0 || compatible == 0)
+		goto memory_only;
+	if (mmcio->cmd.arg == 0) {
+		mmcp->io_ocr = compatible;
+		return (PROBE_SDIO_INIT);
+	}
+	if ((mmcio->cmd.arg & compatible) == 0)
+		goto memory_only;
+	if ((response & R4_IO_READY) == 0) {
+		if (softc->sdio_tries >= SDIO_INIT_MAX_TRIES ||
+		    (uint64_t)sbinuptime() - (uint64_t)softc->sdio_started >=
+		    SDIO_INIT_TIMEOUT)
+			goto memory_only;
+		/* The xpt completion thread cannot sleep. */
+		DELAY(SDIO_INIT_POLL_US);
+		return (PROBE_SDIO_INIT);
+	}
+	mmcp->io_ocr = mmcio->cmd.arg & compatible;
+	mmcp->sdio_func_count = functions;
+	mmcp->card_features |= CARD_FEATURE_SDIO;
+	return ((response & R4_IO_MEM_PRESENT) != 0 ?
+	    PROBE_SEND_APP_OP_COND : PROBE_SEND_RELATIVE_ADDR);
+
+memory_only:
+	/* Preserve the memory-card probe path, without stale I/O metadata. */
+	mmcp->io_ocr = 0;
+	return (PROBE_SEND_APP_OP_COND);
+}
+
+static void
 mmcprobe_start(struct cam_periph *periph, union ccb *start_ccb)
 {
 	mmcprobe_softc *softc;
@@ -598,6 +663,7 @@ mmcprobe_start(struct cam_periph *periph, union ccb *start_ccb)
 
 	if (softc->restart) {
 		softc->restart = 0;
+		mmcprobe_sdio_restart(softc, mmcp);
 		if (path->device->flags & CAM_DEV_UNCONFIGURED)
 			softc->action = PROBE_RESET;
 		else
@@ -702,9 +768,15 @@ mmcprobe_start(struct cam_periph *periph, union ccb *start_ccb)
 		CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_PROBE,
 			  ("Start with PROBE_SDIO_INIT\n"));
 		init_standard_ccb(start_ccb, XPT_MMC_IO);
+		start_ccb->ccb_h.timeout = 1000;
+		if (mmcp->io_ocr != 0) {
+			if (softc->sdio_tries == 0)
+				softc->sdio_started = sbinuptime();
+			softc->sdio_tries++;
+		}
 		mmcio->cmd.opcode = IO_SEND_OP_COND; /* CMD 5 */
 		mmcio->cmd.arg = mmcp->io_ocr;
-		mmcio->cmd.flags = MMC_RSP_R4;
+		mmcio->cmd.flags = MMC_RSP_R4 | MMC_CMD_BCR;
 		mmcio->stop.opcode = 0;
 		break;
 
@@ -927,52 +999,15 @@ mmcprobe_done(struct cam_periph *periph, union ccb *done_ccb)
 	}
 	case PROBE_SDIO_INIT:
 	{
-		mmcio = &done_ccb->mmcio;
-		err = mmcio->cmd.error;
 		struct mmc_params *mmcp = &path->device->mmc_ident_data;
+		probe_action next;
 
 		CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_PROBE,
-		    ("SDIO_INIT: error %d, %08x %08x %08x %08x\n",
-		    err, mmcio->cmd.resp[0],
-		    mmcio->cmd.resp[1],
-		    mmcio->cmd.resp[2],
-		    mmcio->cmd.resp[3]));
-
-		/*
-		 * Error here means that this card is not SDIO,
-		 * so proceed with memory init as if nothing has happened
-		 */
-		if (err != MMC_ERR_NONE) {
-			PROBE_SET_ACTION(softc, PROBE_SEND_APP_OP_COND);
-			break;
-		}
-		mmcp->card_features |= CARD_FEATURE_SDIO;
-		uint32_t ioifcond = mmcio->cmd.resp[0];
-		uint32_t io_ocr = ioifcond & R4_IO_OCR_MASK;
-
-		mmcp->sdio_func_count = R4_IO_NUM_FUNCTIONS(ioifcond);
-		CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_PROBE,
-		    ("SDIO card: %d functions\n", mmcp->sdio_func_count));
-		if (io_ocr == 0) {
-			CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_PROBE,
-			  ("SDIO OCR invalid, retrying\n"));
-			break; /* Retry */
-		}
-
-		if (io_ocr != 0 && mmcp->io_ocr == 0) {
-			mmcp->io_ocr = io_ocr;
-			break; /* Retry, this time with non-0 OCR */
-		}
-		CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_PROBE,
-		    ("SDIO OCR: %08x\n", mmcp->io_ocr));
-
-		if (ioifcond & R4_IO_MEM_PRESENT) {
-			/* Combo card -- proceed to memory initialization */
-			PROBE_SET_ACTION(softc, PROBE_SEND_APP_OP_COND);
-		} else {
-			/* No memory portion -- get RCA and select card */
-			PROBE_SET_ACTION(softc, PROBE_SEND_RELATIVE_ADDR);
-		}
+		    ("SDIO_INIT: status %#x, error %u, response %#08x\n",
+		    done_ccb->ccb_h.status, done_ccb->mmcio.cmd.error,
+		    done_ccb->mmcio.cmd.resp[0]));
+		next = mmcprobe_sdio_init_done(softc, mmcp, &done_ccb->mmcio);
+		PROBE_SET_ACTION(softc, next);
 		break;
 	}
 	case PROBE_MMC_INIT:

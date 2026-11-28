@@ -159,9 +159,10 @@ struct mmc_command {
 #define	R1_STATE_DIS	8
 
 /* R4 responses (SDIO) */
-#define	R4_IO_NUM_FUNCTIONS(ocr)	(((ocr) >> 28) & 0x3)
+#define	R4_IO_READY			(1u << 31)
+#define	R4_IO_NUM_FUNCTIONS(ocr)	(((ocr) >> 28) & 0x7)
 #define	R4_IO_MEM_PRESENT		(0x1 << 27)
-#define	R4_IO_OCR_MASK			0x00fffff0
+#define	R4_IO_OCR_MASK			0x00ffff00
 
 /*
  * R5 responses
