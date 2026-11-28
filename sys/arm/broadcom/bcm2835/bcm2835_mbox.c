@@ -26,6 +26,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_acpi.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -39,6 +41,11 @@
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+
+#ifdef DEV_ACPI
+#include <contrib/dev/acpica/include/acpi.h>
+#include <dev/acpica/acpivar.h>
+#endif
 
 #include <arm/broadcom/bcm2835/bcm2835_firmware.h>
 #include <arm/broadcom/bcm2835/bcm2835_mbox.h>
@@ -85,6 +92,7 @@ struct bcm_mbox_softc {
 	int			msg[BCM2835_MBOX_CHANS];
 	int			have_message[BCM2835_MBOX_CHANS];
 	struct sx		property_chan_lock;
+	bool			acpi, polling, failed;
 };
 
 #define	mbox_read_4(sc, reg)		\
@@ -160,7 +168,18 @@ static int
 bcm_mbox_attach(device_t dev)
 {
 	struct bcm_mbox_softc *sc = device_get_softc(dev);
-	int i;
+	int i, limit;
+
+#if defined(DEV_ACPI) && defined(__aarch64__)
+	int error;
+
+	if (sc->acpi) {
+		error = bcm283x_vcbus_init_acpi(
+		    bus_get_resource_start(dev, SYS_RES_MEMORY, 0));
+		if (error != 0)
+			return (error);
+	}
+#endif
 
 	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, 0, RF_ACTIVE);
 	if (sc->mem_res == NULL) {
@@ -172,18 +191,12 @@ bcm_mbox_attach(device_t dev)
 	sc->bsh = rman_get_bushandle(sc->mem_res);
 
 	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, 0, RF_ACTIVE);
-	if (sc->irq_res == NULL) {
+	if (sc->irq_res == NULL && !sc->acpi) {
 		device_printf(dev, "could not allocate interrupt resource\n");
 		goto fail_mem;
 	}
 
-	/* Setup and enable the timer */
-	if (bus_setup_intr(dev, sc->irq_res, INTR_MPSAFE | INTR_TYPE_MISC,
-	    NULL, bcm_mbox_intr, sc, &sc->intr_hl) != 0) {
-		device_printf(dev, "Unable to setup the clock irq handler.\n");
-		goto fail_irq;
-	}
-
+	/* The handler may run immediately after registration. */
 	mtx_init(&sc->lock, "vcio mbox", NULL, MTX_DEF);
 	for (i = 0; i < BCM2835_MBOX_CHANS; i++) {
 		sc->msg[i] = 0;
@@ -191,17 +204,35 @@ bcm_mbox_attach(device_t dev)
 	}
 
 	sx_init(&sc->property_chan_lock, "mboxprop");
-
-	/* Read all pending messages */
-	while ((mbox_read_4(sc, REG_STATUS) & STATUS_EMPTY) == 0)
+	sc->polling = sc->irq_res == NULL;
+	/* Drain the receive FIFO before an interrupt handler can consume it. */
+	mbox_write_4(sc, REG_CONFIG, 0);
+	limit = 1000;
+	while ((mbox_read_4(sc, REG_STATUS) & STATUS_EMPTY) == 0) {
 		(void)mbox_read_4(sc, REG_READ);
+		if (--limit == 0) {
+			device_printf(dev, "receive FIFO did not drain\n");
+			goto fail_locks;
+		}
+	}
+	if (!sc->polling && bus_setup_intr(dev, sc->irq_res,
+	    INTR_MPSAFE | INTR_TYPE_MISC, NULL, bcm_mbox_intr, sc,
+	    &sc->intr_hl) != 0) {
+		device_printf(dev, "Unable to setup mailbox irq handler.\n");
+		goto fail_locks;
+	}
 
-	mbox_write_4(sc, REG_CONFIG, CONFIG_DATA_IRQ);
+	if (sc->polling)
+		device_printf(dev, "no firmware IRQ resource; bounded polling\n");
+	mbox_write_4(sc, REG_CONFIG, sc->polling ? 0 : CONFIG_DATA_IRQ);
 
 	return (0);
 
-fail_irq:
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
+fail_locks:
+	sx_destroy(&sc->property_chan_lock);
+	mtx_destroy(&sc->lock);
+	if (sc->irq_res != NULL)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
 	sc->irq_res = NULL;
 fail_mem:
 	bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->mem_res);
@@ -238,13 +269,13 @@ static int
 bcm_mbox_read(device_t dev, int chan, uint32_t *data)
 {
 	struct bcm_mbox_softc *sc = device_get_softc(dev);
-	int err, read_chan;
+	int err, read_chan, limit;
 
 	dprintf("bcm_mbox_read: chan %d\n", chan);
 
 	err = 0;
 	MBOX_LOCK(sc);
-	if (!cold) {
+	if (!cold && !sc->polling) {
 		if (sc->have_message[chan] == 0) {
 			if (mtx_sleep(&sc->have_message[chan], &sc->lock, 0,
 			    "mbox", 10*hz) != 0) {
@@ -253,10 +284,21 @@ bcm_mbox_read(device_t dev, int chan, uint32_t *data)
 			}
 		}
 	} else {
+		/* Firmware errors must not hang cold boot or an ACPI caller. */
+		limit = 200000;
 		do {
 			/* Wait for a message */
-			while ((mbox_read_4(sc, REG_STATUS) & STATUS_EMPTY))
-				;
+			while ((mbox_read_4(sc, REG_STATUS) & STATUS_EMPTY)) {
+				if (--limit == 0) {
+					err = ETIMEDOUT;
+					goto out;
+				}
+				DELAY(5);
+			}
+			if (--limit == 0) {
+				err = ETIMEDOUT;
+				goto out;
+			}
 			/* Read the message */
 			if (bcm_mbox_read_msg(sc, &read_chan) != 0) {
 				err = EINVAL;
@@ -297,21 +339,65 @@ static driver_t bcm_mbox_driver = {
 EARLY_DRIVER_MODULE(mbox, simplebus, bcm_mbox_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
 
+#if defined(DEV_ACPI) && defined(__aarch64__)
+static int
+bcm_mbox_acpi_probe(device_t dev)
+{
+	static char *ids[] = { "BCM2849", NULL };
+	struct bcm_mbox_softc *sc;
+
+	if (acpi_disabled("mbox") || ACPI_ID_PROBE(device_get_parent(dev),
+	    dev, ids, NULL) > 0)
+		return (ENXIO);
+	/* Only the BCM2711 register window and DMA mapping are supported. */
+	if (bus_get_resource_start(dev, SYS_RES_MEMORY, 0) !=
+	    BCM2838_ARM_IO_BASE + 0xb880 ||
+	    bus_get_resource_count(dev, SYS_RES_MEMORY, 0) < REG_WRITE + 4)
+		return (ENXIO);
+	sc = device_get_softc(dev);
+	sc->acpi = true;
+	device_set_desc(dev, "BCM2711 VideoCore Mailbox (ACPI)");
+	return (BUS_PROBE_DEFAULT);
+}
+
+static device_method_t bcm_mbox_acpi_methods[] = {
+	DEVMETHOD(device_probe,	bcm_mbox_acpi_probe),
+	DEVMETHOD_END
+};
+
+DEFINE_CLASS_1(mbox, bcm_mbox_acpi_driver, bcm_mbox_acpi_methods,
+    sizeof(struct bcm_mbox_softc), bcm_mbox_driver);
+EARLY_DRIVER_MODULE(mbox, acpi, bcm_mbox_acpi_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
+#endif
+
+struct bcm_mbox_dma_result {
+	uint64_t address;
+	int error;
+};
+
 static void
 bcm2835_mbox_dma_cb(void *arg, bus_dma_segment_t *segs, int nseg, int err)
 {
-	bus_addr_t *addr;
+	struct bcm_mbox_dma_result *result = arg;
 
-	if (err)
+	result->error = err;
+	if (err != 0)
 		return;
-	addr = (bus_addr_t *)arg;
-	*addr = ARMC_TO_VCBUS(segs[0].ds_addr);
+	if (nseg != 1) {
+		result->error = EFBIG;
+		return;
+	}
+	result->address = ARMC_TO_VCBUS(segs[0].ds_addr);
+	if (result->address > UINT32_MAX || (result->address & 0xf) != 0)
+		result->error = EINVAL;
 }
 
 static void *
 bcm2835_mbox_init_dma(device_t dev, size_t len, bus_dma_tag_t *tag,
     bus_dmamap_t *map, bus_addr_t *phys)
 {
+	struct bcm_mbox_dma_result result = { .error = EIO };
 	void *buf;
 	int err;
 
@@ -331,13 +417,18 @@ bcm2835_mbox_init_dma(device_t dev, size_t len, bus_dma_tag_t *tag,
 	}
 
 	err = bus_dmamap_load(*tag, *map, buf, len, bcm2835_mbox_dma_cb,
-	    phys, 0);
+	    &result, BUS_DMA_NOWAIT);
+	if (err == 0 && result.error != 0) {
+		bus_dmamap_unload(*tag, *map);
+		err = result.error;
+	}
 	if (err != 0) {
 		bus_dmamem_free(*tag, buf, *map);
 		bus_dma_tag_destroy(*tag);
 		device_printf(dev, "can't load DMA map\n");
 		return (NULL);
 	}
+	*phys = result.address;
 
 	return (buf);
 }
@@ -407,11 +498,15 @@ bcm2835_mbox_property(void *msg, size_t msg_size)
 
 	/* get mbox device */
 	mbox = devclass_get_device(devclass_find("mbox"), 0);
-	if (mbox == NULL)
+	if (mbox == NULL || !device_is_attached(mbox))
 		return (ENXIO);
 
 	sc = device_get_softc(mbox);
 	sx_xlock(&sc->property_chan_lock);
+	if (sc->failed) {
+		err = EIO;
+		goto out;
+	}
 
 	/* Allocate memory for the message */
 	buf = bcm2835_mbox_init_dma(mbox, msg_size, &msg_tag, &msg_map,
@@ -424,18 +519,34 @@ bcm2835_mbox_property(void *msg, size_t msg_size)
 	memcpy(buf, msg, msg_size);
 
 	bus_dmamap_sync(msg_tag, msg_map,
-	    BUS_DMASYNC_PREWRITE);
+	    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
 
-	MBOX_WRITE(mbox, BCM2835_MBOX_CHAN_PROP, (uint32_t)msg_phys);
-	MBOX_READ(mbox, BCM2835_MBOX_CHAN_PROP, &reg);
+	err = MBOX_WRITE(mbox, BCM2835_MBOX_CHAN_PROP, (uint32_t)msg_phys);
+	if (err == 0) {
+		err = MBOX_READ(mbox, BCM2835_MBOX_CHAN_PROP, &reg);
+		if (err != 0 || reg != (uint32_t)msg_phys) {
+			/*
+			 * Firmware may still write this buffer.  Retain this one
+			 * DMA allocation until reboot and refuse further requests;
+			 * never free memory still owned by an unresponsive device.
+			 */
+			if (err == 0)
+				err = EIO;
+			sc->failed = true;
+			device_printf(mbox, "property transport failed (%d); "
+			    "DMA buffer retained, reboot required\n", err);
+			goto out;
+		}
+	}
 
 	bus_dmamap_sync(msg_tag, msg_map,
-	    BUS_DMASYNC_PREREAD);
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
-	memcpy(msg, buf, msg_size);
-
-	err = bcm2835_mbox_err(mbox, msg_phys, reg,
-	    (struct bcm2835_mbox_hdr *)msg, msg_size);
+	if (err == 0) {
+		memcpy(msg, buf, msg_size);
+		err = bcm2835_mbox_err(mbox, msg_phys, reg,
+		    (struct bcm2835_mbox_hdr *)msg, msg_size);
+	}
 
 	bus_dmamap_unload(msg_tag, msg_map);
 	bus_dmamem_free(msg_tag, buf, msg_map);

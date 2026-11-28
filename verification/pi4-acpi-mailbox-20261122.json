@@ -1,0 +1,104 @@
+{
+  "schema": "daemonarchy/development-probe@1",
+  "date_utc": "2026-11-22T09:41:43.065372+00:00",
+  "work": "RPI-MBOX-001",
+  "status": "native-kernel-and-sanitized-function-controls-passed-physical-mailbox-pending",
+  "canonical_lifecycle_admission": false,
+  "source": {
+    "review_base": "761fa6f25685266e19ce820fb96c9285280a571a",
+    "candidate_driver_commit": "3dd962c978ed6e554f20c535da43edfb711b3118",
+    "native_build_base": "f4eb2cff7f8b5c511c448f0158f071105d19aaf5",
+    "driver_files_sha256": {
+      "sys/arm/broadcom/bcm2835/bcm2835_mbox.c": "7d3201ed04f565c8b6aa4bc183423d8b24b0a63615d1c784b3f361f43889a63d",
+      "sys/arm/broadcom/bcm2835/bcm2835_vcbus.c": "ba5dcb23122265afbf00c62a4bb71d9c6079f4fb311680956cbc7f8d1920af25",
+      "sys/arm/broadcom/bcm2835/bcm2835_vcbus.h": "bf18cb5ec8404c8cecf809b820214f2c6b7b982b06c32313cffba7fc445b691d"
+    },
+    "native_build_base_differences_from_review_base": [
+      "contrib/tzcode/localtime.c",
+      "lib/libc/tests/stdtime/Makefile",
+      "lib/libc/tests/stdtime/localtime_test.c"
+    ],
+    "kernel_and_build_rule_trees_equal_between_bases": true,
+    "unrelated_timezone_fix_excluded_from_review": true,
+    "test_script_sha256": "d7b591e4cc10f3199d6f74d2f049001d1d54246f1ee0b41fb6e7e358adef861e"
+  },
+  "native_function_controls": {
+    "target": "FreeBSD aarch64",
+    "compiler_flags": [
+      "-std=c11",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer"
+    ],
+    "case_exit_codes": {
+      "resource-refusal": 0,
+      "soc-refusal": 0,
+      "dma-address-refusal": 0,
+      "provider-absent": 0,
+      "allocation-failure": 0,
+      "unsent-request": 0,
+      "late-dma-timeout": 0,
+      "wrong-response": 0,
+      "completed-request": 0,
+      "firmware-error": 0,
+      "cold-empty-timeout": 0,
+      "poll-empty-timeout": 0,
+      "foreign-channel-timeout": 0,
+      "poll-message": 0,
+      "poll-message-error": 0,
+      "irq-message": 0
+    },
+    "production_sources_unchanged": true,
+    "observed_worker_host_files_unchanged": true,
+    "original_property_counterfactual": {
+      "source_base": "f4eb2cff7f8b5c511c448f0158f071105d19aaf5",
+      "only_substituted_function": "bcm2835_mbox_property",
+      "expected_failed_main_assertions": 3,
+      "actual_exit_codes": {
+        "late-dma-timeout": -6,
+        "wrong-response": -6,
+        "unsent-request": -6
+      },
+      "scope": "Original production property function with the same candidate userspace services; not the original kernel."
+    },
+    "scope": "Five verbatim production functions with mocked services, not VideoCore or hardware DMA emulation."
+  },
+  "controller_controls": {
+    "os": "Linux",
+    "sanitizers": [
+      "address",
+      "undefined"
+    ],
+    "passed_cases": 16
+  },
+  "native_kernel": {
+    "target": "FreeBSD arm64/aarch64 GENERIC",
+    "buildkernel_exit": 0,
+    "original_source_entries_checked_pre_post": 115681,
+    "candidate_source_entries_checked_pre_post": 115681,
+    "original_bootstrap_unchanged": true,
+    "observed_host_files_unchanged": true,
+    "source_built_bootstrap_copy_nodes": 1113,
+    "kernel_bytes": 19941472,
+    "kernel_sha256": "bb3278a22dd15933d10b4c393004e9cfab922d7973532405d087d4282f110090",
+    "candidate_files_and_kernel_independently_read_back": true,
+    "generic_UEFI_boot_kernel_sha256": "bb3278a22dd15933d10b4c393004e9cfab922d7973532405d087d4282f110090",
+    "scope": "Generic UEFI guests have no BCM2711 mailbox; boot and software display are not positive firmware property acceptance."
+  },
+  "compile_only_control": {
+    "native_compile_and_ELF_link_exit": 0,
+    "module_loaded": false,
+    "reason": "Duplicate built-in APIs; never load this compile-only module."
+  },
+  "remaining": [
+    "Physical BCM2711 attachment and read-only firmware revision request.",
+    "Real firmware transport error/recovery, FDT and ARM32 regression.",
+    "GPIO, power, MMCCAM/SDIO, firmware and WiFi association/traffic/recovery.",
+    "Pi5 mailbox resource/DMA mapping and VC4/V3D acceleration.",
+    "Complete source/toolchain provenance, canonical Component/SDK/lifecycle and full 1.6 product acceptance.",
+    "Separate human documentation authority review; no marker self-attestation."
+  ],
+  "retention": "Original sources, generated controls, native products, command output and failed attempts retained privately."
+}

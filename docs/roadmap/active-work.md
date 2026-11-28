@@ -1,5 +1,42 @@
 # Source development work
 
+### [ ] RPI-SDIO-001 — Qualify Pi 4 Wi-Fi and native media with MMCCAM
+
+- **Owner:** Broadcom SDIO, native MMC/CAM and Pi firmware services.
+- **Development controls:** Original GENERIC-MMCCAM builds and boots in a
+  generic ARM64 UEFI guest. The pinned unmodified native Broadcom driver builds
+  with the exact kernel options, registers both bus frontends and passes two
+  idle load/unload cycles with matching WLAN/CCMP modules. Original source,
+  generated headers, host files and kernel products remain unchanged.
+- **Evidence:** [Compatibility guide](../pi4-sdio-wifi.md) and
+  [scoped record](../../verification/pi4-mmccam-brcmfmac-20261122.json).
+- **Open gates:** Investigate the unclassified initial readback disagreement;
+  qualify module CTF/DTrace, all existing owned-port patches and ARM package
+  consumers, physical SDIO/power/firmware/Wi-Fi, native SD/Ethernet regression,
+  recovery, source/toolchain provenance and canonical lifecycle/release acceptance.
+- **Boundary:** No change to the default product kernel profile and no physical
+  Wi-Fi or installed-package acceptance from these generic VM controls.
+
+### [ ] RPI-MBOX-001 — Qualify the BCM2711 ACPI property mailbox
+
+- **Owner:** Pi 4 firmware services and Broadcom platform prerequisites.
+- **Direction:** Attach the original property mailbox to the validated BCM2711
+  ACPI resource, including firmware without an IRQ, while preserving FDT support.
+- **Implementation:** BCM2711-only resource/DMA-domain selection, bounded polling,
+  paired DMA synchronization and error propagation; retain an in-flight allocation
+  and refuse new requests after an uncertain firmware completion.
+- **Development evidence:** Sixteen sanitized production-function controls pass
+  on native FreeBSD ARM64 and Linux; three original-property safety assertions
+  fail in a native counterfactual. Exact candidate files compile/link natively
+  and produce a complete GENERIC kernel that boots in generic UEFI guests.
+  See [the mailbox guide](../pi4-acpi-mailbox.md) and
+  [scoped record](../../verification/pi4-acpi-mailbox-20261122.json).
+- **Open gates:** Physical attachment and read-only firmware request, real error
+  recovery, FDT/ARM32 regression, GPIO/power/MMCCAM/SDIO/Wi-Fi, acceleration,
+  source/toolchain admission and canonical lifecycle/release acceptance.
+- **Review:** Documentation authority review remains separate and pending;
+  do not refresh its marker as a consequence of these native controls.
+
 ### [ ] SRC-UNIT-001 — Qualify original application/library/header composition
 
 - **Owner:** Source unit contracts and retained native lifecycle binding.
