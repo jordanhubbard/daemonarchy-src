@@ -1,0 +1,47 @@
+{
+  "schema": "daemonarchy/upstream-import-audit@2",
+  "observed": "2026-11-27T05:46:29.468876+00:00",
+  "repository": "daemonarchy-src",
+  "previous_owned_main": "759e93f1bbc79103eda36077e7c28d17317f15c8",
+  "upstream_reference": "freebsd/main",
+  "upstream_commit": "f7c709b3d7e8a71eeadd432c6cb491929d9f4462",
+  "merge_base": "96c545176df7be2c33587fe4a35ac18af40d8dea",
+  "import_tree_before_this_evidence_file": "957f0ca759af2ac9d580022e3a4362343e17d08c",
+  "complete_tree_file_entries": 115680,
+  "upstream_changed_paths": 630,
+  "fork_changed_paths": 648,
+  "path_inventory_includes_both_sides_of_renames": true,
+  "shared_changed_paths": [
+    "stand/efi/loader/main.c",
+    "sys/arm64/arm64/pmap.c",
+    "sys/conf/files",
+    "sys/net/iflib.c",
+    "tests/sys/Makefile"
+  ],
+  "upstream_bytes_modes_and_deletions_exact_outside_fork_delta": true,
+  "fork_bytes_modes_and_deletions_exact_outside_upstream_delta": true,
+  "native_build_and_runtime_qualified": false,
+  "qualification_scope": "Complete source-tree import and preservation audit. Previous native receipts remain bound to original commits; native build/runtime, per-unit ownership/provenance, SDK and release acceptance remain open.",
+  "portable_controller_tests": {
+    "cases": 168,
+    "passed": 163,
+    "skipped": 5,
+    "skip_reasons": [
+      "test_actual_release_tree_archives_preserve_symlinks_and_root_ownership (test_build.BuildTests.test_actual_release_tree_archives_preserve_symlinks_and_root_ownership) ... skipped 'requires native FreeBSD release make'",
+      "test_native_trace_mode_preserves_structured_make_query_stdout (test_build.BuildTests.test_native_trace_mode_preserves_structured_make_query_stdout) ... skipped 'requires native meta-mode make'",
+      "test_actual_native_bsd_make_metadata (test_observe_unit_inputs_native.NativeProducerSmoke.test_actual_native_bsd_make_metadata) ... skipped 'native-unavailable: actual FreeBSD BSD-make report required'",
+      "test_real_atf_expected_failure_and_root_skip_are_preserved (test_report_kyua.KyuaReportTests.test_real_atf_expected_failure_and_root_skip_are_preserved) ... skipped 'requires unprivileged native FreeBSD Kyua and ATF'",
+      "test_real_kyua_database_reports_actual_plain_test_outcome (test_report_kyua.KyuaReportTests.test_real_kyua_database_reports_actual_plain_test_outcome) ... skipped 'requires actual native Kyua'"
+    ]
+  },
+  "authority_validation": "pass",
+  "committed_contract_locks_current": 5,
+  "canonical_test_receipt": "missing; not fabricated",
+  "imported_whitespace_check": {
+    "exit": 2,
+    "warning_files": 27,
+    "all_warning_files_exact_upstream_blobs": true,
+    "mixed_warning_files": [],
+    "policy": "Retain exact upstream bytes, including upstream whitespace in source and patches."
+  }
+}
