@@ -1,0 +1,24 @@
+{
+  "schema": "daemonarchy/upstream-import-audit@2",
+  "observed": "2026-11-27T05:57:48.329453+00:00",
+  "repository": "daemonarchy-src",
+  "previous_owned_main": "387ff7fa2f3f09bc72296f1b8ded425f95f89278",
+  "upstream_reference": "freebsd/main",
+  "upstream_commit": "05f2f4129779ccb0857b05ed38ea5b825bae0107",
+  "merge_base": "f7c709b3d7e8a71eeadd432c6cb491929d9f4462",
+  "import_tree_before_this_evidence_file": "6d39e4d15e0d2c1ce93e0cbe2ffdb079486e7058",
+  "complete_tree_file_entries": 115681,
+  "upstream_changed_paths": 2,
+  "fork_changed_paths": 649,
+  "path_inventory_includes_both_sides_of_renames": true,
+  "shared_changed_paths": [
+    "sys/arm64/arm64/pmap.c"
+  ],
+  "upstream_bytes_modes_and_deletions_exact_outside_fork_delta": true,
+  "fork_bytes_modes_and_deletions_exact_outside_upstream_delta": true,
+  "native_build_and_runtime_qualified": false,
+  "qualification_scope": "Complete source-tree import and preservation audit. Previous native receipts remain bound to original commits; native build/runtime, per-unit ownership/provenance, SDK and release acceptance remain open.",
+  "preceding_import_audit": "verification/freebsd-main-sync-20261126-development.json",
+  "portable_controller_code_unchanged_since_tested_import": true,
+  "final_delta_native_qualification": "Pending: ARM pmap/trap changes for source; new/updated upstream ports for ports. No native receipt or runtime admission is inferred."
+}
