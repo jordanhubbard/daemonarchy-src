@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: BSD-2-Clause
+<code_set_name> "GB18030"
+<mb_cur_min> 1
+<mb_cur_max> 4
+CHARMAP
+<UPPER_G> \xA3\xC7
+<LOWER_G> \xA3\xE7
+<UPPER_L> \x81\x30\x91\x39
+<LOWER_L> \x81\x30\x92\x30
+END CHARMAP

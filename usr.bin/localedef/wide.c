@@ -57,6 +57,7 @@ static int towide_euctw(wchar_t *, const char *, unsigned);
 static int tomb_none(char *, wchar_t);
 static int tomb_utf8(char *, wchar_t);
 static int tomb_mbs(char *, wchar_t);
+static int tomb_gb18030(char *, wchar_t);
 
 static int (*_towide)(wchar_t *, const char *, unsigned) = towide_none;
 static int (*_tomb)(char *, wchar_t) = tomb_none;
@@ -127,7 +128,7 @@ static struct {
 	 * at least one of the other bits in that 4 byte value will
 	 * be non-zero.
 	 */
-	{ "GB18030",	"GB18030",	31, towide_gb18030, tomb_mbs },
+	{ "GB18030",	"GB18030",	31, towide_gb18030, tomb_gb18030 },
 
 	/*
 	 * This should probably be an aliase for euc-cn, or vice versa.
@@ -425,6 +426,8 @@ towide_gb18030(wchar_t *wc, const char *mb, unsigned n)
 			    show_mb(mb));
 			return (-1);
 		}
+		/* Match libc's positive, 31-bit GB18030 wide characters. */
+		c &= 0x7fff;
 		c <<= 8;
 		c |= (uint8_t)(mb[2]);
 		c <<= 8;
@@ -435,6 +438,24 @@ towide_gb18030(wchar_t *wc, const char *mb, unsigned n)
 
 	*wc = c;
 	return (2);
+}
+
+static int
+tomb_gb18030(char *mb, wchar_t wc)
+{
+	uint8_t *s = (uint8_t *)mb;
+	uint32_t c = (uint32_t)wc;
+
+	if (c <= 0xffff)
+		return (tomb_mbs(mb, wc));
+
+	/* Restore the leading bit omitted by libc's wide representation. */
+	s[0] = (c >> 24) | 0x80;
+	s[1] = c >> 16;
+	s[2] = c >> 8;
+	s[3] = c;
+	s[4] = 0;
+	return (4);
 }
 
 /*
