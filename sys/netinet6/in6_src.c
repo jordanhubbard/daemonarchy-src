@@ -353,10 +353,12 @@ in6_selectsrc(uint32_t fibnum, struct sockaddr_in6 *dstsock,
 		/*
 		 * Rule 3: Avoid deprecated addresses.  Note that the case of
 		 * !ip6_use_deprecated is already rejected above.
+		 * RFC 4429 section 2.1: treat optimistic addresses
+		 * equivalently to deprecated addresses.
 		 */
-		if (!IFA6_IS_DEPRECATED(ia_best) && IFA6_IS_DEPRECATED(ia))
+		if (!IFA6_IS_AVOIDED(ia_best) && IFA6_IS_AVOIDED(ia))
 			NEXT(3);
-		if (IFA6_IS_DEPRECATED(ia_best) && !IFA6_IS_DEPRECATED(ia))
+		if (IFA6_IS_AVOIDED(ia_best) && !IFA6_IS_AVOIDED(ia))
 			REPLACE(3);
 
 		/* Rule 4: Prefer home addresses */
@@ -658,7 +660,9 @@ cache_route(uint32_t fibnum, const struct sockaddr_in6 *dst, struct route_in6 *r
 			paddr = &unscoped_addr;
 		} else
 			paddr = &dst->sin6_addr;
-		ro->ro_nh = fib6_lookup(fibnum, paddr, scopeid, NHR_REF, flowid);
+		ro->ro_nh = fib6_lookup(fibnum, paddr, scopeid,
+		    (ro->ro_flags & RT_NH_NOREF) != 0 ? NHR_NONE : NHR_REF,
+		    flowid);
 	}
 	return (ro->ro_nh);
 }
