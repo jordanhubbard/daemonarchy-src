@@ -662,3 +662,15 @@ an SDK. Existing malformed AMD records and their strict refusal remain retained.
 - **Admission boundary:** Require candidate tests and native/hosted review gates
   before landing. Reliable renewed full capture, canonical ownership and per-unit
   packaging/lifecycle remain separate open requirements.
+
+### [ ] SDHCI-COMPLETION-001 — Prioritize transfer completion over SDMA boundary reload
+
+- **Priority:** P1
+- **Owner:** Native SDHCI and MMCCAM
+- **Direction:** Prevent a completed SDMA transfer from advancing and restarting its bounce buffer when DMA_END and DATA_END arrive together.
+- **Conclusion:** Minimal candidate fix passes nineteen focused cases on native FreeBSD ARM64 and AMD64 and Linux ASan/UBSan; original passes nine and fails ten. Fresh selected-module ARM64 kernel build and default-DMA virtual-card read/write renewal pass; physical SD/SDIO and release qualification remain open.
+- **Depends on:** none
+- **Implementation:**
+  - [ ] sys/dev/sdhci/sdhci.c
+- **Evidence:**
+  - [ ] docs/sdhci-combined-completion.md
